@@ -51,10 +51,11 @@
   #kifill{background:linear-gradient(90deg,#2e9dff,var(--cyan));width:0%}
   #xpfill{background:linear-gradient(90deg,#b96bff,#ff6bd8);width:0%;height:100%}
   .xpbar{height:5px;border-radius:3px;background:rgba(10,16,30,.8);border:1px solid rgba(185,107,255,.3);overflow:hidden;margin-top:5px}
-  #questbox{position:fixed;left:14px;top:112px;max-width:280px;background:rgba(8,14,26,.75);
-    border-left:3px solid var(--gold);border-radius:6px;padding:7px 11px;font-size:12px}
-  #questbox h4{color:var(--gold);font-size:11px;letter-spacing:2px;margin-bottom:2px}
-  #questbox p{color:#b8c6da;line-height:1.3}
+  #questbox{position:fixed;left:14px;top:112px;max-width:290px;background:rgba(8,14,26,.82);
+    border-left:3px solid var(--gold);border-radius:6px;padding:8px 12px;font-size:12.5px;
+    box-shadow:0 2px 12px rgba(0,0,0,.4)}
+  #questbox h4{color:var(--gold);font-size:11px;letter-spacing:2px;margin-bottom:3px}
+  #questbox p{color:#c4d2e6;line-height:1.45}
   #questbox .qdone{color:var(--green)}
   #topbar{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:18px;
     background:var(--panel);border:1px solid var(--border);border-radius:12px;
@@ -96,7 +97,8 @@
     -webkit-tap-highlight-color:transparent}
   .tbtn i{font-style:normal;font-size:20px;line-height:1}
   .tbtn:active,.tbtn.held{background:rgba(77,225,255,.35);border-color:var(--cyan)}
-  #btnFire{width:78px;height:78px;border-color:rgba(255,213,74,.55)}
+  #btnFire{width:78px;height:78px;border-color:rgba(255,213,74,.55);grid-column:3}
+  #btnBuild{border-color:rgba(124,252,0,.4)}
   #btnTalk{position:fixed;left:50%;bottom:22vh;transform:translateX(-50%);width:auto;height:auto;
     border-radius:12px;padding:10px 22px;font-size:13px;background:rgba(255,213,74,.16);
     border:2px solid var(--gold);color:var(--gold);z-index:16;pointer-events:auto}
@@ -107,8 +109,9 @@
   #dialog{position:fixed;left:50%;bottom:4vh;transform:translateX(-50%);width:min(640px,94vw);
     background:var(--panel);border:1px solid var(--gold);border-radius:14px;padding:14px 20px;
     z-index:35;cursor:pointer;pointer-events:auto}
-  #dialog h4{color:var(--gold);font-size:13px;letter-spacing:2px;margin-bottom:5px}
-  #dialog p{font-size:14px;line-height:1.5;color:#dbe6f5;min-height:40px}
+  #dialog h4{color:var(--gold);font-size:13px;letter-spacing:2px;margin-bottom:6px;
+    padding-bottom:5px;border-bottom:1px solid rgba(255,213,74,.2)}
+  #dialog p{font-size:15px;line-height:1.6;color:#e4edf8;min-height:44px}
   #dialog small{display:block;text-align:right;color:#6f8199;font-size:11px;margin-top:4px}
   /* ---------- Skill tree ---------- */
   #skilltree{z-index:45}
@@ -193,6 +196,7 @@
 <div class="touch-only">
   <div id="joyZone"><div id="joyBase"></div><div id="joyKnob"></div></div>
   <div id="tbtns">
+    <div class="tbtn" id="btnBuild"><i>⛨</i>BUILD</div>
     <div class="tbtn" id="btnForm"><i>★</i>ASCEND</div>
     <div class="tbtn" id="btnGren"><i>✦</i>GRENADE</div>
     <div class="tbtn" id="btnDash"><i>»</i>DASH</div>
@@ -226,11 +230,22 @@
     <div><kbd>LMB</kbd> Pulse rifle &nbsp; <kbd>RMB</kbd> hold+release: Nova Beam</div>
     <div><kbd>Q</kbd> Aether nova &nbsp; <kbd>E</kbd> Grenade</div>
     <div><kbd>Shift</kbd> Dash &nbsp; <kbd>F</kbd> Ascend (full aether)</div>
-    <div><kbd>K</kbd> Skill tree &nbsp; <kbd>T</kbd> Talk to NPC</div>
+    <div><kbd>B</kbd> Build barricade (3⬡) — exit it for a repel blast</div>
+    <div><kbd>K</kbd> Skill tree &nbsp; <kbd>T</kbd> Talk / trade with NPCs</div>
     <div><kbd>P</kbd> Pause &nbsp; 📱 Full touch controls on mobile</div>
+    <div>🎁 Loot the supply cache after every wave!</div>
   </div>
   <button class="big" id="startBtn">ENTER THE RIFT</button>
   <p class="touchnote" id="touchNote"></p>
+</div>
+
+<div id="vendor" class="overlay hidden">
+  <div class="panel" style="background:var(--panel);border:1px solid rgba(255,213,74,.45);border-radius:16px;padding:20px 24px;max-width:640px;width:94vw;max-height:92vh;overflow-y:auto;touch-action:pan-y">
+    <h2 style="color:var(--gold);letter-spacing:2px;font-size:21px;margin-bottom:3px">🜚 MERCHANT VEX — Northreach trading post</h2>
+    <p class="cores" style="color:var(--cyan);margin-bottom:14px;font-size:14px">Energy cores: <b id="vendorCores"></b> · <em id="vexQuip" style="color:#9fb2c9;font-style:italic"></em></p>
+    <div class="shopgrid" id="vendorGrid"></div>
+    <button class="big" id="closeVendorBtn">LEAVE</button>
+  </div>
 </div>
 
 <div id="skilltree" class="overlay hidden">

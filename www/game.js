@@ -39,14 +39,17 @@ const $ = id => document.getElementById(id);
 function hash2(x, y) { let h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return h - Math.floor(h); }
 
 // ============================ WORLD ===============================
-const WORLD = { w: 3000, h: 3000 };
+const WORLD = { w: 3600, h: 3600 };
 const CAMP = { x: WORLD.w / 2, y: WORLD.h / 2 };
-const FORT = { x: WORLD.w - 950, y: 120, w: 830, h: 780 };   // Northreach Fort (stone)
-const ASH  = { x: 120, y: WORLD.h - 1000, w: 900, h: 880 };  // The Ashen Reach
+const FORT  = { x: WORLD.w - 1000, y: 120, w: 880, h: 820 };            // Northreach Fort (stone)
+const ASH   = { x: 120, y: WORLD.h - 1050, w: 950, h: 930 };            // The Ashen Reach
+const MARSH = { x: WORLD.w - 1150, y: WORLD.h - 1150, w: 1030, h: 1030 }; // Duskmere Marsh
 
+const inRect = (x, y, r) => x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h;
 const REGIONS = [
-  { name: 'NORTHREACH FORT', test: (x, y) => x > FORT.x && x < FORT.x + FORT.w && y > FORT.y && y < FORT.y + FORT.h },
-  { name: 'THE ASHEN REACH', test: (x, y) => x > ASH.x && x < ASH.x + ASH.w && y > ASH.y && y < ASH.y + ASH.h },
+  { name: 'NORTHREACH FORT', test: (x, y) => inRect(x, y, FORT) },
+  { name: 'THE ASHEN REACH', test: (x, y) => inRect(x, y, ASH) },
+  { name: 'DUSKMERE MARSH',  test: (x, y) => inRect(x, y, MARSH) },
   { name: 'EMBERFALL CAMP',  test: (x, y) => dist2(x, y, CAMP.x, CAMP.y) < 300 * 300 },
   { name: 'THE SHATTERED FIELDS', test: () => true },
 ];
@@ -54,8 +57,9 @@ let currentRegion = '';
 
 function zoneAt(x, y) {
   if (dist2(x, y, CAMP.x, CAMP.y) < 300 * 300) return 'stone';
-  if (x > FORT.x && x < FORT.x + FORT.w && y > FORT.y && y < FORT.y + FORT.h) return 'stone';
-  if (x > ASH.x && x < ASH.x + ASH.w && y > ASH.y && y < ASH.y + ASH.h) return 'ash';
+  if (inRect(x, y, FORT)) return 'stone';
+  if (inRect(x, y, ASH)) return 'ash';
+  if (inRect(x, y, MARSH)) return 'marsh';
   return 'grass';
 }
 
@@ -95,6 +99,21 @@ function makeTileTex(kind) {
     }
     // faint ember glints
     for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(255,110,40,0.25)'; g.fillRect(rand(0, TILE), rand(0, TILE), 2, 2); }
+  } else if (kind === 'marsh') {
+    g.fillStyle = '#132220'; g.fillRect(0, 0, TILE, TILE);
+    for (let i = 0; i < 240; i++) {
+      const v = rand(0, 1);
+      g.fillStyle = v < .45 ? '#16292665' : v < .75 ? '#0e1a18' : '#1b332f';
+      g.fillRect(rand(0, TILE), rand(0, TILE), rand(1, 4), rand(1, 3));
+    }
+    // still-water pools with ripple rings
+    for (let i = 0; i < 3; i++) {
+      const x = rand(10, TILE - 10), y = rand(10, TILE - 10), r = rand(6, 14);
+      g.fillStyle = 'rgba(30,60,66,0.55)';
+      g.beginPath(); g.ellipse(x, y, r, r * 0.6, 0, 0, TAU); g.fill();
+      g.strokeStyle = 'rgba(110,160,150,0.22)'; g.lineWidth = 1;
+      g.beginPath(); g.ellipse(x, y, r * 0.6, r * 0.35, 0, 0, TAU); g.stroke();
+    }
   } else { // stone
     g.fillStyle = '#232733'; g.fillRect(0, 0, TILE, TILE);
     g.strokeStyle = 'rgba(10,12,18,0.8)'; g.lineWidth = 2;
@@ -126,27 +145,29 @@ function buildWorld() {
     return true;
   };
   // scattered rocks & supply crates
-  for (let i = 0; i < 20; i++)
+  for (let i = 0; i < 28; i++)
     tryPlace(rand(160, WORLD.w - 160), rand(160, WORLD.h - 160), rand(36, 62), i % 2 ? 'rock' : 'crate');
-  // forest patches in the grass fields
-  for (let i = 0; i < 34; i++) {
+  // forest patches in the grass fields + dead trees in the marsh
+  for (let i = 0; i < 52; i++) {
     const cx = rand(300, WORLD.w - 300), cy = rand(300, WORLD.h - 300);
-    if (zoneAt(cx, cy) !== 'grass') continue;
-    tryPlace(cx, cy, 14, 'tree');
+    const z = zoneAt(cx, cy);
+    if (z === 'grass') tryPlace(cx, cy, 14, 'tree');
+    else if (z === 'marsh') tryPlace(cx, cy, 12, 'deadtree');
   }
   // ruined pillars around the fort + ash reach (fallen kingdom vibe)
-  for (let i = 0; i < 8; i++)
+  for (let i = 0; i < 9; i++)
     tryPlace(FORT.x + rand(60, FORT.w - 60), FORT.y + rand(60, FORT.h - 60), 20, 'pillar');
-  for (let i = 0; i < 5; i++)
+  for (let i = 0; i < 6; i++)
     tryPlace(ASH.x + rand(60, ASH.w - 60), ASH.y + rand(60, ASH.h - 60), 20, 'pillar');
   // ground decor
-  for (let i = 0; i < 900; i++) {
+  for (let i = 0; i < 1400; i++) {
     const x = rand(40, WORLD.w - 40), y = rand(40, WORLD.h - 40);
     const z = zoneAt(x, y);
     const roll = hash2(x, y);
     let type;
     if (z === 'grass') type = roll < .5 ? 'tuft' : roll < .75 ? 'pebble' : roll < .9 ? 'flower' : 'mushroom';
     else if (z === 'ash') type = roll < .45 ? 'bone' : roll < .8 ? 'pebble' : 'skull';
+    else if (z === 'marsh') type = roll < .55 ? 'reed' : roll < .8 ? 'lily' : 'mushroom';
     else type = roll < .6 ? 'crack' : 'pebble';
     decor.push({ x, y, type, seed: roll * 9 });
   }
@@ -172,6 +193,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyE') tryGrenade();
   if (e.code === 'KeyK') toggleTree();
   if (e.code === 'KeyT') tryTalk();
+  if (e.code === 'KeyB') tryBuild();
 });
 addEventListener('keyup', e => keys[e.code] = false);
 canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -230,6 +252,7 @@ bindHold('btnNova', () => tryNova());
 bindHold('btnGren', () => tryGrenade());
 bindHold('btnDash', () => tryDash(true));
 bindHold('btnForm', () => tryTransform());
+bindHold('btnBuild', () => tryBuild());
 $('btnTalk').addEventListener('pointerdown', e => { e.preventDefault(); tryTalk(); });
 $('btnMenu').addEventListener('pointerdown', e => { e.preventDefault(); toggleTree(); });
 
@@ -243,6 +266,11 @@ let beam = null, beamCharge = 0, charging = false;
 let spawnQueue = 0, spawnTimer = 0, waveActive = false;
 let shopTimer = 0, victoryShown = false;
 let waveCatsUsed = new Set(); // for the "Adaptive Doctrine" quest
+let chest = null;             // end-of-wave supply cache {x,y,t}
+let graceT = 0;               // looting window between wave end and shop
+let barricades = [];          // player-built energy fences {x,y,r,hp,maxHp}
+let pulseCd = 0;              // cooldown for the barricade exit-blast
+const BARRICADE_MAX = 8, BARRICADE_COST = 3, BARRICADE_HP = 160;
 
 // =========================== PLAYER ===============================
 const player = {};
@@ -268,6 +296,7 @@ const gear = [
   { id: 'beam',  name: 'Nova Focus Lens',    desc: '+28% beam damage & width',     base: 12, lvl: 0, max: 5 },
   { id: 'gren',  name: 'Grenade Bandolier',  desc: '+1 grenade capacity, +blast',  base: 9,  lvl: 0, max: 4 },
   { id: 'boots', name: 'Anti-Grav Boots',    desc: '+8% move speed, faster dash',  base: 7,  lvl: 0, max: 4 },
+  { id: 'armor', name: 'Riftsteel Armor',    desc: '−7% damage taken per plate',   base: 11, lvl: 0, max: 5 },
 ];
 const gearLvl = id => gear.find(u => u.id === id).lvl;
 const gearCost = u => Math.round(u.base * Math.pow(1.6, u.lvl));
@@ -311,6 +340,7 @@ function maxGrenades()   { return 3 + gearLvl('gren'); }
 function moveSpeed()     { return 235 * (1 + .08 * gearLvl('boots') + .08 * sk('s2')) * (player.form ? 1.25 : 1); }
 function kiRegen()       { return (3.5 + 1.1 * gearLvl('ki')) * (1 + .4 * sk('a2')); }
 function magnetRange()   { return 150 + 55 * sk('s3'); }
+function armorReduce()   { return 0.07 * gearLvl('armor'); } // up to 35% damage taken reduction
 
 // =================== HORDE LEARNING ENGINE ========================
 // Damage tallies per category feed a resistance model: lean on one
@@ -407,8 +437,19 @@ function gainXp(n) {
   }
 }
 
-// ====================== QUESTS & STORY ============================
-const NPC = { x: CAMP.x + 80, y: CAMP.y - 30, r: 14, name: 'Quartermaster Bramm' };
+// ====================== NPCS, QUESTS & STORY ======================
+const NPC  = { x: CAMP.x + 80, y: CAMP.y - 30, r: 14, name: 'Quartermaster Bramm', role: 'quest' };
+const VEX  = { x: FORT.x + FORT.w / 2, y: FORT.y + FORT.h / 2, r: 14, name: 'Merchant Vex', role: 'vendor' };
+const MIRA = { x: ASH.x + ASH.w / 2, y: ASH.y + ASH.h / 2, r: 14, name: 'Scout Mira', role: 'lore' };
+const NPCS = [NPC, VEX, MIRA];
+function nearestNpc() {
+  let best = null, bd = 110 * 110;
+  for (const n of NPCS) {
+    const d2 = dist2(player.x, player.y, n.x, n.y);
+    if (d2 < bd) { bd = d2; best = n; }
+  }
+  return best;
+}
 
 const QUESTS = [
   {
@@ -507,8 +548,11 @@ function questEvent(kind, data) {
 }
 
 function tryTalk() {
-  if (state !== 'playing' || dialogOpen) return;
-  if (dist2(player.x, player.y, NPC.x, NPC.y) > 110 * 110) return;
+  if (state !== 'playing' || dialogOpen || vendorOpen) return;
+  const npc = nearestNpc();
+  if (!npc) return;
+  if (npc.role === 'vendor') { openVendor(); return; }
+  if (npc.role === 'lore') { talkMira(); return; }
   if (questIdx >= QUESTS.length) {
     openDialog(NPC.name, ['The rift is sealed and still you patrol… Rest, legend. Emberfall owes you everything.']);
     return;
@@ -537,6 +581,77 @@ function tryTalk() {
   }
 }
 function randFrom(a) { return a[(Math.random() * a.length) | 0]; }
+
+// ---------- Scout Mira: frontier lore, one chapter per visit ----------
+const MIRA_LORE = [
+  ["You made it through the ash? Impressive. I'm Mira — I scout what's left of the southern holds.",
+   "Here, ten cores. Found them on a dead ork. He won't miss them.",
+   "Watch the marsh to the east. Things float in Duskmere that don't leave footprints."],
+  ["The orks weren't always monsters. The rift twisted a whole war-clan mid-march. Now they fight for the tear itself.",
+   "Their warlord Gharok remembers being a soldier once. That's the saddest part."],
+  ["I mapped the fort before the fall. Vex got there first and set up shop in the ruins. Trader's instinct — profit follows catastrophe.",
+   "Buy armor plates if you can. The horde hits harder every night."],
+  ["The learning engine isn't in any one creature. It's IN the rift-light. Every core you grab is a page torn from its memory.",
+   "Keep tearing pages, Vanguard."],
+  ["Still alive? Good. The frontier suits you.",
+   "When the rift is sealed, I'm walking to Duskmere just to hear silence again."],
+];
+let miraIdx = 0, miraRewarded = false;
+function talkMira() {
+  const set = MIRA_LORE[Math.min(miraIdx, MIRA_LORE.length - 1)];
+  openDialog(MIRA.name, set, () => {
+    if (!miraRewarded) {
+      miraRewarded = true;
+      cores += 10; totalCores += 10;
+      addFloater(player.x, player.y - 40, '+10 ⬡ from Mira', '#4de1ff', true);
+    }
+    miraIdx++;
+  });
+}
+
+// ---------- Merchant Vex: mid-run consumables & armor plates ----------
+let vendorOpen = false;
+const VEX_QUIPS = [
+  '"Everything is for sale at the end of the world."',
+  '"Cores up front. No refunds after the horde eats you."',
+  '"Riftsteel! Barely used. Previous owner has no further need of it."',
+  '"You break it, you bought it. The zombies broke everything."',
+];
+function vendorItems() {
+  const armor = gear.find(u => u.id === 'armor');
+  return [
+    { id: 'heal',  name: 'Field Stim',       desc: 'Restore full health',              cost: 10, can: () => player.hp < maxHp(),          buy: () => { player.hp = maxHp(); } },
+    { id: 'gren',  name: 'Grenade Restock',  desc: 'Refill all grenades',              cost: 6,  can: () => player.grenades < maxGrenades(), buy: () => { player.grenades = maxGrenades(); } },
+    { id: 'flask', name: 'Aether Flask',     desc: 'Fill aether to maximum',           cost: 6,  can: () => player.ki < maxKi() * 0.95,    buy: () => { player.ki = maxKi(); } },
+    { id: 'plate', name: 'Riftsteel Plate',  desc: `Armor upgrade (−7% damage taken) — Lv ${armor.lvl}/${armor.max}`, cost: gearCost(armor), can: () => armor.lvl < armor.max, buy: () => { armor.lvl++; } },
+  ];
+}
+function openVendor() {
+  vendorOpen = true;
+  $('vexQuip').textContent = randFrom(VEX_QUIPS);
+  $('vendor').classList.remove('hidden');
+  renderVendor();
+}
+function renderVendor() {
+  $('vendorCores').textContent = cores;
+  const grid = $('vendorGrid');
+  grid.innerHTML = '';
+  for (const it of vendorItems()) {
+    const usable = it.can();
+    const div = document.createElement('div');
+    div.className = 'shopitem' + (usable ? '' : ' maxed');
+    div.innerHTML = `<h4>${it.name}</h4><small>${it.desc}</small><div class="price">⬡ ${it.cost}</div>`;
+    if (usable) div.onclick = () => {
+      if (cores < it.cost) { $('vendorCores').style.color = '#ff4d5e'; setTimeout(() => $('vendorCores').style.color = '', 300); return; }
+      cores -= it.cost;
+      it.buy();
+      spawnParticles(player.x, player.y, 14, '#ffd54a', 3);
+      renderVendor();
+    };
+    grid.appendChild(div);
+  }
+}
+$('closeVendorBtn').onclick = () => { vendorOpen = false; $('vendor').classList.add('hidden'); };
 
 function updateQuestHud() {
   const box = $('questbox');
@@ -610,7 +725,34 @@ function endWave() {
   cores += 4 + wave; totalCores += 4 + wave;
   questEvent('waveEnd');
   if (wave === 15 && !victoryShown) { victoryShown = true; showVictory(); return; }
-  openShop();
+  // a supply cache drops from the rift near the player — loot it before the lab opens
+  const a = rand(0, TAU);
+  chest = {
+    x: clamp(player.x + Math.cos(a) * 130, 80, WORLD.w - 80),
+    y: clamp(player.y + Math.sin(a) * 130, 80, WORLD.h - 80),
+    t: 0,
+  };
+  spawnParticles(chest.x, chest.y, 30, '#ffd54a', 4);
+  graceT = 10;
+  banner('WAVE CLEARED', '🎁 loot the supply cache — field lab opens soon');
+}
+
+function openChest() {
+  const c = chest; chest = null;
+  camera.shake = 6;
+  spawnParticles(c.x, c.y, 46, '#ffd54a', 5);
+  // guaranteed goodies
+  const n = 3 + Math.ceil(wave / 2);
+  for (let i = 0; i < n; i++)
+    pickups.push({ x: c.x + rand(-26, 26), y: c.y + rand(-26, 26), type: 'core', t: 0 });
+  pickups.push({ x: c.x + rand(-20, 20), y: c.y + rand(-20, 20), type: 'health', t: 0 });
+  if (Math.random() < 0.5) pickups.push({ x: c.x + rand(-20, 20), y: c.y + rand(-20, 20), type: 'health', t: 0 });
+  player.grenades = maxGrenades();
+  addFloater(c.x, c.y - 30, 'GRENADES RESTOCKED', '#4de1ff', false);
+  // rare jackpots
+  const roll = Math.random();
+  if (roll < 0.15) { player.sp++; addFloater(c.x, c.y - 52, '✦ RARE: +1 SKILL POINT!', '#ff6bd8', true); }
+  else if (roll < 0.3) { player.ki = maxKi(); addFloater(c.x, c.y - 52, 'AETHER SURGE — FULL CHARGE', '#4de1ff', true); }
 }
 
 // ====================== COMBAT SYSTEMS ============================
@@ -651,7 +793,7 @@ function releaseBeam() {
 }
 
 function tryNova() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
   if (player.novaCd > 0) return;
   if (player.ki < 12) { addFloater(player.x, player.y - 40, 'NOT ENOUGH AETHER', '#4de1ff', false); return; }
   player.ki -= 12; player.novaCd = novaCooldown();
@@ -669,7 +811,7 @@ function tryNova() {
 }
 
 function tryGrenade() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
   if (player.grenCd > 0 || player.grenades <= 0) return;
   if (IS_TOUCH) autoAim();
   player.grenades--; player.grenCd = 0.8;
@@ -692,8 +834,44 @@ function explodeGrenade(g) {
   }
 }
 
+function tryBuild() {
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
+  if (barricades.length >= BARRICADE_MAX) { addFloater(player.x, player.y - 40, `MAX ${BARRICADE_MAX} BARRICADES`, '#ff8a93', false); return; }
+  if (cores < BARRICADE_COST) { addFloater(player.x, player.y - 40, `NEED ${BARRICADE_COST} ⬡`, '#4de1ff', false); return; }
+  const bx = clamp(player.x + Math.cos(player.aim) * 62, 40, WORLD.w - 40);
+  const by = clamp(player.y + Math.sin(player.aim) * 62, 40, WORLD.h - 40);
+  if (obstacles.some(o => dist2(bx, by, o.x, o.y) < (o.r + 40) ** 2) ||
+      barricades.some(b => dist2(bx, by, b.x, b.y) < 70 * 70)) {
+    addFloater(player.x, player.y - 40, 'NO ROOM HERE', '#ff8a93', false); return;
+  }
+  cores -= BARRICADE_COST;
+  barricades.push({ x: bx, y: by, r: 34, hp: BARRICADE_HP + wave * 8, maxHp: BARRICADE_HP + wave * 8 });
+  spawnParticles(bx, by, 18, '#7CFC00', 4);
+  spawnRing(bx, by, 40);
+}
+
+// enemies can't pass barricades — they smash them down instead
+function collideBarricades(e, dt) {
+  for (const b of barricades) {
+    const d2 = dist2(e.x, e.y, b.x, b.y), minD = b.r + e.r;
+    if (d2 < minD * minD && d2 > 0.01) {
+      const d = Math.sqrt(d2);
+      e.x = b.x + (e.x - b.x) / d * minD;
+      e.y = b.y + (e.y - b.y) / d * minD;
+      b.hp -= e.dmg * dt * (e.boss ? 6 : 2.2);
+      if (Math.random() < dt * 8) spawnParticles(b.x + (e.x - b.x) / d * b.r, b.y + (e.y - b.y) / d * b.r, 3, '#7CFC00', 2);
+      if (b.hp <= 0) {
+        spawnParticles(b.x, b.y, 26, '#7CFC00', 5);
+        addFloater(b.x, b.y - 30, 'BARRICADE DOWN!', '#ff8a93', true);
+        camera.shake = Math.max(camera.shake, 5);
+      }
+    }
+  }
+  barricades = barricades.filter(b => b.hp > 0);
+}
+
 function tryTransform() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
   if (player.form) { player.form = 0; return; }
   if (player.ki < maxKi() * 0.92) { addFloater(player.x, player.y - 40, 'AETHER NOT FULL', '#4de1ff', false); return; }
   player.form = sk('a4') ? 2 : 1;
@@ -703,7 +881,7 @@ function tryTransform() {
 }
 
 function tryDash(fromButton) {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
   if (player.dashCd > 0) return;
   let dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x;
   let dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y;
@@ -772,6 +950,45 @@ function update(dt) {
   // campfire rest: slow heal near the fire (only between spawned enemies nearby)
   if (dist2(player.x, player.y, CAMP.x, CAMP.y) < 150 * 150)
     player.hp = Math.min(maxHp(), player.hp + 2.5 * dt);
+
+  // ---- supply cache looting window ----
+  if (graceT > 0) {
+    graceT -= dt;
+    if (graceT <= 0) openShop();
+  }
+  if (chest) {
+    chest.t += dt;
+    if (dist2(player.x, player.y, chest.x, chest.y) < 36 * 36) openChest();
+  }
+
+  // ---- barricade exit-blast: leaving your fence repels the mob ----
+  pulseCd = Math.max(0, pulseCd - dt);
+  if (pulseCd <= 0) {
+    for (const b of barricades) {
+      if (dist2(player.x, player.y, b.x, b.y) > (b.r + 24) ** 2) continue;
+      let hit = false;
+      for (const e of enemies) {
+        if (e.dead || e.spawnT > 0) continue;
+        const d2 = dist2(e.x, e.y, player.x, player.y);
+        if (d2 < 230 * 230) {
+          const d = Math.sqrt(d2) || 1;
+          e.vx += (e.x - player.x) / d * 620;
+          e.vy += (e.y - player.y) / d * 620;
+          e.hp -= 8; e.flash = 0.12;
+          if (e.hp <= 0 && !e.dead) killEnemy(e);
+          hit = true;
+        }
+      }
+      if (hit) {
+        pulseCd = 5;
+        spawnRing(player.x, player.y, 230);
+        spawnParticles(player.x, player.y, 24, '#7CFC00', 4);
+        addFloater(player.x, player.y - 46, 'REPEL BLAST', '#7CFC00', true);
+        camera.shake = 10;
+      }
+      break;
+    }
+  }
 
   if (player.form) {
     player.ki -= (player.form === 2 ? 9 : 6) * dt;
@@ -846,6 +1063,7 @@ function update(dt) {
     e.x = clamp(e.x + e.vx * dt, e.r, WORLD.w - e.r);
     e.y = clamp(e.y + e.vy * dt, e.r, WORLD.h - e.r);
     collideObstacles(e);
+    collideBarricades(e, dt);
     e.walk += dt * (Math.hypot(e.vx, e.vy) * 0.075);
     e.facing = e.vx >= 0 ? 1 : -1;
     if (d < e.r + player.r + 6 && player.hurtT <= 0) hurtPlayer(e.dmg);
@@ -885,6 +1103,8 @@ function update(dt) {
   for (const b of ebolts) {
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
     if (obstacles.some(o => o.type !== 'tree' && dist2(b.x, b.y, o.x, o.y) < o.r * o.r)) { b.life = 0; continue; }
+    const wall = barricades.find(w => dist2(b.x, b.y, w.x, w.y) < w.r * w.r);
+    if (wall) { wall.hp -= b.dmg * 0.6; b.life = 0; spawnParticles(b.x, b.y, 4, '#7CFC00', 2); continue; }
     if (dist2(b.x, b.y, player.x, player.y - 12) < (player.r + b.r + 4) ** 2) {
       b.life = 0;
       if (player.hurtT <= 0) hurtPlayer(b.dmg);
@@ -953,9 +1173,11 @@ function update(dt) {
   if (chapterT > 0) { chapterT -= dt; if (chapterT <= 0) $('chapterbanner').style.opacity = 0; }
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('wavebanner').style.opacity = 0; }
 
-  // talk button visibility
-  const nearNpc = dist2(player.x, player.y, NPC.x, NPC.y) < 110 * 110;
-  $('btnTalk').classList.toggle('hidden', !(nearNpc && state === 'playing' && !dialogOpen));
+  // talk button visibility (any NPC in range)
+  const npcNear = nearestNpc();
+  const talkBtn = $('btnTalk');
+  talkBtn.classList.toggle('hidden', !(npcNear && state === 'playing' && !dialogOpen && !vendorOpen));
+  if (npcNear) talkBtn.textContent = npcNear.role === 'vendor' ? '🜚 TRADE' : '💬 TALK';
 
   updateHud();
 }
@@ -972,7 +1194,7 @@ function collideObstacles(ent) {
 }
 
 function hurtPlayer(dmg) {
-  player.hp -= dmg;
+  player.hp -= dmg * (1 - armorReduce());
   player.hurtT = 0.45;
   camera.shake = 9;
   spawnParticles(player.x, player.y - 14, 10, '#ff4d5e', 3);
@@ -1095,11 +1317,13 @@ function updateHud() {
   $('killNum').textContent = kills;
   $('spNum').textContent = player.sp;
   $('phaseLabel').textContent = paused ? '⏸ PAUSED' :
+    graceT > 0 ? `🎁 lab opens in ${Math.ceil(graceT)}s` :
     waveActive ? (spawnQueue > 0 ? '🌑 horde incoming' : `${enemies.length} remaining`) : '';
   const cds = [];
   if (player.dashCd > 0.05) cds.push(`dash ${player.dashCd.toFixed(1)}`);
   if (player.novaCd > 0.05) cds.push(`nova ${player.novaCd.toFixed(1)}`);
   $('grenadeHud').textContent = '✦ ' + '●'.repeat(player.grenades) + '○'.repeat(Math.max(0, maxGrenades() - player.grenades)) +
+    `  ·  ⛨ ${barricades.length}/${BARRICADE_MAX}` +
     (cds.length ? '  ·  ' + cds.join(' · ') : '');
   for (const c of CATS) {
     const r = resistance(c);
@@ -1328,7 +1552,7 @@ function playerFigure() {
     hairSpikes: true,
     hairColor: gold ? '#ffe27a' : '#252533',
     cloth: gold ? '#e89b2e' : '#2e6fff',
-    pauldron: gold ? '#ffd54a' : '#8fb7ff',
+    pauldron: gold ? '#ffd54a' : (gearLvl('armor') >= 3 ? '#c3ccd9' : '#8fb7ff'),
     legs: '#20242e',
     weapon: 'rifle',
     gunAngle: player.facing === 1 ? player.aim : Math.PI - player.aim,
@@ -1337,10 +1561,18 @@ function playerFigure() {
     alpha: player.hurtT > 0 && Math.sin(performance.now() / 40) > 0 ? 0.4 : 1,
   };
 }
-const npcFigure = () => ({
-  s: 1, walk: performance.now() / 700, moving: false, facing: player.x < NPC.x ? -1 : 1,
-  skin: '#d9a878', cloth: '#7a5a34', pauldron: '#9b7648', legs: '#3a3226', weapon: 'staff',
-});
+function npcFigure(n) {
+  const base = { s: 1, walk: performance.now() / 700, moving: false, facing: player.x < n.x ? -1 : 1 };
+  switch (n.role) {
+    case 'vendor': return { ...base, skin: '#c99b6a', cloth: '#6a4a7a', pauldron: '#b98a3e',
+      legs: '#3a3040', hood: '#523a60' }; // robed trader with a gilded clasp
+    case 'lore': return { ...base, skin: '#e0b088', cloth: '#3e5a48', pauldron: '#5f7a68',
+      legs: '#2e4038', hairSpikes: true, hairColor: '#7a4a2e', weapon: 'rifle',
+      gunAngle: base.facing === 1 ? 0.6 : Math.PI - 0.6 }; // ranger with a slung rifle
+    default: return { ...base, skin: '#d9a878', cloth: '#7a5a34', pauldron: '#9b7648',
+      legs: '#3a3226', weapon: 'staff' };
+  }
+}
 
 // =========================== RENDER ===============================
 function render() {
@@ -1406,19 +1638,87 @@ function render() {
   const draws = [];
   for (const o of obstacles) draws.push({ y: o.y + o.r, f: () => drawObstacle(o) });
   drawCampProps(draws);
-  draws.push({ y: NPC.y, f: () => {
-    drawFigure(NPC.x, NPC.y, npcFigure());
-    // quest marker
-    const qm = questIdx < QUESTS.length && (questStage === 'offer' || questStage === 'turnin');
-    if (qm) {
-      const by = NPC.y - 58 + Math.sin(performance.now() / 300) * 4;
-      ctx.fillStyle = questStage === 'turnin' ? '#7CFC00' : '#ffd54a';
-      ctx.font = 'bold 22px Segoe UI'; ctx.textAlign = 'center';
-      ctx.fillText(questStage === 'turnin' ? '?' : '!', NPC.x, by);
-    }
-    ctx.fillStyle = 'rgba(223,233,245,0.8)'; ctx.font = '10px Segoe UI'; ctx.textAlign = 'center';
-    ctx.fillText('Bramm', NPC.x, NPC.y + 12);
-  }});
+  for (const n of NPCS) {
+    draws.push({ y: n.y, f: () => {
+      drawFigure(n.x, n.y, npcFigure(n));
+      // overhead marker
+      let mark = null, mcolor = '#ffd54a';
+      if (n.role === 'quest' && questIdx < QUESTS.length && (questStage === 'offer' || questStage === 'turnin')) {
+        mark = questStage === 'turnin' ? '?' : '!';
+        mcolor = questStage === 'turnin' ? '#7CFC00' : '#ffd54a';
+      } else if (n.role === 'vendor') { mark = '⬡'; mcolor = '#ffd54a'; }
+      else if (n.role === 'lore' && miraIdx < MIRA_LORE.length) { mark = '◆'; mcolor = '#4de1ff'; }
+      if (mark) {
+        const by = n.y - 58 + Math.sin(performance.now() / 300) * 4;
+        ctx.fillStyle = mcolor;
+        ctx.font = 'bold 20px Segoe UI'; ctx.textAlign = 'center';
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+        ctx.strokeText(mark, n.x, by); ctx.fillText(mark, n.x, by);
+      }
+      ctx.font = '10px Segoe UI'; ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 2.5;
+      const short = n.name.split(' ').pop();
+      ctx.strokeText(short, n.x, n.y + 12);
+      ctx.fillStyle = 'rgba(223,233,245,0.9)';
+      ctx.fillText(short, n.x, n.y + 12);
+    }});
+  }
+  // player-built barricades (energy fences)
+  for (const b of barricades) {
+    draws.push({ y: b.y, f: () => {
+      const pulse = 0.75 + Math.sin(performance.now() / 220 + b.x) * 0.25;
+      // energy dome wall
+      ctx.strokeStyle = `rgba(124,252,0,${0.5 * pulse})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.stroke();
+      ctx.fillStyle = `rgba(124,252,0,${0.08 * pulse})`;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+      // emitter pylon
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.ellipse(b.x, b.y + 2, 8, 3.5, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#2c3a2c'; ctx.strokeStyle = '#4a6a4a'; ctx.lineWidth = 2;
+      ctx.fillRect(b.x - 4, b.y - 20, 8, 20); ctx.strokeRect(b.x - 4, b.y - 20, 8, 20);
+      ctx.fillStyle = `rgba(124,252,0,${pulse})`;
+      ctx.shadowColor = '#7CFC00'; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(b.x, b.y - 24, 4, 0, TAU); ctx.fill();
+      ctx.shadowBlur = 0;
+      // hp bar when damaged
+      if (b.hp < b.maxHp) {
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(b.x - 18, b.y - 36, 36, 4);
+        ctx.fillStyle = '#7CFC00';
+        ctx.fillRect(b.x - 18, b.y - 36, 36 * clamp(b.hp / b.maxHp, 0, 1), 4);
+      }
+    }});
+  }
+  // end-of-wave supply cache
+  if (chest) {
+    draws.push({ y: chest.y, f: () => {
+      const c = chest;
+      // light beacon
+      const g = ctx.createLinearGradient(c.x, c.y - 90, c.x, c.y);
+      g.addColorStop(0, 'rgba(255,213,74,0)');
+      g.addColorStop(1, `rgba(255,213,74,${0.25 + Math.sin(performance.now() / 300) * 0.1})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(c.x - 12, c.y - 90, 24, 90);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.ellipse(c.x, c.y + 2, 18, 7, 0, 0, TAU); ctx.fill();
+      // chest body
+      ctx.fillStyle = '#5a4028'; ctx.strokeStyle = '#3a2a18'; ctx.lineWidth = 2;
+      ctx.fillRect(c.x - 15, c.y - 14, 30, 15); ctx.strokeRect(c.x - 15, c.y - 14, 30, 15);
+      // domed lid
+      ctx.fillStyle = '#6b4c30';
+      ctx.beginPath(); ctx.moveTo(c.x - 15, c.y - 14);
+      ctx.quadraticCurveTo(c.x, c.y - 26, c.x + 15, c.y - 14); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      // gold trim + latch
+      ctx.fillStyle = '#ffd54a';
+      ctx.shadowColor = '#ffd54a'; ctx.shadowBlur = 8;
+      ctx.fillRect(c.x - 15, c.y - 15, 30, 3);
+      ctx.fillRect(c.x - 2.5, c.y - 14, 5, 8);
+      ctx.shadowBlur = 0;
+    }});
+  }
   for (const e of enemies) {
     if (e.dead) continue;
     draws.push({ y: e.y, f: () => {
@@ -1522,12 +1822,16 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // ---- floaters ----
+  // ---- floaters (outlined for readability over any terrain) ----
   ctx.textAlign = 'center';
+  ctx.lineJoin = 'round';
   for (const f of floaters) {
     ctx.font = f.big ? 'bold 17px Segoe UI' : 'bold 13px Segoe UI';
-    ctx.fillStyle = f.color;
     ctx.globalAlpha = clamp(f.life / 0.9, 0, 1);
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.lineWidth = 3;
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color;
     ctx.fillText(f.text, f.x, f.y);
   }
   ctx.globalAlpha = 1;
@@ -1598,6 +1902,19 @@ function drawDecor(d) {
       ctx.beginPath(); ctx.moveTo(-5, 0);
       ctx.lineTo(-2, -1 + d.seed % 2); ctx.lineTo(1, 1); ctx.lineTo(5, -1);
       ctx.stroke(); break;
+    case 'reed': {
+      const sway = Math.sin(performance.now() / 800 + d.seed) * 1.5;
+      ctx.strokeStyle = 'rgba(90,130,90,0.75)'; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      for (let i = -1; i <= 1; i++) { ctx.moveTo(i * 2.5, 0); ctx.lineTo(i * 2.5 + sway, -9 - (i === 0 ? 4 : 0)); }
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(120,100,60,0.8)';
+      ctx.fillRect(sway - 1, -14, 2, 4); break; }
+    case 'lily':
+      ctx.fillStyle = 'rgba(60,110,80,0.7)';
+      ctx.beginPath(); ctx.ellipse(0, 0, 4.5, 2.8, d.seed, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(20,40,36,0.8)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(3, -1); ctx.stroke(); break;
   }
   ctx.restore();
 }
@@ -1633,6 +1950,17 @@ function drawObstacle(o) {
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(o.seed) * 3, -30); ctx.stroke();
     ctx.strokeStyle = '#3a2c1e'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(-2, -6); ctx.lineTo(-2, -22); ctx.stroke();
+  } else if (o.type === 'deadtree') {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(0, 3, 13, 5, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#3a3230'; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(o.seed) * 4, -34); ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(1, -20); ctx.lineTo(12, -30);
+    ctx.moveTo(-1, -26); ctx.lineTo(-10, -36);
+    ctx.moveTo(0, -34); ctx.lineTo(4, -44);
+    ctx.stroke();
   } else if (o.type === 'pillar') {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(0, 4, o.r * 1.2, o.r * 0.45, 0, 0, TAU); ctx.fill();
@@ -1700,7 +2028,7 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  if (state === 'playing' && !paused && !dialogOpen && !treeOpen) update(dt);
+  if (state === 'playing' && !paused && !dialogOpen && !treeOpen && !vendorOpen) update(dt);
   if (state === 'shop' && !treeOpen) {
     shopTimer -= dt;
     $('shopTimer').textContent = Math.max(0, Math.ceil(shopTimer));
@@ -1731,11 +2059,14 @@ function newGame() {
   wave = 0; cores = 0; kills = 0; totalCores = 0; runTime = 0; victoryShown = false;
   enemies = []; bolts = []; ebolts = []; grenades = []; pickups = []; particles = []; floaters = []; zaps = [];
   beam = null; beamCharge = 0; charging = false; paused = false; treeOpen = false;
-  dialogOpen = false; $('dialog').classList.add('hidden'); $('skilltree').classList.add('hidden');
+  dialogOpen = false; vendorOpen = false;
+  $('dialog').classList.add('hidden'); $('skilltree').classList.add('hidden'); $('vendor').classList.add('hidden');
   tally = { rifle: 0, beam: 0, melee: 0, grenade: 0 };
   gear.forEach(u => u.lvl = 0);
   Object.keys(skillRanks).forEach(k => delete skillRanks[k]);
   questIdx = 0; questStage = 'offer'; questProgress = 0;
+  miraIdx = 0; miraRewarded = false;
+  chest = null; graceT = 0; barricades = []; pulseCd = 0;
   currentRegion = '';
   buildWorld();
   resetPlayer();
@@ -1748,6 +2079,7 @@ function newGame() {
 tileTex.grass = makeTileTex('grass');
 tileTex.ash = makeTileTex('ash');
 tileTex.stone = makeTileTex('stone');
+tileTex.marsh = makeTileTex('marsh');
 
 $('startBtn').onclick = () => { $('menu').classList.add('hidden'); newGame(); };
 $('nextWaveBtn').onclick = () => startWave();

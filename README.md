@@ -60,6 +60,25 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2
+
+- **Supply caches** — a glowing treasure chest drops after every cleared wave with a
+  10-second looting window: cores, health packs, a grenade restock, and rare jackpots
+  (+1 skill point or a full aether surge).
+- **Riftsteel Armor** — a new gear line (−7% damage taken per plate, up to −35%);
+  your pauldron turns steel at 3+ plates.
+- **Buildable barricades** (`B` / BUILD button, 3 cores each, max 8) — energy fences
+  that enemies cannot pass and must smash down (they have HP and get attacked). Step
+  out through your fence line and you emit a free **repel blast** that knocks the mob
+  away, so you're never mauled leaving your safe space.
+- **Two new NPCs** — **Merchant Vex** runs a trading post in Northreach Fort
+  (mid-run heals, restocks, aether flasks, armor plates for cores) and **Scout Mira**
+  in the Ashen Reach shares frontier lore chapter by chapter (first visit pays 10 cores).
+- **Duskmere Marsh** — the world grew to 3600×3600 with a fourth region: still-water
+  pools, swaying reeds, lily pads, and dead trees. More decor everywhere (1,400 items).
+- **Readability pass** — all combat text is outlined, NPC name tags and markers pop,
+  cleaner quest/dialogue layout.
+
 ## Building the APK
 
 The game is a static web app, so wrap it with [Capacitor](https://capacitorjs.com):

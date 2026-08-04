@@ -1,0 +1,18 @@
+{
+  "name": "temporal-rift",
+  "version": "1.0.0",
+  "description": "A playable mobile-ready action-RPG prototype fusing the *feel* of DBZ: Kakarot's ki\r combat and progression, Halo 2's gunplay and tactical cover, Nazi Zombies' wave\r survival, and Skyrim's open zones, NPC quests, and skill trees — under **100% original\r IP** so it can legally ship as an APK.",
+  "main": "game.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  }
+}

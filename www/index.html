@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#05070d">
+<title>Temporal Rift: Ashen Vanguard</title>
+<style>
+  :root{
+    --gold:#ffd54a; --cyan:#4de1ff; --green:#7CFC00; --red:#ff4d5e; --purple:#b04dff;
+    --bg:#05070d; --panel:rgba(8,14,26,.93); --border:rgba(77,225,255,.35);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;touch-action:none}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
+    font-family:'Segoe UI',system-ui,sans-serif;color:#dfe9f5;overscroll-behavior:none}
+  #game{display:block;width:100vw;height:100vh;cursor:crosshair}
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at center,rgba(10,18,36,.9),rgba(3,5,10,.97));
+    z-index:40;flex-direction:column;text-align:center;padding:20px;overflow-y:auto;touch-action:pan-y}
+  .hidden{display:none!important}
+  h1{font-size:clamp(26px,5vw,56px);letter-spacing:3px;
+    background:linear-gradient(180deg,#fff3c4,var(--gold) 45%,#ff9d2e);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 40px rgba(255,213,74,.25);margin-bottom:4px}
+  h2.sub{font-size:clamp(12px,1.6vw,18px);color:var(--cyan);letter-spacing:6px;
+    text-transform:uppercase;margin-bottom:18px;font-weight:400}
+  .story{max-width:660px;line-height:1.5;color:#aebdd2;font-size:14px;margin-bottom:20px}
+  .story b{color:var(--gold)}
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:7px;
+    max-width:740px;margin-bottom:22px;font-size:12px;color:#9fb2c9}
+  .controls div{background:rgba(20,32,54,.6);border:1px solid rgba(77,225,255,.18);
+    border-radius:8px;padding:7px 11px;text-align:left}
+  kbd{background:#182642;border:1px solid #35507e;border-bottom-width:3px;border-radius:5px;
+    padding:1px 6px;font-family:inherit;font-size:11px;color:var(--cyan);margin-right:5px}
+  button.big{font-size:19px;letter-spacing:2px;padding:14px 48px;border-radius:12px;cursor:pointer;
+    border:2px solid var(--gold);color:#0b0e05;font-weight:700;
+    background:linear-gradient(180deg,#ffe89a,#ffb62e);
+    box-shadow:0 0 30px rgba(255,190,50,.35);transition:transform .12s}
+  button.big:active{transform:scale(.96)}
+  .touchnote{margin-top:14px;font-size:12px;color:#6f8199}
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+  .bars{position:fixed;left:14px;top:14px;width:min(300px,44vw)}
+  .barwrap{margin-top:5px}
+  .barlabel{font-size:10px;letter-spacing:2px;color:#9fb2c9;margin-bottom:2px;display:flex;justify-content:space-between}
+  .bar{height:14px;border-radius:7px;background:rgba(10,16,30,.8);border:1px solid var(--border);overflow:hidden}
+  .bar>i{display:block;height:100%;border-radius:6px;transition:width .12s linear}
+  #hpfill{background:linear-gradient(90deg,#ff4d5e,#ff8a5e);width:100%}
+  #kifill{background:linear-gradient(90deg,#2e9dff,var(--cyan));width:0%}
+  #xpfill{background:linear-gradient(90deg,#b96bff,#ff6bd8);width:0%;height:100%}
+  .xpbar{height:5px;border-radius:3px;background:rgba(10,16,30,.8);border:1px solid rgba(185,107,255,.3);overflow:hidden;margin-top:5px}
+  #questbox{position:fixed;left:14px;top:112px;max-width:280px;background:rgba(8,14,26,.75);
+    border-left:3px solid var(--gold);border-radius:6px;padding:7px 11px;font-size:12px}
+  #questbox h4{color:var(--gold);font-size:11px;letter-spacing:2px;margin-bottom:2px}
+  #questbox p{color:#b8c6da;line-height:1.3}
+  #questbox .qdone{color:var(--green)}
+  #topbar{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:18px;
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:7px 20px;font-size:13px;align-items:center;white-space:nowrap}
+  #topbar b{color:var(--gold);font-size:15px}
+  #topbar .cyan{color:var(--cyan)}
+  #topbar .sp{color:#ff6bd8}
+  #adaptbox{position:fixed;right:14px;top:14px;width:206px;background:var(--panel);
+    border:1px solid rgba(255,77,94,.4);border-radius:12px;padding:8px 12px;font-size:11px}
+  #adaptbox h3{font-size:10px;letter-spacing:1.5px;color:#ff8a93;margin-bottom:4px}
+  .adaptrow{display:flex;align-items:center;gap:7px;margin-top:3px}
+  .adaptrow span{width:60px;color:#9fb2c9}
+  .adaptrow .abar{flex:1;height:6px;border-radius:3px;background:rgba(10,16,30,.8);overflow:hidden}
+  .adaptrow .abar>i{display:block;height:100%;background:linear-gradient(90deg,#ff4d5e,#ff9d2e)}
+  .adaptrow em{width:30px;font-style:normal;color:#ffb0b7;text-align:right}
+  #wavebanner{position:fixed;top:22%;left:50%;transform:translateX(-50%);font-size:clamp(26px,5vw,44px);
+    letter-spacing:5px;color:var(--gold);text-shadow:0 0 30px rgba(255,190,50,.6);
+    opacity:0;transition:opacity .4s;pointer-events:none;text-align:center;white-space:nowrap}
+  #wavebanner small{display:block;font-size:15px;color:var(--cyan);letter-spacing:3px;margin-top:4px}
+  #chapterbanner{position:fixed;top:36%;left:50%;transform:translateX(-50%);text-align:center;
+    opacity:0;transition:opacity .6s;pointer-events:none}
+  #chapterbanner h3{font-size:14px;color:var(--purple);letter-spacing:6px}
+  #chapterbanner h2{font-size:30px;color:#e8f2ff;letter-spacing:3px;font-weight:600}
+  #grenadeHud{position:fixed;left:14px;top:96px;font-size:12px;color:#9fb2c9}
+  /* ---------- Touch controls ---------- */
+  .touch-only{display:none}
+  body.touch .touch-only{display:block}
+  body.touch #hud{z-index:12}
+  #joyZone{position:fixed;left:0;bottom:0;width:46vw;height:52vh;z-index:15;pointer-events:auto}
+  #joyBase{position:absolute;width:110px;height:110px;border-radius:50%;border:2px solid rgba(77,225,255,.4);
+    background:rgba(20,32,54,.35);display:none}
+  #joyKnob{position:absolute;width:48px;height:48px;border-radius:50%;
+    background:rgba(77,225,255,.55);box-shadow:0 0 16px rgba(77,225,255,.5);display:none}
+  #tbtns{position:fixed;right:10px;bottom:12px;z-index:15;pointer-events:auto;
+    display:grid;grid-template-columns:repeat(3,64px);gap:10px;justify-items:center}
+  .tbtn{width:64px;height:64px;border-radius:50%;border:2px solid var(--border);
+    background:rgba(14,24,44,.72);color:#cfe2ff;font-size:10px;font-weight:700;letter-spacing:1px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    -webkit-tap-highlight-color:transparent}
+  .tbtn i{font-style:normal;font-size:20px;line-height:1}
+  .tbtn:active,.tbtn.held{background:rgba(77,225,255,.35);border-color:var(--cyan)}
+  #btnFire{width:78px;height:78px;border-color:rgba(255,213,74,.55)}
+  #btnTalk{position:fixed;left:50%;bottom:22vh;transform:translateX(-50%);width:auto;height:auto;
+    border-radius:12px;padding:10px 22px;font-size:13px;background:rgba(255,213,74,.16);
+    border:2px solid var(--gold);color:var(--gold);z-index:16;pointer-events:auto}
+  #btnMenu{position:fixed;right:14px;top:120px;z-index:16;pointer-events:auto;
+    width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
+    background:rgba(14,24,44,.72);border:1px solid var(--border);color:#cfe2ff}
+  /* ---------- Dialogue ---------- */
+  #dialog{position:fixed;left:50%;bottom:4vh;transform:translateX(-50%);width:min(640px,94vw);
+    background:var(--panel);border:1px solid var(--gold);border-radius:14px;padding:14px 20px;
+    z-index:35;cursor:pointer;pointer-events:auto}
+  #dialog h4{color:var(--gold);font-size:13px;letter-spacing:2px;margin-bottom:5px}
+  #dialog p{font-size:14px;line-height:1.5;color:#dbe6f5;min-height:40px}
+  #dialog small{display:block;text-align:right;color:#6f8199;font-size:11px;margin-top:4px}
+  /* ---------- Skill tree ---------- */
+  #skilltree{z-index:45}
+  #skilltree .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:20px 24px;max-width:900px;width:94vw;max-height:92vh;overflow-y:auto;touch-action:pan-y}
+  #skilltree h2{color:var(--gold);letter-spacing:3px;font-size:22px;margin-bottom:2px}
+  #skilltree p.sp{color:#ff6bd8;margin-bottom:14px;font-size:14px}
+  .treecols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:16px}
+  .treecol h3{font-size:13px;letter-spacing:2px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.12)}
+  .treecol.warrior h3{color:#ff9d5e}.treecol.aether h3{color:var(--cyan)}.treecol.survivor h3{color:var(--green)}
+  .skillnode{background:rgba(16,26,46,.85);border:1px solid rgba(120,140,180,.25);border-radius:10px;
+    padding:9px 12px;margin-bottom:7px;text-align:left;cursor:pointer;pointer-events:auto;transition:border-color .1s}
+  .skillnode:active{transform:scale(.98)}
+  .skillnode h5{font-size:13px;color:#e8f2ff}
+  .skillnode h5 span{float:right;color:var(--cyan);font-size:11px}
+  .skillnode small{color:#8fa3bd;font-size:11px;line-height:1.3;display:block}
+  .skillnode.avail{border-color:var(--gold)}
+  .skillnode.maxed{opacity:.55}
+  .skillnode.locked{opacity:.32;cursor:not-allowed}
+  /* ---------- Shop ---------- */
+  #shop{z-index:30}
+  #shop .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:20px 24px;max-width:860px;width:94vw;max-height:92vh;overflow-y:auto;touch-action:pan-y}
+  #shop h2{color:var(--gold);letter-spacing:2px;margin-bottom:3px;font-size:21px}
+  #shop p.cores{color:var(--cyan);margin-bottom:14px;font-size:14px}
+  .shopgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:10px;margin-bottom:16px}
+  .shopitem{background:rgba(16,26,46,.85);border:1px solid rgba(77,225,255,.22);border-radius:10px;
+    padding:10px 13px;text-align:left;cursor:pointer;transition:border-color .12s;pointer-events:auto}
+  .shopitem:active{transform:scale(.98)}
+  .shopitem.maxed,.shopitem.locked{opacity:.45;cursor:not-allowed}
+  .shopitem h4{color:#e8f2ff;font-size:13px;margin-bottom:2px}
+  .shopitem small{color:#8fa3bd;font-size:11px;line-height:1.3;display:block}
+  .shopitem .price{color:var(--gold);font-weight:700;margin-top:5px;font-size:12px}
+  .shopitem .lvl{float:right;color:var(--cyan);font-size:11px}
+  #gameover .stats{font-size:15px;color:#aebdd2;margin-bottom:22px;line-height:1.8}
+  #gameover .stats b{color:var(--gold)}
+  /* narrow screens: stack HUD instead of overlapping */
+  @media (max-width: 1100px){
+    #topbar{top:6px;gap:12px;padding:5px 12px;font-size:11px}
+    #topbar b{font-size:13px}
+    .bars{top:44px;width:min(260px,52vw)}
+    #adaptbox{top:44px;width:172px;font-size:10px;padding:6px 9px}
+    .adaptrow span{width:48px}
+    #questbox{top:150px;max-width:230px;font-size:11px}
+    #grenadeHud{top:134px}
+    #btnMenu{top:150px}
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="topbar">
+    <span>WAVE <b id="waveNum">1</b></span>
+    <span class="cyan">⬡ <b id="coreNum">0</b></span>
+    <span>☠ <b id="killNum">0</b></span>
+    <span class="sp">✦ <b id="spNum">0</b> SP</span>
+    <span id="phaseLabel" class="cyan"></span>
+  </div>
+  <div id="adaptbox">
+    <h3>⚠ HORDE LEARNING ENGINE</h3>
+    <div class="adaptrow"><span>Rifle</span><div class="abar"><i id="ad_rifle"></i></div><em id="adv_rifle">0%</em></div>
+    <div class="adaptrow"><span>Beam</span><div class="abar"><i id="ad_beam"></i></div><em id="adv_beam">0%</em></div>
+    <div class="adaptrow"><span>Melee</span><div class="abar"><i id="ad_melee"></i></div><em id="adv_melee">0%</em></div>
+    <div class="adaptrow"><span>Grenade</span><div class="abar"><i id="ad_grenade"></i></div><em id="adv_grenade">0%</em></div>
+  </div>
+  <div class="bars">
+    <div class="barwrap"><div class="barlabel"><span>HEALTH</span><span id="hptext"></span></div>
+      <div class="bar"><i id="hpfill"></i></div></div>
+    <div class="barwrap"><div class="barlabel"><span>AETHER <span style="color:var(--gold)" id="ssjHint"></span></span><span id="kitext"></span></div>
+      <div class="bar"><i id="kifill"></i></div></div>
+    <div class="xpbar"><i id="xpfill"></i></div>
+  </div>
+  <div id="grenadeHud"></div>
+  <div id="questbox" class="hidden"><h4 id="questTitle"></h4><p id="questDesc"></p></div>
+  <div id="wavebanner"></div>
+  <div id="chapterbanner"><h3 id="chapNum"></h3><h2 id="chapName"></h2></div>
+</div>
+
+<!-- touch controls -->
+<div class="touch-only">
+  <div id="joyZone"><div id="joyBase"></div><div id="joyKnob"></div></div>
+  <div id="tbtns">
+    <div class="tbtn" id="btnForm"><i>★</i>ASCEND</div>
+    <div class="tbtn" id="btnGren"><i>✦</i>GRENADE</div>
+    <div class="tbtn" id="btnDash"><i>»</i>DASH</div>
+    <div class="tbtn" id="btnNova"><i>◎</i>NOVA</div>
+    <div class="tbtn" id="btnBeam"><i>═</i>BEAM</div>
+    <div class="tbtn" id="btnFire"><i>◉</i>FIRE</div>
+  </div>
+</div>
+<div class="tbtn hidden" id="btnTalk">💬 TALK</div>
+<div class="tbtn hidden" id="btnMenu">✦ SKILLS (K)</div>
+
+<div id="dialog" class="hidden">
+  <h4 id="dlgName"></h4>
+  <p id="dlgText"></p>
+  <small>tap / click to continue ▸</small>
+</div>
+
+<div id="menu" class="overlay">
+  <h1>TEMPORAL RIFT</h1>
+  <h2 class="sub">Ashen Vanguard</h2>
+  <p class="story">
+    The rift tore three worlds into one: the <b>ember-lit martial kingdoms</b>, the
+    <b>orbital war-fleets</b>, and the <b>plague-cursed northern holds</b>. Their dead did not
+    stay dead. You are the last <b>Riftborn Vanguard</b> — a warrior who channels living
+    <b>aether</b> through fist and firearm alike. Hold the refugee camp, aid its survivors,
+    and seal the rift. But know this: the horde is bound to a <b>learning engine</b>. It
+    studies your tactics, resists your habits, and hunts where you hide.
+  </p>
+  <div class="controls">
+    <div><kbd>W A S D</kbd> Move &nbsp; <kbd>Mouse</kbd> Aim</div>
+    <div><kbd>LMB</kbd> Pulse rifle &nbsp; <kbd>RMB</kbd> hold+release: Nova Beam</div>
+    <div><kbd>Q</kbd> Aether nova &nbsp; <kbd>E</kbd> Grenade</div>
+    <div><kbd>Shift</kbd> Dash &nbsp; <kbd>F</kbd> Ascend (full aether)</div>
+    <div><kbd>K</kbd> Skill tree &nbsp; <kbd>T</kbd> Talk to NPC</div>
+    <div><kbd>P</kbd> Pause &nbsp; 📱 Full touch controls on mobile</div>
+  </div>
+  <button class="big" id="startBtn">ENTER THE RIFT</button>
+  <p class="touchnote" id="touchNote"></p>
+</div>
+
+<div id="skilltree" class="overlay hidden">
+  <div class="panel">
+    <h2>✦ VANGUARD SKILL TREE</h2>
+    <p class="sp">Skill points: <b id="stPoints">0</b> — earned by leveling up</p>
+    <div class="treecols" id="treeCols"></div>
+    <button class="big" id="closeTreeBtn">CLOSE</button>
+  </div>
+</div>
+
+<div id="shop" class="overlay hidden">
+  <div class="panel">
+    <h2>⬡ VANGUARD FIELD LAB — Wave <span id="shopWave"></span> cleared</h2>
+    <p class="cores">Energy cores: <b id="shopCores"></b> · Rift reopens in <b id="shopTimer"></b>s
+      &nbsp;·&nbsp; <a href="#" id="openTreeLink" style="color:#ff6bd8">open skill tree ✦</a></p>
+    <div class="shopgrid" id="shopGrid"></div>
+    <button class="big" id="nextWaveBtn">NEXT WAVE ➤</button>
+  </div>
+</div>
+
+<div id="gameover" class="overlay hidden">
+  <h1 id="goTitle">YOU HAVE FALLEN</h1>
+  <h2 class="sub" id="goSub">The rift consumes all…</h2>
+  <div class="stats" id="goStats"></div>
+  <button class="big" id="retryBtn">RE-ENTER THE RIFT</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

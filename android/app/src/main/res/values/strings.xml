@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Temporal Rift</string>
+    <string name="title_activity_main">Temporal Rift</string>
+    <string name="package_name">com.drpep.temporalrift</string>
+    <string name="custom_url_scheme">com.drpep.temporalrift</string>
+</resources>

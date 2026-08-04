@@ -1,0 +1,11 @@
+{
+  "appId": "com.drpep.temporalrift",
+  "appName": "Temporal Rift",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#05070d"
+  }
+}

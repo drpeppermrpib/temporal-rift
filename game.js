@@ -261,8 +261,15 @@ $('btnTalk').addEventListener('pointerdown', e => { e.preventDefault(); tryTalk(
 $('btnMenu').addEventListener('pointerdown', e => { e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.4';
+const APP_VERSION = '2.5';
 $('appVer').textContent = 'v' + APP_VERSION;
+
+// Distribution channel gate. 'github' = sideloaded APK / web demo, where the
+// GitHub-release update banner is wanted. 'play' = Google Play build, which
+// must NEVER offer out-of-store updates (Play policy) — Play updates itself.
+// The Play build injects window.TR_CHANNEL='play' via index.html at build time
+// (see build-all.ps1); everything else defaults to 'github'.
+const UPDATE_CHANNEL = window.TR_CHANNEL || 'github';
 
 // Sideloaded APKs can't auto-update, so ping GitHub for a newer release
 // and offer a download link on the title screen. Fire-and-forget: any
@@ -293,7 +300,7 @@ function checkForUpdate() {
       .catch(() => {});
   } catch (e) { /* never block the game */ }
 }
-checkForUpdate();
+if (UPDATE_CHANNEL === 'github') checkForUpdate();
 
 // ==================== SETTINGS & SAVE SYSTEM ======================
 const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';

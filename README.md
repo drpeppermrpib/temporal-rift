@@ -94,6 +94,17 @@ No install, no build step:
   game-over) now centers when it fits and scrolls when it doesn't, with notch/safe-area
   padding, so nothing gets cut off on any phone screen.
 
+### New in Release 6
+
+- **Channel-aware updates** — the GitHub auto-update banner is now gated by a
+  distribution channel (`UPDATE_CHANNEL` in `game.js`, driven by
+  `window.TR_CHANNEL` in `index.html`). Only the **github** channel (sideloaded
+  APK / web demo) checks GitHub releases and shows the banner. The Google Play
+  build is stamped with the **play** channel at build time and never offers
+  out-of-store updates (Play policy) — Play handles its own updates.
+  `build-all.ps1` builds both artifacts and verifies the channel baked into each
+  one; `node test-channel.js` unit-tests the gate.
+
 ### New in Release 4
 
 - **Auto-update checker** — on launch the app pings GitHub for the latest release; if

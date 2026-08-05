@@ -27,7 +27,7 @@ No install, no build step:
 | `F` | ASCEND button | Transform (requires full aether) |
 | `K` | SKILLS button | Skill tree |
 | `T` | TALK button (appears near NPC) | Talk / quests |
-| `P` | — | Pause |
+| `P` / `Esc` | ⚙ MENU button | Pause / settings / save |
 
 ## What's in the build
 
@@ -78,6 +78,21 @@ No install, no build step:
   pools, swaying reeds, lily pads, and dead trees. More decor everywhere (1,400 items).
 - **Readability pass** — all combat text is outlined, NPC name tags and markers pop,
   cleaner quest/dialogue layout.
+
+### New in Release 3
+
+- **Auto-save after every wave** — your run (wave, cores, XP/level, skill points &
+  ranks, gear, quest and story progress) is written to device storage the moment a
+  wave is cleared. A **CONTINUE** button appears on the title screen whenever a save
+  exists; resuming drops you back at the between-wave shop.
+- **Save-anywhere button** — open the pause menu (`P` / `Esc` / ⚙ MENU) and hit
+  **💾 SAVE GAME** mid-fight. Resuming replays the current wave from its start.
+- **Settings / pause menu** — RESUME, SAVE GAME, toggles for **screen shake** and
+  **damage numbers** (remembered between sessions), RESTART RUN, and
+  SAVE & QUIT TO TITLE. Opening it fully pauses the game, even in the shop.
+- **Screen auto-fit** — every menu (title, shop, skill tree, vendor, settings,
+  game-over) now centers when it fits and scrolls when it doesn't, with notch/safe-area
+  padding, so nothing gets cut off on any phone screen.
 
 ## Building the APK
 

@@ -187,7 +187,7 @@ const touch = { fire: false, beamHeld: false, joy: { x: 0, y: 0, active: false }
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (dialogOpen) { advanceDialog(); return; }
-  if (e.code === 'KeyP' && state === 'playing') paused = !paused;
+  if (e.code === 'KeyP' || e.code === 'Escape') toggleSettings();
   if (e.code === 'KeyF') tryTransform();
   if (e.code === 'KeyQ') tryNova();
   if (e.code === 'KeyE') tryGrenade();
@@ -255,6 +255,71 @@ bindHold('btnForm', () => tryTransform());
 bindHold('btnBuild', () => tryBuild());
 $('btnTalk').addEventListener('pointerdown', e => { e.preventDefault(); tryTalk(); });
 $('btnMenu').addEventListener('pointerdown', e => { e.preventDefault(); toggleTree(); });
+
+// ==================== SETTINGS & SAVE SYSTEM ======================
+const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';
+let settingsOpen = false;
+const settings = { shake: true, dmgText: true };
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
+function persistSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+
+function snapshot() {
+  return {
+    v: 2,
+    wavesCompleted: waveActive ? wave - 1 : wave,
+    cores, kills, totalCores, runTime,
+    player: { hp: player.hp, ki: player.ki, level: player.level, xp: player.xp, xpNext: player.xpNext, sp: player.sp },
+    gear: gear.map(u => u.lvl),
+    skills: { ...skillRanks },
+    quest: { idx: questIdx, stage: questStage, progress: questProgress },
+    mira: { idx: miraIdx, rewarded: miraRewarded },
+    tally: { ...tally },
+  };
+}
+function saveGame(announce) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot()));
+    if (announce) addFloater(player.x, player.y - 46, '💾 GAME SAVED', '#7CFC00', true);
+  } catch (e) {}
+}
+function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
+function loadGame() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return false; }
+  if (!s || s.v !== 2) return false;
+  newGame();                       // clean world + fresh entities first
+  wave = s.wavesCompleted;
+  waveActive = false; spawnQueue = 0; enemies = []; graceT = 0; chest = null;
+  cores = s.cores; kills = s.kills; totalCores = s.totalCores; runTime = s.runTime;
+  gear.forEach((u, i) => u.lvl = s.gear[i] || 0);
+  Object.assign(skillRanks, s.skills);
+  Object.assign(tally, s.tally);
+  questIdx = s.quest.idx; questStage = s.quest.stage; questProgress = s.quest.progress;
+  miraIdx = s.mira.idx; miraRewarded = s.mira.rewarded;
+  player.level = s.player.level; player.xp = s.player.xp; player.xpNext = s.player.xpNext;
+  player.sp = s.player.sp;
+  player.hp = clamp(s.player.hp, 1, maxHp());
+  player.ki = clamp(s.player.ki, 0, maxKi());
+  player.grenades = maxGrenades();
+  updateQuestHud();
+  $('hud').classList.remove('hidden');
+  $('btnMenu').classList.remove('hidden');
+  $('btnSettings').classList.remove('hidden');
+  if (wave <= 0) { startWave(); }   // saved mid-wave-1: just replay it
+  else { openShop(); banner('WELCOME BACK', `resuming after wave ${wave}`); }
+  return true;
+}
+
+function toggleSettings() {
+  if (state !== 'playing' && state !== 'shop' && !settingsOpen) return;
+  settingsOpen = !settingsOpen;
+  $('settings').classList.toggle('hidden', !settingsOpen);
+  if (settingsOpen) refreshToggles();
+}
+function refreshToggles() {
+  $('togShake').classList.toggle('on', settings.shake);
+  $('togDmg').classList.toggle('on', settings.dmgText);
+}
 
 // ========================= GAME STATE =============================
 let state = 'menu'; // menu | playing | shop | over
@@ -363,7 +428,8 @@ function dealDamage(e, dmg, cat, kbx, kby, kb) {
   e.hp -= final;
   e.flash = 0.12;
   if (kb) { e.vx += kbx * kb; e.vy += kby * kb; }
-  addFloater(e.x, e.y - e.r * 2.4, Math.round(final), res > 0.3 ? '#ff8a93' : '#fff', res > 0.3);
+  if (settings.dmgText)
+    addFloater(e.x, e.y - e.r * 2.4, Math.round(final), res > 0.3 ? '#ff8a93' : '#fff', res > 0.3);
   player.ki = clamp(player.ki + final * 0.045, 0, maxKi());
   if (e.hp <= 0 && !e.dead) killEnemy(e);
 }
@@ -548,7 +614,7 @@ function questEvent(kind, data) {
 }
 
 function tryTalk() {
-  if (state !== 'playing' || dialogOpen || vendorOpen) return;
+  if (state !== 'playing' || dialogOpen || vendorOpen || settingsOpen) return;
   const npc = nearestNpc();
   if (!npc) return;
   if (npc.role === 'vendor') { openVendor(); return; }
@@ -707,6 +773,7 @@ function startWave() {
   $('shop').classList.add('hidden');
   $('hud').classList.remove('hidden');
   $('btnMenu').classList.remove('hidden');
+  $('btnSettings').classList.remove('hidden');
   CATS.forEach(c => tally[c] *= 0.82); // the engine forgets, slowly
   spawnQueue = 6 + Math.round(wave * 3.2);
   spawnTimer = 0.5;
@@ -724,6 +791,8 @@ function endWave() {
   waveActive = false;
   cores += 4 + wave; totalCores += 4 + wave;
   questEvent('waveEnd');
+  saveGame(false); // auto-save after every wave
+  addFloater(player.x, player.y - 64, '💾 auto-saved', '#8fa3bd', false);
   if (wave === 15 && !victoryShown) { victoryShown = true; showVictory(); return; }
   // a supply cache drops from the rift near the player — loot it before the lab opens
   const a = rand(0, TAU);
@@ -793,7 +862,7 @@ function releaseBeam() {
 }
 
 function tryNova() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
   if (player.novaCd > 0) return;
   if (player.ki < 12) { addFloater(player.x, player.y - 40, 'NOT ENOUGH AETHER', '#4de1ff', false); return; }
   player.ki -= 12; player.novaCd = novaCooldown();
@@ -811,7 +880,7 @@ function tryNova() {
 }
 
 function tryGrenade() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
   if (player.grenCd > 0 || player.grenades <= 0) return;
   if (IS_TOUCH) autoAim();
   player.grenades--; player.grenCd = 0.8;
@@ -835,7 +904,7 @@ function explodeGrenade(g) {
 }
 
 function tryBuild() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
   if (barricades.length >= BARRICADE_MAX) { addFloater(player.x, player.y - 40, `MAX ${BARRICADE_MAX} BARRICADES`, '#ff8a93', false); return; }
   if (cores < BARRICADE_COST) { addFloater(player.x, player.y - 40, `NEED ${BARRICADE_COST} ⬡`, '#4de1ff', false); return; }
   const bx = clamp(player.x + Math.cos(player.aim) * 62, 40, WORLD.w - 40);
@@ -871,7 +940,7 @@ function collideBarricades(e, dt) {
 }
 
 function tryTransform() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
   if (player.form) { player.form = 0; return; }
   if (player.ki < maxKi() * 0.92) { addFloater(player.x, player.y - 40, 'AETHER NOT FULL', '#4de1ff', false); return; }
   player.form = sk('a4') ? 2 : 1;
@@ -881,7 +950,7 @@ function tryTransform() {
 }
 
 function tryDash(fromButton) {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
   if (player.dashCd > 0) return;
   let dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x;
   let dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y;
@@ -1283,6 +1352,7 @@ function gameOver() {
   state = 'over';
   $('hud').classList.add('hidden');
   $('btnMenu').classList.add('hidden');
+  $('btnSettings').classList.add('hidden');
   $('btnTalk').classList.add('hidden');
   $('goTitle').textContent = 'YOU HAVE FALLEN';
   $('goSub').textContent = 'Emberfall burns behind you…';
@@ -1295,6 +1365,7 @@ function showVictory() {
   state = 'over';
   $('hud').classList.add('hidden');
   $('btnMenu').classList.add('hidden');
+  $('btnSettings').classList.add('hidden');
   $('goTitle').textContent = 'THE RIFT IS SEALED';
   $('goSub').textContent = 'Emberfall stands. The three worlds begin to heal.';
   $('goStats').innerHTML = statsHtml() + '<br><br>You held the line for 15 waves. The rift stirs again — dare you continue?';
@@ -1579,8 +1650,9 @@ function render() {
   ctx.fillStyle = '#070a12';
   ctx.fillRect(0, 0, VW, VH);
   ctx.save();
-  const sx = camera.shake ? rand(-camera.shake, camera.shake) * 0.5 : 0;
-  const sy = camera.shake ? rand(-camera.shake, camera.shake) * 0.5 : 0;
+  const shakeAmt = settings.shake ? camera.shake : 0;
+  const sx = shakeAmt ? rand(-shakeAmt, shakeAmt) * 0.5 : 0;
+  const sy = shakeAmt ? rand(-shakeAmt, shakeAmt) * 0.5 : 0;
   ctx.translate(-camera.x + sx, -camera.y + sy);
 
   // ---- textured ground tiles ----
@@ -2028,8 +2100,8 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  if (state === 'playing' && !paused && !dialogOpen && !treeOpen && !vendorOpen) update(dt);
-  if (state === 'shop' && !treeOpen) {
+  if (state === 'playing' && !paused && !dialogOpen && !treeOpen && !vendorOpen && !settingsOpen) update(dt);
+  if (state === 'shop' && !treeOpen && !settingsOpen) {
     shopTimer -= dt;
     $('shopTimer').textContent = Math.max(0, Math.ceil(shopTimer));
     if (shopTimer <= 0) startWave();
@@ -2081,7 +2153,41 @@ tileTex.ash = makeTileTex('ash');
 tileTex.stone = makeTileTex('stone');
 tileTex.marsh = makeTileTex('marsh');
 
+// ---------- menu / settings wiring ----------
 $('startBtn').onclick = () => { $('menu').classList.add('hidden'); newGame(); };
+$('continueBtn').onclick = () => {
+  $('menu').classList.add('hidden');
+  if (!loadGame()) newGame(); // corrupt/missing save → fresh run
+};
+$('continueBtn').classList.toggle('hidden', !hasSave());
 $('nextWaveBtn').onclick = () => startWave();
+
+bindHold('btnSettings', () => toggleSettings());
+$('resumeBtn').onclick = () => toggleSettings();
+$('saveGameBtn').onclick = () => {
+  saveGame(true);
+  $('saveGameBtn').textContent = '💾 SAVED ✓';
+  setTimeout(() => $('saveGameBtn').textContent = '💾 SAVE GAME', 1200);
+};
+$('togShake').onclick = () => { settings.shake = !settings.shake; persistSettings(); refreshToggles(); };
+$('togDmg').onclick = () => { settings.dmgText = !settings.dmgText; persistSettings(); refreshToggles(); };
+$('restartBtn').onclick = () => {
+  settingsOpen = false; $('settings').classList.add('hidden');
+  $('shop').classList.add('hidden'); $('gameover').classList.add('hidden');
+  newGame();
+};
+$('quitBtn').onclick = () => {
+  saveGame(false);
+  settingsOpen = false;
+  $('settings').classList.add('hidden');
+  $('shop').classList.add('hidden');
+  $('hud').classList.add('hidden');
+  $('btnMenu').classList.add('hidden');
+  $('btnSettings').classList.add('hidden');
+  $('btnTalk').classList.add('hidden');
+  state = 'menu';
+  $('continueBtn').classList.toggle('hidden', !hasSave());
+  $('menu').classList.remove('hidden');
+};
 
 requestAnimationFrame(loop);

@@ -16,9 +16,15 @@
   html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
     font-family:'Segoe UI',system-ui,sans-serif;color:#dfe9f5;overscroll-behavior:none}
   #game{display:block;width:100vw;height:100vh;cursor:crosshair}
-  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  /* overlays: margin:auto centering never clips tall content (unlike align-items:center)
+     — small screens simply scroll instead of cutting menus off */
+  .overlay{position:fixed;inset:0;display:flex;
     background:radial-gradient(ellipse at center,rgba(10,18,36,.9),rgba(3,5,10,.97));
-    z-index:40;flex-direction:column;text-align:center;padding:20px;overflow-y:auto;touch-action:pan-y}
+    z-index:40;text-align:center;overflow-y:auto;touch-action:pan-y;
+    padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right))
+            max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+  .overlay>.wrap{margin:auto;display:flex;flex-direction:column;align-items:center;max-width:100%}
+  .overlay>.panel{margin:auto}
   .hidden{display:none!important}
   h1{font-size:clamp(26px,5vw,56px);letter-spacing:3px;
     background:linear-gradient(180deg,#fff3c4,var(--gold) 45%,#ff9d2e);
@@ -102,7 +108,7 @@
   #btnTalk{position:fixed;left:50%;bottom:22vh;transform:translateX(-50%);width:auto;height:auto;
     border-radius:12px;padding:10px 22px;font-size:13px;background:rgba(255,213,74,.16);
     border:2px solid var(--gold);color:var(--gold);z-index:16;pointer-events:auto}
-  #btnMenu{position:fixed;right:14px;top:120px;z-index:16;pointer-events:auto;
+  #btnMenu{position:fixed;right:14px;top:158px;z-index:16;pointer-events:auto;
     width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
     background:rgba(14,24,44,.72);border:1px solid var(--border);color:#cfe2ff}
   /* ---------- Dialogue ---------- */
@@ -148,6 +154,30 @@
   .shopitem .lvl{float:right;color:var(--cyan);font-size:11px}
   #gameover .stats{font-size:15px;color:#aebdd2;margin-bottom:22px;line-height:1.8}
   #gameover .stats b{color:var(--gold)}
+  /* ---------- Settings / pause menu ---------- */
+  #settings{z-index:50}
+  #settings .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:22px 26px;width:min(420px,94vw)}
+  #settings h2{color:var(--gold);letter-spacing:3px;font-size:22px;margin-bottom:14px}
+  .setbtn{display:block;width:100%;margin:8px 0;padding:12px;border-radius:10px;cursor:pointer;
+    font-size:15px;letter-spacing:1px;font-weight:600;pointer-events:auto;
+    background:rgba(20,32,54,.8);border:1px solid var(--border);color:#dfe9f5}
+  .setbtn:active{transform:scale(.98)}
+  .setbtn.gold{background:linear-gradient(180deg,#ffe89a,#ffb62e);border-color:var(--gold);color:#0b0e05}
+  .setbtn.danger{border-color:rgba(255,77,94,.5);color:#ffb0b7}
+  .togglerow{display:flex;justify-content:space-between;align-items:center;margin:10px 0;
+    padding:10px 12px;background:rgba(16,26,46,.7);border-radius:10px;cursor:pointer;pointer-events:auto}
+  .togglerow span{font-size:14px;color:#c4d2e6}
+  .togglerow .pill{width:46px;height:24px;border-radius:12px;background:#2a3550;position:relative;transition:background .15s}
+  .togglerow .pill::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;
+    border-radius:50%;background:#8fa3bd;transition:left .15s,background .15s}
+  .togglerow.on .pill{background:rgba(124,252,0,.35)}
+  .togglerow.on .pill::after{left:25px;background:var(--green)}
+  #saveNote{font-size:12px;color:#8fa3bd;margin-top:10px;line-height:1.4}
+  #btnSettings{position:fixed;right:14px;top:120px;z-index:16;pointer-events:auto;
+    width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
+    background:rgba(14,24,44,.72);border:1px solid var(--border);color:#cfe2ff}
+  @media (max-width:1100px){ #btnSettings{top:150px} #btnMenu{top:186px} }
   /* narrow screens: stack HUD instead of overlapping */
   @media (max-width: 1100px){
     #topbar{top:6px;gap:12px;padding:5px 12px;font-size:11px}
@@ -157,7 +187,6 @@
     .adaptrow span{width:48px}
     #questbox{top:150px;max-width:230px;font-size:11px}
     #grenadeHud{top:134px}
-    #btnMenu{top:150px}
   }
 </style>
 </head>
@@ -206,7 +235,21 @@
   </div>
 </div>
 <div class="tbtn hidden" id="btnTalk">💬 TALK</div>
+<div class="tbtn hidden" id="btnSettings">⚙ MENU (P)</div>
 <div class="tbtn hidden" id="btnMenu">✦ SKILLS (K)</div>
+
+<div id="settings" class="overlay hidden">
+  <div class="panel">
+    <h2>⚙ PAUSED</h2>
+    <button class="setbtn gold" id="resumeBtn">RESUME</button>
+    <button class="setbtn" id="saveGameBtn">💾 SAVE GAME</button>
+    <div class="togglerow on" id="togShake"><span>Screen shake</span><div class="pill"></div></div>
+    <div class="togglerow on" id="togDmg"><span>Damage numbers</span><div class="pill"></div></div>
+    <button class="setbtn danger" id="restartBtn">↻ RESTART RUN</button>
+    <button class="setbtn danger" id="quitBtn">⏏ SAVE &amp; QUIT TO TITLE</button>
+    <p id="saveNote">Progress auto-saves after every wave.<br>Resuming continues from the start of your current wave.</p>
+  </div>
+</div>
 
 <div id="dialog" class="hidden">
   <h4 id="dlgName"></h4>
@@ -215,6 +258,7 @@
 </div>
 
 <div id="menu" class="overlay">
+  <div class="wrap">
   <h1>TEMPORAL RIFT</h1>
   <h2 class="sub">Ashen Vanguard</h2>
   <p class="story">
@@ -232,11 +276,15 @@
     <div><kbd>Shift</kbd> Dash &nbsp; <kbd>F</kbd> Ascend (full aether)</div>
     <div><kbd>B</kbd> Build barricade (3⬡) — exit it for a repel blast</div>
     <div><kbd>K</kbd> Skill tree &nbsp; <kbd>T</kbd> Talk / trade with NPCs</div>
-    <div><kbd>P</kbd> Pause &nbsp; 📱 Full touch controls on mobile</div>
-    <div>🎁 Loot the supply cache after every wave!</div>
+    <div><kbd>P</kbd> Pause / settings / save &nbsp; 📱 Full touch controls on mobile</div>
+    <div>🎁 Loot the supply cache after every wave — 💾 progress auto-saves too!</div>
   </div>
-  <button class="big" id="startBtn">ENTER THE RIFT</button>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+    <button class="big hidden" id="continueBtn" style="border-color:var(--cyan);background:linear-gradient(180deg,#9adfff,#2e9dff)">CONTINUE ➤</button>
+    <button class="big" id="startBtn">NEW GAME</button>
+  </div>
   <p class="touchnote" id="touchNote"></p>
+  </div>
 </div>
 
 <div id="vendor" class="overlay hidden">
@@ -268,10 +316,12 @@
 </div>
 
 <div id="gameover" class="overlay hidden">
+  <div class="wrap">
   <h1 id="goTitle">YOU HAVE FALLEN</h1>
   <h2 class="sub" id="goSub">The rift consumes all…</h2>
   <div class="stats" id="goStats"></div>
   <button class="big" id="retryBtn">RE-ENTER THE RIFT</button>
+  </div>
 </div>
 
 <script src="game.js"></script>

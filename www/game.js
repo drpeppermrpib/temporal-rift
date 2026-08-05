@@ -187,6 +187,7 @@ const touch = { fire: false, beamHeld: false, joy: { x: 0, y: 0, active: false }
 addEventListener('keydown', e => {
   keys[e.code] = true;
   if (dialogOpen) { advanceDialog(); return; }
+  if (layoutEditing) { if (e.code === 'KeyP' || e.code === 'Escape') finishLayoutEdit(); return; }
   if (e.code === 'KeyP' || e.code === 'Escape') toggleSettings();
   if (e.code === 'KeyF') tryTransform();
   if (e.code === 'KeyQ') tryNova();
@@ -212,20 +213,23 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
 const joyZone = $('joyZone'), joyBase = $('joyBase'), joyKnob = $('joyKnob');
 let joyId = null, joyOrigin = null;
 joyZone.addEventListener('pointerdown', e => {
+  if (layoutEditing) return;
+  const zr = joyZone.getBoundingClientRect(); // base/knob are absolute inside the (movable) zone
   joyId = e.pointerId; joyOrigin = { x: e.clientX, y: e.clientY };
   joyBase.style.display = joyKnob.style.display = 'block';
-  joyBase.style.left = (e.clientX - 55) + 'px'; joyBase.style.top = (e.clientY - 55) + 'px';
-  joyKnob.style.left = (e.clientX - 24) + 'px'; joyKnob.style.top = (e.clientY - 24) + 'px';
+  joyBase.style.left = (e.clientX - zr.left - 55) + 'px'; joyBase.style.top = (e.clientY - zr.top - 55) + 'px';
+  joyKnob.style.left = (e.clientX - zr.left - 24) + 'px'; joyKnob.style.top = (e.clientY - zr.top - 24) + 'px';
   touch.joy.active = true;
   joyZone.setPointerCapture(e.pointerId);
 });
 joyZone.addEventListener('pointermove', e => {
   if (e.pointerId !== joyId || !joyOrigin) return;
+  const zr = joyZone.getBoundingClientRect();
   let dx = e.clientX - joyOrigin.x, dy = e.clientY - joyOrigin.y;
   const d = Math.hypot(dx, dy);
   if (d > 46) { dx = dx / d * 46; dy = dy / d * 46; }
-  joyKnob.style.left = (joyOrigin.x + dx - 24) + 'px';
-  joyKnob.style.top = (joyOrigin.y + dy - 24) + 'px';
+  joyKnob.style.left = (joyOrigin.x - zr.left + dx - 24) + 'px';
+  joyKnob.style.top = (joyOrigin.y - zr.top + dy - 24) + 'px';
   touch.joy.x = dx / 46; touch.joy.y = dy / 46;
 });
 function joyEnd(e) {
@@ -240,7 +244,7 @@ joyZone.addEventListener('pointercancel', joyEnd);
 // ---------- ability buttons ----------
 function bindHold(id, onDown, onUp) {
   const el = $(id);
-  el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('held'); onDown && onDown(); });
+  el.addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); el.classList.add('held'); onDown && onDown(); });
   const up = e => { el.classList.remove('held'); onUp && onUp(); };
   el.addEventListener('pointerup', up);
   el.addEventListener('pointercancel', up);
@@ -259,9 +263,87 @@ $('btnMenu').addEventListener('pointerdown', e => { e.preventDefault(); toggleTr
 // ==================== SETTINGS & SAVE SYSTEM ======================
 const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';
 let settingsOpen = false;
-const settings = { shake: true, dmgText: true };
+const settings = { shake: true, dmgText: true, uiScale: 'normal', layout: null };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
 function persistSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
+
+const UI_SCALES = ['small', 'normal', 'large'];
+function applyUiScale() {
+  document.body.classList.remove('ui-small', 'ui-large');
+  if (settings.uiScale === 'small') document.body.classList.add('ui-small');
+  if (settings.uiScale === 'large') document.body.classList.add('ui-large');
+}
+applyUiScale();
+
+// ---------- controls placement (custom layout) ----------
+function applyLayout() {
+  const tb = $('tbtns'), jz = $('joyZone');
+  const L = settings.layout || {};
+  if (L.tbtns) { tb.style.right = L.tbtns.right + 'px'; tb.style.bottom = L.tbtns.bottom + 'px'; }
+  else { tb.style.right = ''; tb.style.bottom = ''; }
+  if (L.joy) {
+    jz.style.left = L.joy.left + 'px'; jz.style.bottom = L.joy.bottom + 'px';
+    jz.style.width = L.joy.w + 'px'; jz.style.height = L.joy.h + 'px';
+  } else { jz.style.left = ''; jz.style.bottom = ''; jz.style.width = ''; jz.style.height = ''; }
+}
+applyLayout();
+
+let layoutEditing = false;
+function ensureLayout() {
+  if (!settings.layout) settings.layout = { tbtns: null, joy: null };
+  return settings.layout;
+}
+function positionJoyPlaceholder() {
+  // joystick base is normally invisible until touched — during editing show it
+  // centered in the zone so the user can see what they're dragging
+  const zr = $('joyZone').getBoundingClientRect();
+  const jb = $('joyBase');
+  jb.style.display = 'block';
+  jb.style.left = (zr.width / 2 - 55) + 'px';
+  jb.style.top = (zr.height / 2 - 55) + 'px';
+}
+function setLayoutEditing(on) {
+  layoutEditing = on;
+  document.body.classList.toggle('layout-editing', on);
+  $('layoutBar').classList.toggle('hidden', !on);
+  const jb = $('joyBase'), jk = $('joyKnob');
+  if (on) positionJoyPlaceholder();
+  else { jb.style.display = 'none'; jk.style.display = 'none'; jb.style.left = ''; jb.style.top = ''; }
+}
+function finishLayoutEdit() {
+  persistSettings();
+  setLayoutEditing(false);
+  $('settings').classList.remove('hidden'); // back to the pause menu (settingsOpen stayed true)
+}
+function makeDraggable(el, apply) {
+  el.addEventListener('pointerdown', e => {
+    if (!layoutEditing) return;
+    e.preventDefault();
+    const r = el.getBoundingClientRect();
+    const offX = e.clientX - r.left, offY = e.clientY - r.top;
+    const move = ev => {
+      const left = clamp(ev.clientX - offX, 0, VW - r.width);
+      const top = clamp(ev.clientY - offY, 0, VH - r.height);
+      apply(left, top, r.width, r.height);
+    };
+    const up = () => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      removeEventListener('pointercancel', up);
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
+  });
+}
+makeDraggable($('tbtns'), (left, top, w, h) => {
+  ensureLayout().tbtns = { right: Math.round(VW - left - w), bottom: Math.round(VH - top - h) };
+  applyLayout();
+});
+makeDraggable($('joyZone'), (left, top, w, h) => {
+  ensureLayout().joy = { left: Math.round(left), bottom: Math.round(VH - top - h), w: Math.round(w), h: Math.round(h) };
+  applyLayout();
+});
 
 function snapshot() {
   return {
@@ -319,6 +401,7 @@ function toggleSettings() {
 function refreshToggles() {
   $('togShake').classList.toggle('on', settings.shake);
   $('togDmg').classList.toggle('on', settings.dmgText);
+  $('uiSizeVal').textContent = settings.uiScale.toUpperCase();
 }
 
 // ========================= GAME STATE =============================
@@ -980,7 +1063,7 @@ function banner(main, sub) {
 }
 
 // =========================== UPDATE ===============================
-let regionCheckT = 0;
+let regionCheckT = 0, regionFlashT = 0;
 function update(dt) {
   runTime += dt;
   // ---- movement ----
@@ -1236,9 +1319,11 @@ function update(dt) {
     const reg = REGIONS.find(r => r.test(player.x, player.y)).name;
     if (reg !== currentRegion) {
       currentRegion = reg;
+      regionFlashT = 3;
       showChapter('— ENTERING —', reg);
     }
   }
+  if (regionFlashT > 0) regionFlashT -= dt;
   if (chapterT > 0) { chapterT -= dt; if (chapterT <= 0) $('chapterbanner').style.opacity = 0; }
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('wavebanner').style.opacity = 0; }
 
@@ -1925,6 +2010,19 @@ function render() {
     ctx.fillText('GHAROK — ORK WARLORD OF THE RIFT', VW / 2, by - 5);
   }
 
+  // ---- current region name, above the boss bar when one is showing ----
+  if ((state === 'playing' || state === 'shop') && currentRegion) {
+    const ry = boss ? (VH - 40) - 22 : VH - 20;
+    const f = clamp(regionFlashT, 0, 1);
+    ctx.font = `bold ${(12 + 4 * f).toFixed(1)}px Segoe UI`;
+    ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 3;
+    const txt = `⟨ ${currentRegion} ⟩`;
+    ctx.strokeText(txt, VW / 2, ry);
+    ctx.fillStyle = f > 0 ? '#ffd54a' : 'rgba(255,213,74,.75)';
+    ctx.fillText(txt, VW / 2, ry);
+  }
+
   // ---- night vignette during waves ----
   if (waveActive) {
     const v = ctx.createRadialGradient(VW / 2, VH / 2, Math.min(VW, VH) * 0.35, VW / 2, VH / 2, Math.max(VW, VH) * 0.75);
@@ -2171,6 +2269,20 @@ $('saveGameBtn').onclick = () => {
 };
 $('togShake').onclick = () => { settings.shake = !settings.shake; persistSettings(); refreshToggles(); };
 $('togDmg').onclick = () => { settings.dmgText = !settings.dmgText; persistSettings(); refreshToggles(); };
+$('rowUiSize').onclick = () => {
+  settings.uiScale = UI_SCALES[(UI_SCALES.indexOf(settings.uiScale) + 1) % UI_SCALES.length];
+  applyUiScale(); persistSettings(); refreshToggles();
+};
+$('layoutBtn').onclick = () => {
+  // hide the overlay but keep settingsOpen=true so the game stays paused while editing
+  $('settings').classList.add('hidden');
+  setLayoutEditing(true);
+};
+$('layoutDone').onclick = () => finishLayoutEdit();
+$('layoutReset').onclick = () => {
+  settings.layout = null;
+  persistSettings(); applyLayout(); positionJoyPlaceholder();
+};
 $('restartBtn').onclick = () => {
   settingsOpen = false; $('settings').classList.add('hidden');
   $('shop').classList.add('hidden'); $('gameover').classList.add('hidden');

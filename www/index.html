@@ -130,7 +130,37 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
     -webkit-tap-highlight-color:transparent}
   .tbtn i{font-style:normal;font-size:20px;line-height:1}
+  /* ---------- layout size setting (small / normal / large touch controls) ---------- */
+  body.ui-small #tbtns{grid-template-columns:repeat(3,54px);gap:8px}
+  body.ui-small .tbtn{width:54px;height:54px;font-size:9px}
+  body.ui-small .tbtn i{font-size:16px}
+  body.ui-small #btnFire{width:66px;height:66px}
+  body.ui-small #joyBase{width:92px;height:92px}
+  body.ui-small #joyKnob{width:40px;height:40px}
+  body.ui-large #tbtns{grid-template-columns:repeat(3,76px);gap:12px}
+  body.ui-large .tbtn{width:76px;height:76px;font-size:11px}
+  body.ui-large .tbtn i{font-size:24px}
+  body.ui-large #btnFire{width:92px;height:92px}
+  body.ui-large #joyBase{width:130px;height:130px}
+  body.ui-large #joyKnob{width:56px;height:56px}
   .tbtn:active,.tbtn.held{background:rgba(77,225,255,.35);border-color:var(--cyan)}
+  /* ---------- controls placement editor ---------- */
+  #layoutBar{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;
+    display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--gold);
+    border-radius:12px;padding:8px 14px;font-size:12px;color:var(--gold);
+    pointer-events:auto;white-space:nowrap;max-width:96vw}
+  #layoutBar button{border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;
+    cursor:pointer;letter-spacing:1px;pointer-events:auto}
+  #layoutDone{background:linear-gradient(180deg,#ffe89a,#ffb62e);border:1px solid var(--gold);color:#0b0e05}
+  #layoutReset{background:rgba(20,32,54,.8);border:1px solid var(--border);color:#cfe2ff}
+  body.layout-editing .touch-only{display:block}
+  body.layout-editing #tbtns{outline:2px dashed var(--gold);outline-offset:6px;border-radius:12px;cursor:move}
+  body.layout-editing .tbtn{pointer-events:none}
+  body.layout-editing #joyZone{border:2px dashed rgba(77,225,255,.6);background:rgba(77,225,255,.07);
+    border-radius:12px;cursor:move}
+  body.layout-editing #joyZone::after{content:'MOVE ZONE';position:absolute;left:50%;top:10px;
+    transform:translateX(-50%);font-size:11px;letter-spacing:2px;color:var(--cyan)}
+  body.layout-editing #joyBase{border-style:dashed}
   #btnFire{width:78px;height:78px;border-color:rgba(255,213,74,.55);grid-column:3}
   #btnBuild{border-color:rgba(124,252,0,.4)}
   #btnTalk{position:fixed;left:50%;bottom:22vh;transform:translateX(-50%);width:auto;height:auto;
@@ -266,6 +296,12 @@
 <div class="tbtn hidden" id="btnSettings">⚙ MENU (P)</div>
 <div class="tbtn hidden" id="btnMenu">✦ SKILLS (K)</div>
 
+<div id="layoutBar" class="hidden">
+  <span>✥ Drag controls where you want them · tap DONE to save</span>
+  <button id="layoutReset">RESET</button>
+  <button id="layoutDone">DONE</button>
+</div>
+
 <div id="settings" class="overlay hidden">
   <div class="panel">
     <h2>⚙ PAUSED</h2>
@@ -273,6 +309,8 @@
     <button class="setbtn" id="saveGameBtn">💾 SAVE GAME</button>
     <div class="togglerow on" id="togShake"><span>Screen shake</span><div class="pill"></div></div>
     <div class="togglerow on" id="togDmg"><span>Damage numbers</span><div class="pill"></div></div>
+    <div class="togglerow" id="rowUiSize"><span>Controls layout size</span><b id="uiSizeVal" style="color:var(--cyan);letter-spacing:1px">NORMAL</b></div>
+    <button class="setbtn" id="layoutBtn">✥ EDIT LAYOUT</button>
     <button class="setbtn danger" id="restartBtn">↻ RESTART RUN</button>
     <button class="setbtn danger" id="quitBtn">⏏ SAVE &amp; QUIT TO TITLE</button>
     <p id="saveNote">Progress auto-saves after every wave.<br>Resuming continues from the start of your current wave.</p>

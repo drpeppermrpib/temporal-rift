@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- Play Store feature graphic generator: renders a 1024x500 canvas.
+     Capture: msedge --headless=new --window-size=1024,500 --screenshot=feature-1024x500.png feature-gen.html -->
+<html>
+<head><style>html,body{margin:0;padding:0;overflow:hidden}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="1024" height="500"></canvas>
+<script>
+const c = document.getElementById('c'), x = c.getContext('2d');
+const W = 1024, H = 500, CX = W / 2, CY = H / 2;
+
+// background
+const bg = x.createRadialGradient(CX, CY, 40, CX, CY, 620);
+bg.addColorStop(0, '#0b1120');
+bg.addColorStop(0.55, '#05070d');
+bg.addColorStop(1, '#020308');
+x.fillStyle = bg;
+x.fillRect(0, 0, W, H);
+
+// starfield
+for (let i = 0; i < 130; i++) {
+  const sx = Math.random() * W, sy = Math.random() * H;
+  x.globalAlpha = 0.08 + Math.random() * 0.3;
+  x.fillStyle = Math.random() < 0.25 ? '#4de1ff' : '#cfd8ff';
+  x.beginPath(); x.arc(sx, sy, Math.random() * 1.5 + 0.4, 0, 7); x.fill();
+}
+x.globalAlpha = 1;
+
+// rift glow behind the title
+const halo = x.createRadialGradient(CX, CY - 10, 10, CX, CY - 10, 360);
+halo.addColorStop(0, 'rgba(255,213,74,0.28)');
+halo.addColorStop(0.4, 'rgba(77,225,255,0.12)');
+halo.addColorStop(1, 'rgba(77,225,255,0)');
+x.fillStyle = halo;
+x.fillRect(0, 0, W, H);
+
+// two faint jagged rift cracks on the flanks
+function crack(cx, tilt, col) {
+  x.save();
+  x.strokeStyle = col;
+  x.lineWidth = 3;
+  x.shadowColor = col; x.shadowBlur = 26;
+  x.globalAlpha = 0.75;
+  x.beginPath();
+  x.moveTo(cx + tilt * -2, 60);
+  x.lineTo(cx - 14 + tilt, 150);
+  x.lineTo(cx + 16 - tilt, 235);
+  x.lineTo(cx - 18 + tilt * 2, 330);
+  x.lineTo(cx + 8, 440);
+  x.stroke();
+  x.restore();
+}
+crack(140, 8, '#4de1ff');
+crack(884, -8, '#ffd54a');
+
+// title: gold gradient like the in-game h1
+x.textAlign = 'center';
+x.textBaseline = 'middle';
+const grad = x.createLinearGradient(0, CY - 70, 0, CY + 10);
+grad.addColorStop(0, '#fff3c4');
+grad.addColorStop(0.55, '#ffd54a');
+grad.addColorStop(1, '#ff9d2e');
+x.save();
+x.shadowColor = 'rgba(255,213,74,0.65)'; x.shadowBlur = 34;
+x.fillStyle = grad;
+x.font = '900 96px Arial, sans-serif';
+x.fillText('TEMPORAL RIFT', CX, CY - 32);
+x.restore();
+
+// subtitle: cyan letterspaced caps (manual letterspacing for compat)
+x.save();
+x.shadowColor = 'rgba(77,225,255,0.8)'; x.shadowBlur = 16;
+x.fillStyle = '#4de1ff';
+x.font = '700 30px Arial, sans-serif';
+const sub = 'ASHEN VANGUARD';
+const spaced = sub.split('').join('\u200a\u200a\u200a\u200a');
+x.fillText(spaced.replace(/\u200a/g, ' '), CX, CY + 52);
+x.restore();
+
+// tagline
+x.fillStyle = 'rgba(207,216,255,0.75)';
+x.font = '400 20px Arial, sans-serif';
+x.fillText('SURVIVE THE HORDE THAT LEARNS', CX, CY + 108);
+</script>
+</body>
+</html>

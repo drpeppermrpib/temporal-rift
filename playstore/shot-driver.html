@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- Screenshot driver: loads the game in a 1920x1080 iframe and stages a scenario
+     chosen via ?s=title|combat|tree|boss. Used with headless Edge --screenshot. -->
+<html>
+<head><style>html,body{margin:0;padding:0;overflow:hidden;background:#05070d}</style></head>
+<body>
+<iframe id="f" src="/index.html" style="width:1920px;height:1080px;border:0;display:block"></iframe>
+<script>
+const s = new URLSearchParams(location.search).get('s') || 'title';
+const f = document.getElementById('f');
+f.addEventListener('load', () => {
+  const w = f.contentWindow, d = f.contentDocument;
+  setTimeout(() => {
+    d.body.classList.add('touch');
+    if (s === 'title') return;
+    d.getElementById('startBtn').click();
+    if (s === 'combat') {
+      w.eval("player.hp=99999; player.maxHp=99999;" +
+             "for(let i=0;i<8;i++)spawnEnemy('husk');" +
+             "for(let i=0;i<3;i++)spawnEnemy('sprinter');" +
+             "spawnEnemy('shaman');" +
+             "enemies.forEach((e,i)=>{const a=i*(Math.PI*2/enemies.length);const d=160+(i%4)*60;" +
+             "e.x=player.x+Math.cos(a)*d; e.y=player.y+Math.sin(a)*d; e.spawnT=0;});");
+    } else if (s === 'tree') {
+      setTimeout(() => w.eval("toggleTree()"), 1200);
+    } else if (s === 'boss') {
+      w.eval("player.hp=99999; player.maxHp=99999;" +
+             "spawnEnemy('warlord'); spawnEnemy('husk'); spawnEnemy('husk');" +
+             "const b=enemies.find(e=>e.boss); if(b){b.x=player.x+260; b.y=player.y-60; b.spawnT=0;}" +
+             "enemies.filter(e=>!e.boss&&!e.dead).slice(-2).forEach((e,i)=>{" +
+             "e.x=player.x-180-i*90; e.y=player.y+120-i*160; e.spawnT=0;});");
+    }
+  }, 500);
+});
+</script>
+</body>
+</html>

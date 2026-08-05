@@ -1,0 +1,87 @@
+<!doctype html>
+<!-- Play Store icon generator: renders a 512x512 canvas.
+     Capture: msedge --headless=new --window-size=512,512 --screenshot=icon-512.png icon-gen.html -->
+<html>
+<head><style>html,body{margin:0;padding:0;overflow:hidden}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="512" height="512"></canvas>
+<script>
+const c = document.getElementById('c'), x = c.getContext('2d');
+const W = 512, H = 512, CX = W / 2, CY = H / 2;
+
+// background: deep navy with a subtle radial vignette
+const bg = x.createRadialGradient(CX, CY, 60, CX, CY, 380);
+bg.addColorStop(0, '#0b1120');
+bg.addColorStop(0.6, '#05070d');
+bg.addColorStop(1, '#020308');
+x.fillStyle = bg;
+x.fillRect(0, 0, W, H);
+
+// faint starfield
+for (let i = 0; i < 90; i++) {
+  const sx = Math.random() * W, sy = Math.random() * H;
+  x.globalAlpha = 0.1 + Math.random() * 0.35;
+  x.fillStyle = Math.random() < 0.25 ? '#4de1ff' : '#cfd8ff';
+  x.beginPath(); x.arc(sx, sy, Math.random() * 1.6 + 0.4, 0, 7); x.fill();
+}
+x.globalAlpha = 1;
+
+// cyan outer glow halo behind the rift
+const halo = x.createRadialGradient(CX, CY, 20, CX, CY, 240);
+halo.addColorStop(0, 'rgba(77,225,255,0.55)');
+halo.addColorStop(0.5, 'rgba(77,225,255,0.14)');
+halo.addColorStop(1, 'rgba(77,225,255,0)');
+x.fillStyle = halo;
+x.fillRect(0, 0, W, H);
+
+// jagged vertical rift tear (lightning-crack silhouette)
+function riftPath(spread) {
+  // hand-tuned zigzag from top to bottom, widest at the middle
+  const pts = [
+    [CX + 14, 56], [CX - 20, 130], [CX + 30, 186], [CX - 34, 252],
+    [CX + 26, 310], [CX - 18, 372], [CX + 10, 456],
+  ];
+  x.beginPath();
+  x.moveTo(pts[0][0] - spread * 0.25, pts[0][1]);
+  for (let i = 1; i < pts.length; i++) {
+    const bulge = Math.sin((i / (pts.length - 1)) * Math.PI) * spread;
+    x.lineTo(pts[i][0] - bulge * 0.5, pts[i][1]);
+  }
+  for (let i = pts.length - 2; i >= 0; i--) {
+    const bulge = Math.sin((i / (pts.length - 1)) * Math.PI) * spread;
+    x.lineTo(pts[i][0] + bulge * 0.5 + 6, pts[i][1] - 6);
+  }
+  x.closePath();
+}
+
+// layered glow: wide cyan, mid gold, hot core
+x.save();
+x.shadowColor = '#4de1ff'; x.shadowBlur = 60;
+riftPath(46); x.fillStyle = 'rgba(77,225,255,0.75)'; x.fill();
+x.restore();
+
+x.save();
+x.shadowColor = '#ffd54a'; x.shadowBlur = 42;
+riftPath(30); x.fillStyle = '#ffd54a'; x.fill();
+x.restore();
+
+x.save();
+x.shadowColor = '#fff7d6'; x.shadowBlur = 24;
+riftPath(13); x.fillStyle = '#fff7d6'; x.fill();
+x.restore();
+
+// small energy sparks flanking the rift
+const sparks = [
+  [CX - 88, 150, '#4de1ff'], [CX + 96, 210, '#ffd54a'], [CX - 102, 300, '#ffd54a'],
+  [CX + 84, 340, '#4de1ff'], [CX - 70, 410, '#4de1ff'], [CX + 70, 120, '#fff3c4'],
+];
+for (const [sx, sy, col] of sparks) {
+  x.save();
+  x.shadowColor = col; x.shadowBlur = 14;
+  x.fillStyle = col;
+  x.beginPath(); x.arc(sx, sy, 4, 0, 7); x.fill();
+  x.restore();
+}
+</script>
+</body>
+</html>

@@ -5,3 +5,13 @@ android/capacitor-cordova-android-plugins/build/
 android/.gradle/
 android/local.properties
 .DS_Store
+
+# Release secrets — never commit
+keystore.properties
+android/keystore.properties
+playstore/KEYSTORE-INFO.txt
+*.jks
+
+# Binary release artifacts stay on disk only
+playstore/*.aab
+playstore/*-release.apk

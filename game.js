@@ -261,7 +261,7 @@ $('btnTalk').addEventListener('pointerdown', e => { e.preventDefault(); tryTalk(
 $('btnMenu').addEventListener('pointerdown', e => { e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.3';
+const APP_VERSION = '2.4';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Sideloaded APKs can't auto-update, so ping GitHub for a newer release
@@ -1355,7 +1355,6 @@ function update(dt) {
     if (reg !== currentRegion) {
       currentRegion = reg;
       regionFlashT = 3;
-      showChapter('— ENTERING —', reg);
     }
   }
   if (regionFlashT > 0) regionFlashT -= dt;

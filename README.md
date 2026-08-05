@@ -94,6 +94,18 @@ No install, no build step:
   game-over) now centers when it fits and scrolls when it doesn't, with notch/safe-area
   padding, so nothing gets cut off on any phone screen.
 
+### New in Release 4
+
+- **Auto-update checker** — on launch the app pings GitHub for the latest release; if
+  a newer version exists, a dismissible banner appears on the title screen with a
+  tap-to-download link to the release page. Sideloaded APKs stay up to date without a
+  store; Play Store builds will auto-update through the store instead.
+- **Controls layout editor** — **✥ EDIT LAYOUT** in the pause menu lets you drag every
+  touch control (joystick and buttons) wherever you want, with a controls-size option
+  (small/normal/large); your layout is saved between sessions.
+- **Region name over the boss bar** — the current zone name is shown above the boss
+  health bar so you always know where the fight is happening.
+
 ## Building the APK
 
 The game is a static web app, so wrap it with [Capacitor](https://capacitorjs.com):

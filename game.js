@@ -260,6 +260,41 @@ bindHold('btnBuild', () => tryBuild());
 $('btnTalk').addEventListener('pointerdown', e => { e.preventDefault(); tryTalk(); });
 $('btnMenu').addEventListener('pointerdown', e => { e.preventDefault(); toggleTree(); });
 
+// ==================== VERSION & UPDATE CHECK ======================
+const APP_VERSION = '2.3';
+$('appVer').textContent = 'v' + APP_VERSION;
+
+// Sideloaded APKs can't auto-update, so ping GitHub for a newer release
+// and offer a download link on the title screen. Fire-and-forget: any
+// failure (offline, rate limit, bad JSON) is silently ignored.
+function cmpVersions(a, b) { // numeric compare: "2.10" > "2.9"
+  const pa = String(a).replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d > 0 ? 1 : -1;
+  }
+  return 0;
+}
+function checkForUpdate() {
+  try {
+    fetch('https://api.github.com/repos/drpeppermrpib/temporal-rift/releases/latest')
+      .then(r => r.ok ? r.json() : null)
+      .then(rel => {
+        if (!rel || !rel.tag_name) return;
+        const remote = String(rel.tag_name).replace(/^v/i, '');
+        if (cmpVersions(remote, APP_VERSION) <= 0) return;
+        const banner = $('updateBanner');
+        $('updateText').textContent = '⬆ UPDATE v' + remote + ' AVAILABLE — TAP TO DOWNLOAD';
+        banner.classList.remove('hidden');
+        banner.onclick = () => { if (rel.html_url) window.open(rel.html_url, '_blank'); };
+        $('updateDismiss').onclick = e => { e.stopPropagation(); banner.classList.add('hidden'); };
+      })
+      .catch(() => {});
+  } catch (e) { /* never block the game */ }
+}
+checkForUpdate();
+
 // ==================== SETTINGS & SAVE SYSTEM ======================
 const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';
 let settingsOpen = false;

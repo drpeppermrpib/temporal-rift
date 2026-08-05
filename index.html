@@ -74,6 +74,15 @@
     box-shadow:0 0 30px rgba(255,190,50,.35);transition:transform .12s}
   button.big:active{transform:scale(.96)}
   .touchnote{margin-top:14px;font-size:12px;color:#6f8199}
+  .appver{margin-top:6px;font-size:10px;letter-spacing:2px;color:#3d4a5e}
+  /* ---------- update banner (title screen only) ---------- */
+  #updateBanner{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));
+    transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;
+    background:rgba(12,18,32,.96);border:1px solid var(--gold);border-radius:12px;
+    padding:10px 14px;font-size:13px;letter-spacing:1px;color:var(--gold);cursor:pointer;
+    box-shadow:0 0 24px rgba(255,190,50,.35);white-space:nowrap;max-width:94vw}
+  #updateBanner #updateDismiss{background:none;border:none;color:#9fb2c9;font-size:15px;
+    cursor:pointer;padding:2px 6px;line-height:1}
   /* ---------- HUD ---------- */
   #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
   .bars{position:fixed;left:14px;top:14px;width:min(300px,44vw)}
@@ -350,6 +359,11 @@
     <button class="big" id="startBtn">NEW GAME</button>
   </div>
   <p class="touchnote" id="touchNote"></p>
+  <p class="appver" id="appVer"></p>
+  </div>
+  <div id="updateBanner" class="hidden">
+    <span id="updateText">⬆ UPDATE AVAILABLE — TAP TO DOWNLOAD</span>
+    <button id="updateDismiss" aria-label="dismiss">✕</button>
   </div>
 </div>
 

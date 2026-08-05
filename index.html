@@ -23,9 +23,37 @@
     z-index:40;text-align:center;overflow-y:auto;touch-action:pan-y;
     padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right))
             max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+  /* the global *{touch-action:none} (needed for the game canvas) would block finger
+     scrolling inside menus — re-enable panning on everything within them */
+  .overlay *, .panel *{touch-action:pan-y}
   .overlay>.wrap{margin:auto;display:flex;flex-direction:column;align-items:center;max-width:100%}
   .overlay>.panel{margin:auto}
   .hidden{display:none!important}
+  /* compact title menu on phones: drop keyboard hints, tighten spacing so
+     the start buttons fit on screen without scrolling */
+  body.touch #menu .controls{display:none}
+  @media (max-height:560px){
+    h1{font-size:clamp(22px,4.5vh,34px);margin-bottom:2px}
+    h2.sub{font-size:11px;letter-spacing:4px;margin-bottom:8px}
+    .story{font-size:12px;line-height:1.35;margin-bottom:10px;max-width:560px}
+    .controls{gap:5px;margin-bottom:10px;font-size:11px}
+    .controls div{padding:5px 8px}
+    button.big{font-size:16px;padding:11px 34px}
+    .touchnote{margin-top:8px;font-size:11px}
+    #gameover .stats{font-size:13px;line-height:1.5;margin-bottom:12px}
+    #settings .panel{padding:14px 18px}
+    #settings h2{font-size:17px;margin-bottom:8px}
+    .setbtn{padding:9px;margin:5px 0;font-size:13px}
+    .togglerow{padding:7px 10px;margin:6px 0}
+    #saveNote{margin-top:6px;font-size:11px}
+  }
+  @media (max-height:430px){
+    .story{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+    /* two-column settings panel so it fits landscape phones without scrolling */
+    #settings .panel{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;
+      width:min(600px,94vw);align-items:center}
+    #settings h2,#settings #saveNote{grid-column:1/-1}
+  }
   h1{font-size:clamp(26px,5vw,56px);letter-spacing:3px;
     background:linear-gradient(180deg,#fff3c4,var(--gold) 45%,#ff9d2e);
     -webkit-background-clip:text;background-clip:text;color:transparent;

@@ -60,6 +60,31 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.7 (Update 2 — horde evolution)
+
+- **Zombie fusion** — from wave 4 on, two husks that stay within arm's reach of each
+  other for 1.5 s fuse into a **Bulwark**: a hulking dark-tinted brute with 2.5× husk
+  health, slower stride, a heavier slam that shoves you backwards, and a fusion burst
+  of rift particles. At most 2 Bulwarks can exist at once, so waves stay fair.
+- **Skeletons** — when a husk or sprinter dies mid-wave there's a 35% chance (max 3
+  per wave) its grave reopens 8–15 s later: a bony pale skeleton claws out of the
+  dirt (brief rising animation, untouchable for the first 0.5 s), then sprints at
+  you — faster than a sprinter but very fragile. Same wave only; cleared waves stay
+  cleared.
+- **Fireballs** — shaman and warlord projectiles are now proper fireballs: white-hot
+  core with a red rim, pulsing size, flickering flame trail, and an ember burst on
+  impact. Each volley plays a synthesized "whoosh" (band-passed noise sweep + falling
+  sine — generated in WebAudio, no samples).
+- **Boss armor** — Gharok now enters with a steel armor plate shown as a thin grey
+  bar under his health bar. While it holds, he takes only 50% health damage and hits
+  chip the plate instead — it visibly cracks at 75/50/25%. Shatter it and he takes
+  full damage but moves 18% faster (enraged).
+- **Fence Grid Uplink** — a new field-lab upgrade path for your buildable barricades:
+  Tier 1 is the stock energy fence, **Tier 2 (150 ⬡)** adds reinforced steel posts and
+  slows enemies grinding on any fence by 45%, **Tier 3 (400 ⬡)** electrifies fences,
+  zapping enemies in contact (6 + wave/2 damage per second, with arc effects). The
+  tier is part of the auto-save.
+
 ### New in Release 2.6 (Update 1 — UI/HUD quality)
 
 - **Notification-bar / safe-area fixes** — the top HUD (health/aether bars, wave/cores/

@@ -261,7 +261,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.7';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -341,6 +341,55 @@ applyHudOffset();
 function buzz(pattern) {
   if (!settings.vibro || !navigator.vibrate) return;
   try { navigator.vibrate(pattern); } catch (e) { /* some webviews throw on odd patterns */ }
+}
+
+// ---------- synthesized SFX (WebAudio, no samples) ----------
+// Lazy AudioContext: created on first use, resumed whenever the autoplay
+// policy has unlocked it (any tap/keypress after game start qualifies).
+let audioCtx = null, noiseBuf = null, lastWhoosh = -9;
+function getAudio() {
+  if (audioCtx === null) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { audioCtx = false; } // API missing — stay silent forever
+  }
+  if (!audioCtx) return null;
+  if (audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+  return audioCtx;
+}
+// fireball "whoosh": band-passed noise sweeping down + a fading sine drop.
+// 100% synthesized — no sampled/copyrighted audio anywhere.
+function playWhoosh() {
+  try {
+    const ac = getAudio();
+    if (!ac || ac.state !== 'running') return;
+    const now = ac.currentTime;
+    if (now - lastWhoosh < 0.09) return; // throttle boss triple-volleys
+    lastWhoosh = now;
+    if (!noiseBuf) {
+      noiseBuf = ac.createBuffer(1, (ac.sampleRate * 0.5) | 0, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const src = ac.createBufferSource(); src.buffer = noiseBuf;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+    bp.frequency.setValueAtTime(1900, now);
+    bp.frequency.exponentialRampToValueAtTime(240, now + 0.32);
+    const ng = ac.createGain();
+    ng.gain.setValueAtTime(0.0001, now);
+    ng.gain.exponentialRampToValueAtTime(0.2, now + 0.05);
+    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+    const osc = ac.createOscillator(); osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.3);
+    const og = ac.createGain();
+    og.gain.setValueAtTime(0.0001, now);
+    og.gain.exponentialRampToValueAtTime(0.06, now + 0.04);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+    src.connect(bp).connect(ng).connect(ac.destination);
+    osc.connect(og).connect(ac.destination);
+    src.start(now); src.stop(now + 0.4);
+    osc.start(now); osc.stop(now + 0.35);
+  } catch (e) { /* audio must never break gameplay */ }
 }
 
 // ---------- controls placement (custom layout) ----------
@@ -487,6 +536,7 @@ function snapshot() {
     quest: { idx: questIdx, stage: questStage, progress: questProgress },
     mira: { idx: miraIdx, rewarded: miraRewarded },
     tally: { ...tally },
+    fenceTier,
   };
 }
 function saveGame(announce) {
@@ -505,6 +555,7 @@ function loadGame() {
   waveActive = false; spawnQueue = 0; enemies = []; graceT = 0; chest = null;
   cores = s.cores; kills = s.kills; totalCores = s.totalCores; runTime = s.runTime;
   gear.forEach((u, i) => u.lvl = s.gear[i] || 0);
+  fenceTier = clamp(s.fenceTier || 1, 1, FENCE_MAX_TIER); // pre-2.7 saves default to tier 1
   Object.assign(skillRanks, s.skills);
   Object.assign(tally, s.tally);
   questIdx = s.quest.idx; questStage = s.quest.stage; questProgress = s.quest.progress;
@@ -553,6 +604,13 @@ let graceT = 0;               // looting window between wave end and shop
 let barricades = [];          // player-built energy fences {x,y,r,hp,maxHp}
 let pulseCd = 0;              // cooldown for the barricade exit-blast
 const BARRICADE_MAX = 8, BARRICADE_COST = 3, BARRICADE_HP = 160;
+// fence grid tier (upgrades every barricade): 1 = stock energy fence,
+// 2 = reinforced posts + slows enemies grinding on the boundary,
+// 3 = electrified: small zap damage-over-time to enemies in contact
+let fenceTier = 1;
+const FENCE_MAX_TIER = 3, FENCE_COSTS = [150, 400]; // cores to reach tier 2 / 3
+const FENCE_SLOW = 0.55;                            // speed mult while touching (tier 2+)
+const fenceZapDps = () => 6 + wave * 0.5;           // tier 3 contact damage/sec
 
 // =========================== PLAYER ===============================
 const player = {};
@@ -638,10 +696,29 @@ function resistance(cat) {
 let campTrackX = CAMP.x, campTrackY = CAMP.y;
 
 function dealDamage(e, dmg, cat, kbx, kby, kb) {
+  if (e.invulnT > 0) return; // emerging skeletons can't be hit yet
   const res = resistance(cat);
-  const final = dmg * (1 - res);
+  let final = dmg * (1 - res);
   tally[cat] += dmg;
   waveCatsUsed.add(cat);
+  // boss armor plate: while it holds, hp damage is halved and hits chip the plate
+  if (e.armor > 0) {
+    e.armor -= final;
+    final *= 0.5;
+    const q = Math.ceil(Math.max(0, e.armor) / e.maxArmor * 4);
+    if (q < e.armorCrack) { // crack fleck burst at 75/50/25%
+      e.armorCrack = q;
+      spawnParticles(e.x, e.y - e.r, 10, '#aab4c4', 4);
+    }
+    if (e.armor <= 0) { // shattered: full damage from now on + enrage hint
+      e.armor = 0;
+      e.spd *= 1.18;
+      spawnParticles(e.x, e.y - e.r, 26, '#c8d2e0', 5);
+      addFloater(e.x, e.y - e.r * 2.8, 'ARMOR SHATTERED!', '#c8d2e0', true);
+      camera.shake = Math.max(camera.shake, 8);
+      buzz(40);
+    }
+  }
   e.hp -= final;
   e.flash = 0.12;
   if (kb) { e.vx += kbx * kb; e.vy += kby * kb; }
@@ -654,17 +731,41 @@ function dealDamage(e, dmg, cat, kbx, kby, kb) {
 // =========================== ENEMIES ==============================
 // husk (shambler) · sprinter (fast ghoul) · shaman (ranged caster)
 // ravager (ork brute) · warlord (ork boss, every 5 waves)
+// bulwark (two husks fused mid-wave) · skeleton (claws out of husk graves)
 const ETYPES = {
   husk:     { r: 14, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
   sprinter: { r: 11, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
   shaman:   { r: 13, hp: 44,  spd: 55,  dmg: 8,  core: 2,  xp: 12,  ranged: true  },
   ravager:  { r: 24, hp: 160, spd: 46,  dmg: 22, core: 3,  xp: 18,  ranged: false },
-  warlord:  { r: 40, hp: 950, spd: 40,  dmg: 34, core: 25, xp: 120, ranged: true, boss: true },
+  warlord:  { r: 40, hp: 950, spd: 40,  dmg: 34, core: 25, xp: 120, ranged: true, boss: true, armor: 300 },
+  bulwark:  { r: 20, hp: 90,  spd: 45,  dmg: 16, core: 3,  xp: 16,  ranged: false, kbPlayer: 260 }, // 2.5x husk hp, slow, heavy
+  skeleton: { r: 10, hp: 14,  spd: 170, dmg: 6,  core: 1,  xp: 5,   ranged: false },
 };
 function hpScale() { return 1 + (wave - 1) * 0.16; }
 
-function spawnEnemy(type) {
+// shared enemy factory — fusion/graves spawn at exact spots, waves at the edges
+function makeEnemy(type, x, y, opts = {}) {
   const t = ETYPES[type];
+  const hp = t.hp * hpScale() * (t.boss ? 1 + wave * 0.05 : 1);
+  const e = {
+    type, x, y, r: t.r, vx: 0, vy: 0, hp, maxHp: hp,
+    spd: t.spd * (1 + wave * 0.012), dmg: t.dmg,
+    core: t.core, xp: t.xp, ranged: t.ranged, boss: !!t.boss,
+    kbPlayer: t.kbPlayer || 0,
+    atkCd: rand(0.5, 1.5), flash: 0, dead: false,
+    walk: rand(0, 9), facing: 1, spawnT: 0.8,
+    ...opts,
+  };
+  if (t.armor) { // boss armor plate: soaks hits until it shatters
+    e.maxArmor = t.armor * (1 + wave * 0.05);
+    e.armor = e.maxArmor;
+    e.armorCrack = 4; // next quarter-threshold that sprays crack flecks
+  }
+  enemies.push(e);
+  return e;
+}
+
+function spawnEnemy(type) {
   let x, y;
   if (Math.random() < 0.55) { // learning engine: rift opens near your camping spot
     const a = rand(0, TAU), d = rand(560, 800);
@@ -680,15 +781,61 @@ function spawnEnemy(type) {
     x = clamp(player.x + Math.cos(a) * 480, 60, WORLD.w - 60);
     y = clamp(player.y + Math.sin(a) * 480, 60, WORLD.h - 60);
   }
-  const hp = t.hp * hpScale() * (t.boss ? 1 + wave * 0.05 : 1);
-  enemies.push({
-    type, x, y, r: t.r, vx: 0, vy: 0, hp, maxHp: hp,
-    spd: t.spd * (1 + wave * 0.012), dmg: t.dmg,
-    core: t.core, xp: t.xp, ranged: t.ranged, boss: !!t.boss,
-    atkCd: rand(0.5, 1.5), flash: 0, dead: false,
-    walk: rand(0, 9), facing: 1, spawnT: 0.8,
-  });
+  makeEnemy(type, x, y);
   spawnParticles(x, y, 14, '#b04dff', 3);
+}
+
+// ---------- zombie fusion: two lingering husks merge into a Bulwark ----------
+// radius leaves room for the flock-separation shove (touching husks sit ~28px apart)
+const FUSE_RADIUS = 60, FUSE_TIME = 1.5, FUSE_MIN_WAVE = 4, FUSE_MAX_ALIVE = 2;
+function updateFusion(dt) {
+  if (wave < FUSE_MIN_WAVE) return;
+  let bulwarks = 0;
+  for (const e of enemies) if (e.type === 'bulwark' && !e.dead) bulwarks++;
+  if (bulwarks >= FUSE_MAX_ALIVE) return;
+  const husks = enemies.filter(e => e.type === 'husk' && !e.dead && e.spawnT <= 0);
+  for (let i = 0; i < husks.length; i++) {
+    const a = husks[i];
+    if (a.fused) continue;
+    let partner = null;
+    for (let j = i + 1; j < husks.length; j++) {
+      const b = husks[j];
+      if (!b.fused && dist2(a.x, a.y, b.x, b.y) < FUSE_RADIUS * FUSE_RADIUS) { partner = b; break; }
+    }
+    if (!partner) { a.fuseT = Math.max(0, (a.fuseT || 0) - dt * 2); continue; } // decay, don't reset — husks jostle
+    a.fuseT = (a.fuseT || 0) + dt;
+    if (Math.random() < dt * 10) // pre-fusion rift shimmer between the pair
+      spawnParticles((a.x + partner.x) / 2, (a.y + partner.y) / 2 - 14, 1, '#b04dff', 2);
+    if (a.fuseT >= FUSE_TIME) {
+      a.fused = partner.fused = true;
+      a.dead = partner.dead = true; // merged, not killed — no drops/xp
+      const mx = (a.x + partner.x) / 2, my = (a.y + partner.y) / 2;
+      makeEnemy('bulwark', mx, my, { spawnT: 0.4 });
+      spawnParticles(mx, my, 28, '#8fbf5a', 5);
+      spawnParticles(mx, my, 12, '#b04dff', 4);
+      spawnRing(mx, my, 60);
+      addFloater(mx, my - 44, 'BULWARK FUSION!', '#b04dff', true);
+      buzz(30);
+      return; // at most one fusion per frame
+    }
+  }
+}
+
+// ---------- skeletons: zombie graves reopen later in the same wave ----------
+let graves = [], graveCount = 0;
+const SKELETON_CHANCE = 0.35, SKELETON_CAP = 3, SKELETON_EMERGE = 0.5;
+function updateGraves(dt) {
+  if (!graves.length) return;
+  for (const g of graves) {
+    g.t -= dt;
+    if (g.t <= 0 && waveActive && g.wave === wave) {
+      makeEnemy('skeleton', g.x, g.y, { spawnT: 0, emergeT: SKELETON_EMERGE, invulnT: SKELETON_EMERGE });
+      spawnParticles(g.x, g.y, 16, '#6b5636', 4); // grave-dirt burst
+      spawnParticles(g.x, g.y, 6, '#4a3c28', 3);
+      addFloater(g.x, g.y - 30, 'THE GRAVE OPENS…', '#d8d4c2', false);
+    }
+  }
+  graves = graves.filter(g => g.t > 0 && g.wave === wave);
 }
 
 function killEnemy(e) {
@@ -697,6 +844,12 @@ function killEnemy(e) {
   spawnParticles(e.x, e.y, e.boss ? 60 : 16, e.type === 'ravager' || e.type === 'warlord' ? '#5f8f3a' : '#7a8f5a', e.boss ? 5 : 3);
   decals.push({ x: e.x, y: e.y, r: e.r * 1.6, color: '46,66,36', life: 14, maxLife: 14 });
   camera.shake = Math.min(camera.shake + (e.boss ? 14 : 2), 18);
+  // fallen zombies may claw back out of the ground as skeletons (same wave only)
+  if ((e.type === 'husk' || e.type === 'sprinter') && waveActive &&
+      graveCount < SKELETON_CAP && Math.random() < SKELETON_CHANCE) {
+    graveCount++;
+    graves.push({ x: e.x, y: e.y, t: rand(8, 15), wave });
+  }
   const bonus = Math.random() < 0.25 * sk('s3') ? 1 : 0;
   for (let i = 0; i < e.core + bonus; i++)
     pickups.push({ x: e.x + rand(-14, 14), y: e.y + rand(-14, 14), type: 'core', t: 0 });
@@ -993,6 +1146,7 @@ function startWave() {
   $('btnMenu').classList.remove('hidden');
   $('btnSettings').classList.remove('hidden');
   CATS.forEach(c => tally[c] *= 0.82); // the engine forgets, slowly
+  graves = []; graveCount = 0;         // grave markers never cross waves
   spawnQueue = 6 + Math.round(wave * 3.2);
   spawnTimer = 0.5;
   if (wave % 5 === 0) { spawnEnemy('warlord'); spawnQueue += 4; }
@@ -1007,6 +1161,7 @@ function pickEnemyType() {
 }
 function endWave() {
   waveActive = false;
+  graves = []; // pending skeletons die with the wave
   cores += 4 + wave; totalCores += 4 + wave;
   questEvent('waveEnd');
   saveGame(false); // auto-save after every wave
@@ -1151,6 +1306,17 @@ function collideBarricades(e, dt) {
       e.y = b.y + (e.y - b.y) / d * minD;
       b.hp -= e.dmg * dt * (e.boss ? 6 : 2.2);
       if (Math.random() < dt * 8) spawnParticles(b.x + (e.x - b.x) / d * b.r, b.y + (e.y - b.y) / d * b.r, 3, '#7CFC00', 2);
+      // fence grid upgrades: tier 2 drags attackers, tier 3 electrocutes them
+      if (fenceTier >= 2) e.slowT = 0.3;
+      if (fenceTier >= 3) {
+        e.hp -= fenceZapDps() * dt;
+        e.flash = Math.max(e.flash, 0.05);
+        if (Math.random() < dt * 6) {
+          zap(b.x, b.y - 24, e.x, e.y - e.r);
+          spawnParticles(e.x, e.y - e.r, 2, '#9ef0ff', 3);
+        }
+        if (e.hp <= 0 && !e.dead) killEnemy(e);
+      }
       if (b.hp <= 0) {
         spawnParticles(b.x, b.y, 26, '#7CFC00', 5);
         addFloater(b.x, b.y - 30, 'BARRICADE DOWN!', '#ff8a93', true);
@@ -1192,6 +1358,7 @@ function spawnParticles(x, y, n, color, spd) {
   }
 }
 function spawnRing(x, y, R) { particles.push({ x, y, ring: true, r: 10, targetR: R, life: 0.35, maxLife: 0.35, color: '#4de1ff' }); }
+function emberBurst(x, y) { spawnParticles(x, y, 8, '#ff9d2e', 3); spawnParticles(x, y, 4, '#ffd54a', 2); }
 function addFloater(x, y, text, color, big) { floaters.push({ x, y, text, color, life: 1.1, big }); }
 function zap(x1, y1, x2, y2) { zaps.push({ x1, y1, x2, y2, life: 0.12 }); }
 let bannerT = 0;
@@ -1333,16 +1500,26 @@ function update(dt) {
   if (waveActive && spawnQueue === 0 && enemies.every(e => e.dead)) endWave();
 
   // ---- enemies ----
+  updateFusion(dt);
+  updateGraves(dt);
   for (const e of enemies) {
     if (e.dead) continue;
     e.flash = Math.max(0, e.flash - dt);
+    if (e.invulnT > 0) e.invulnT -= dt;
+    if (e.emergeT > 0) { // skeleton clawing out of the ground
+      e.emergeT -= dt;
+      if (Math.random() < dt * 24) spawnParticles(e.x + rand(-8, 8), e.y, 1, '#6b5636', 2);
+      continue;
+    }
     if (e.spawnT > 0) { e.spawnT -= dt; continue; }
     const ex = player.x - e.x, ey = player.y - e.y;
     const d = Math.hypot(ex, ey) || 1;
     const wantD = e.ranged && !e.boss ? 260 : 0;
     const dir = d > wantD ? 1 : -0.6;
-    e.vx = lerp(e.vx, ex / d * e.spd * dir, dt * 4);
-    e.vy = lerp(e.vy, ey / d * e.spd * dir, dt * 4);
+    let spdMul = 1;
+    if (e.slowT > 0) { e.slowT -= dt; spdMul = FENCE_SLOW; } // fence tier 2+ drag
+    e.vx = lerp(e.vx, ex / d * e.spd * spdMul * dir, dt * 4);
+    e.vy = lerp(e.vy, ey / d * e.spd * spdMul * dir, dt * 4);
     for (const o of enemies) {
       if (o === e || o.dead) continue;
       const d2 = dist2(e.x, e.y, o.x, o.y), minD = e.r + o.r;
@@ -1357,16 +1534,24 @@ function update(dt) {
     collideBarricades(e, dt);
     e.walk += dt * (Math.hypot(e.vx, e.vy) * 0.075);
     e.facing = e.vx >= 0 ? 1 : -1;
-    if (d < e.r + player.r + 6 && player.hurtT <= 0) hurtPlayer(e.dmg);
+    if (d < e.r + player.r + 6 && player.hurtT <= 0) {
+      hurtPlayer(e.dmg);
+      if (e.kbPlayer) { // bulwark slam shoves the player back
+        player.vx += ex / d * e.kbPlayer;
+        player.vy += ey / d * e.kbPlayer;
+        player.dashT = Math.max(player.dashT, 0.12); // let the shove play out
+      }
+    }
     if (e.ranged) {
       e.atkCd -= dt;
       if (e.atkCd <= 0 && d < 540) {
         e.atkCd = e.boss ? 1.1 : rand(1.6, 2.6);
         const a = Math.atan2(ey, ex) + rand(-0.05, 0.05);
         const n = e.boss ? 3 : 1;
+        playWhoosh();
         for (let i = 0; i < n; i++) {
           const aa = a + (i - (n - 1) / 2) * 0.22;
-          ebolts.push({ x: e.x, y: e.y - e.r, vx: Math.cos(aa) * 300, vy: Math.sin(aa) * 300, life: 2.4, r: 6, dmg: e.dmg * 0.8 });
+          ebolts.push({ x: e.x, y: e.y - e.r, vx: Math.cos(aa) * 300, vy: Math.sin(aa) * 300, life: 2.4, r: 6, dmg: e.dmg * 0.8, fire: true });
         }
       }
       if (e.boss && Math.random() < dt * 0.25) spawnEnemy('sprinter');
@@ -1393,11 +1578,18 @@ function update(dt) {
 
   for (const b of ebolts) {
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-    if (obstacles.some(o => o.type !== 'tree' && dist2(b.x, b.y, o.x, o.y) < o.r * o.r)) { b.life = 0; continue; }
+    if (b.fire && Math.random() < dt * 46) { // flickering flame trail
+      particles.push({ x: b.x + rand(-3, 3), y: b.y + rand(-3, 3), vx: rand(-16, 16), vy: rand(-34, -6),
+        life: rand(0.12, 0.32), maxLife: 0.32, color: Math.random() < 0.5 ? '#ff9d2e' : '#ff5a1f', r: rand(1.5, 3) });
+    }
+    if (obstacles.some(o => o.type !== 'tree' && dist2(b.x, b.y, o.x, o.y) < o.r * o.r)) {
+      b.life = 0; if (b.fire) emberBurst(b.x, b.y); continue;
+    }
     const wall = barricades.find(w => dist2(b.x, b.y, w.x, w.y) < w.r * w.r);
-    if (wall) { wall.hp -= b.dmg * 0.6; b.life = 0; spawnParticles(b.x, b.y, 4, '#7CFC00', 2); continue; }
+    if (wall) { wall.hp -= b.dmg * 0.6; b.life = 0; spawnParticles(b.x, b.y, 4, '#7CFC00', 2); if (b.fire) emberBurst(b.x, b.y); continue; }
     if (dist2(b.x, b.y, player.x, player.y - 12) < (player.r + b.r + 4) ** 2) {
       b.life = 0;
+      if (b.fire) emberBurst(b.x, b.y);
       if (player.hurtT <= 0) hurtPlayer(b.dmg);
     }
   }
@@ -1555,6 +1747,26 @@ function renderShop() {
     if (!maxed) div.onclick = () => buyGear(u);
     grid.appendChild(div);
   }
+  // perimeter fence grid (upgrades every barricade you build) — flat tier costs
+  const fMax = fenceTier >= FENCE_MAX_TIER;
+  const fDesc = fenceTier === 1 ? 'Tier 2: reinforced posts — enemies grinding on a fence are slowed 45%'
+    : fenceTier === 2 ? 'Tier 3: electrified — fences also zap enemies in contact'
+    : 'Reinforced + electrified: fences slow AND zap attackers';
+  const fDiv = document.createElement('div');
+  fDiv.className = 'shopitem' + (fMax ? ' maxed' : '');
+  fDiv.innerHTML = `<h4>Fence Grid Uplink<span class="lvl">${fMax ? 'MAX' : 'Tier ' + fenceTier + '/' + FENCE_MAX_TIER}</span></h4>
+    <small>${fDesc}</small>
+    <div class="price">${fMax ? '—' : '⬡ ' + FENCE_COSTS[fenceTier - 1]}</div>`;
+  if (!fMax) fDiv.onclick = () => buyFence();
+  grid.appendChild(fDiv);
+}
+function buyFence() {
+  if (fenceTier >= FENCE_MAX_TIER) return;
+  const cost = FENCE_COSTS[fenceTier - 1];
+  if (cores < cost) { $('shopCores').style.color = '#ff4d5e'; setTimeout(() => $('shopCores').style.color = '', 300); return; }
+  cores -= cost;
+  fenceTier++;
+  renderShop();
 }
 function buyGear(u) {
   const cost = gearCost(u);
@@ -1837,6 +2049,12 @@ function enemyFigure(e) {
     case 'warlord': return { ...base, s: 2.7, bulk: 1.5, headScale: 1.15, skin: '#4f7a30', cloth: '#3c2f22',
       pauldron: '#59636f', legs: '#332a20', tusks: true, ears: true, horns: true, helmet: '#3a3f4c',
       weapon: 'club', glowEyes: '#ff2d55', aura: '#b04dff' };
+    // scaled-up husk rig with a heavier, darker tint — two shamblers in one skin
+    case 'bulwark': return { ...base, s: 1.45, bulk: 1.6, headScale: 1.05, skin: '#5f7a44', cloth: '#3f4a33',
+      rags: '#2e3626', legs: '#2a3022', hunch: 0.8, armsForward: true, glowEyes: '#ff2d55' };
+    // bony pale runner, thin limbs, cold glowing sockets
+    case 'skeleton': return { ...base, s: 0.9, bulk: 0.62, skin: '#ddd6c0', cloth: '#b8b09a',
+      rags: '#8a8272', legs: '#c9c2ac', hunch: 0.55, armsForward: true, glowEyes: '#9ef0ff' };
   }
 }
 function playerFigure() {
@@ -1978,6 +2196,29 @@ function render() {
       ctx.shadowColor = '#7CFC00'; ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(b.x, b.y - 24, 4, 0, TAU); ctx.fill();
       ctx.shadowBlur = 0;
+      // tier 2+: reinforced steel posts around the ring
+      if (fenceTier >= 2) {
+        ctx.fillStyle = '#8d99ae'; ctx.strokeStyle = '#5a6478'; ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+          const a = i / 4 * TAU + Math.PI / 4;
+          const px = b.x + Math.cos(a) * b.r, py = b.y + Math.sin(a) * b.r;
+          ctx.fillRect(px - 2, py - 12, 4, 12);
+          ctx.strokeRect(px - 2, py - 12, 4, 12);
+        }
+      }
+      // tier 3: electrified — crackling arc segments jump around the dome
+      if (fenceTier >= 3 && Math.random() < 0.35) {
+        const a0 = rand(0, TAU), a1 = a0 + rand(0.5, 1.4);
+        ctx.strokeStyle = 'rgba(158,240,255,0.85)'; ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#9ef0ff'; ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(b.x + Math.cos(a0) * b.r, b.y + Math.sin(a0) * b.r);
+        const am = (a0 + a1) / 2, rm = b.r + rand(-6, 6);
+        ctx.lineTo(b.x + Math.cos(am) * rm, b.y + Math.sin(am) * rm);
+        ctx.lineTo(b.x + Math.cos(a1) * b.r, b.y + Math.sin(a1) * b.r);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
       // hp bar when damaged
       if (b.hp < b.maxHp) {
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -2018,6 +2259,15 @@ function render() {
   for (const e of enemies) {
     if (e.dead) continue;
     draws.push({ y: e.y, f: () => {
+      if (e.emergeT > 0) { // skeleton rising out of a grave
+        const p = e.emergeT / SKELETON_EMERGE; // 1 → 0
+        ctx.fillStyle = 'rgba(70,58,38,0.85)';  // disturbed grave dirt mound
+        ctx.beginPath(); ctx.ellipse(e.x, e.y + 2, 16, 6, 0, 0, TAU); ctx.fill();
+        const fig = enemyFigure(e);
+        fig.alpha = 1 - p * 0.55;
+        drawFigure(e.x, e.y + p * 18, fig);
+        return;
+      }
       const emerge = e.spawnT > 0 ? 1 - e.spawnT / 0.8 : 1;
       if (emerge < 1) {
         // rift emergence swirl
@@ -2046,10 +2296,21 @@ function render() {
     ctx.strokeStyle = '#9ef0ff'; ctx.lineWidth = 3.5;
     ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.02, b.y - b.vy * 0.02); ctx.stroke();
   }
-  ctx.shadowColor = '#d24dff';
   for (const b of ebolts) {
-    ctx.fillStyle = '#d24dff';
-    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+    if (b.fire) { // fireball: white-hot core, orange body, red rim, size pulse
+      const pulse = 1 + Math.sin(performance.now() / 45 + b.x * 0.1) * 0.16;
+      ctx.shadowColor = '#ff7a1f'; ctx.shadowBlur = 14;
+      const fg = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * pulse);
+      fg.addColorStop(0, '#fff3c4');
+      fg.addColorStop(0.45, '#ffb02e');
+      fg.addColorStop(1, '#ff3d1f');
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * pulse, 0, TAU); ctx.fill();
+    } else {
+      ctx.shadowColor = '#d24dff'; ctx.shadowBlur = 10;
+      ctx.fillStyle = '#d24dff';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+    }
   }
   ctx.shadowBlur = 0;
 
@@ -2145,8 +2406,20 @@ function render() {
     ctx.fillRect(VW / 2 - w / 2, by + 3, w, 12);
     ctx.fillStyle = '#ff2d55';
     ctx.fillRect(VW / 2 - w / 2, by + 3, w * clamp(boss.hp / boss.maxHp, 0, 1), 12);
+    // armor plate bar (thinner, steel) just below the hp bar
+    if (boss.maxArmor) {
+      ctx.fillStyle = 'rgba(8,14,26,0.85)';
+      ctx.fillRect(VW / 2 - w / 2 - 3, by + 19, w + 6, 8);
+      ctx.fillStyle = '#232a36';
+      ctx.fillRect(VW / 2 - w / 2, by + 21, w, 4);
+      if (boss.armor > 0) {
+        ctx.fillStyle = '#aab8cc';
+        ctx.fillRect(VW / 2 - w / 2, by + 21, w * clamp(boss.armor / boss.maxArmor, 0, 1), 4);
+      }
+    }
     ctx.fillStyle = '#ffb0b7'; ctx.font = 'bold 11px Segoe UI'; ctx.textAlign = 'center';
-    ctx.fillText('GHAROK — ORK WARLORD OF THE RIFT', VW / 2, by - 5);
+    ctx.fillText(boss.maxArmor && boss.armor <= 0 ? 'GHAROK — ARMOR SHATTERED · ENRAGED'
+      : 'GHAROK — ORK WARLORD OF THE RIFT', VW / 2, by - 5);
   }
 
   // ---- current region name, above the boss bar when one is showing ----
@@ -2376,6 +2649,7 @@ function newGame() {
   questIdx = 0; questStage = 'offer'; questProgress = 0;
   miraIdx = 0; miraRewarded = false;
   chest = null; graceT = 0; barricades = []; pulseCd = 0;
+  fenceTier = 1; graves = []; graveCount = 0;
   currentRegion = '';
   buildWorld();
   resetPlayer();

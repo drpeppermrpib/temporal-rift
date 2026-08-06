@@ -60,6 +60,26 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.6 (Update 1 — UI/HUD quality)
+
+- **Notification-bar / safe-area fixes** — the top HUD (health/aether bars, wave/cores/
+  kills counter bar, learning-engine panel, quest tracker) now starts below the phone's
+  status bar (`env(safe-area-inset-top)`), and the counter bar sits slightly lower by
+  default. Because many Android webviews report no inset, a new **HUD top offset**
+  setting (0/16/32/48 px) lets you push the whole top HUD down manually; the skill-tree
+  header tracks it too.
+- **Per-button layout editor** — EDIT LAYOUT now drags **every control individually**:
+  each action button (FIRE, BEAM, NOVA, DASH, GRENADE, ASCEND, BUILD), the TALK /
+  SKILLS / MENU buttons, and the joystick zone. Old whole-clump layouts from ≤2.5
+  still load unchanged; RESET restores defaults; positions are clamped on-screen and
+  survive control-size changes.
+- **Button styles** — new setting with three looks for the touch controls:
+  **Classic**, **Neon** (bright borders + glow), and **Minimal** (thin, low-opacity).
+- **Vibration** — haptic feedback (with an on/off toggle, default on for touch
+  devices): light tap on nova/melee, a pulse when you take damage (stronger for boss
+  hits), grenade/beam rumbles, and celebration patterns on wave clear and level-up.
+  Rifle shots deliberately don't buzz.
+
 ### New in Release 2
 
 - **Supply caches** — a glowing treasure chest drops after every cleared wave with a

@@ -257,11 +257,11 @@ bindHold('btnGren', () => tryGrenade());
 bindHold('btnDash', () => tryDash(true));
 bindHold('btnForm', () => tryTransform());
 bindHold('btnBuild', () => tryBuild());
-$('btnTalk').addEventListener('pointerdown', e => { e.preventDefault(); tryTalk(); });
-$('btnMenu').addEventListener('pointerdown', e => { e.preventDefault(); toggleTree(); });
+$('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); tryTalk(); });
+$('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.5';
+const APP_VERSION = '2.6';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -305,7 +305,7 @@ if (UPDATE_CHANNEL === 'github') checkForUpdate();
 // ==================== SETTINGS & SAVE SYSTEM ======================
 const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';
 let settingsOpen = false;
-const settings = { shake: true, dmgText: true, uiScale: 'normal', layout: null };
+const settings = { shake: true, dmgText: true, vibro: IS_TOUCH, uiScale: 'normal', btnStyle: 'classic', hudOffset: 0, layout: null };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
 function persistSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
 
@@ -314,25 +314,100 @@ function applyUiScale() {
   document.body.classList.remove('ui-small', 'ui-large');
   if (settings.uiScale === 'small') document.body.classList.add('ui-small');
   if (settings.uiScale === 'large') document.body.classList.add('ui-large');
+  // NOTE: runs before the layout consts below exist — callers that change the
+  // scale at runtime must call applyLayout() afterwards to re-clamp positions
 }
 applyUiScale();
 
+const BTN_STYLES = ['classic', 'neon', 'minimal'];
+function applyBtnStyle() {
+  document.body.classList.remove('btn-neon', 'btn-minimal');
+  if (settings.btnStyle === 'neon') document.body.classList.add('btn-neon');
+  if (settings.btnStyle === 'minimal') document.body.classList.add('btn-minimal');
+}
+applyBtnStyle();
+
+// extra top padding for the HUD — many Android webviews report a 0 safe-area
+// inset even when a status bar overlays the game, so let the player dial it in
+const HUD_OFFSETS = [0, 16, 32, 48];
+function applyHudOffset() {
+  document.documentElement.style.setProperty('--hudTop', (settings.hudOffset || 0) + 'px');
+}
+applyHudOffset();
+
+// haptic feedback — navigator.vibrate works in the Android webview, silently
+// no-ops elsewhere. Deliberately NOT hooked to rifle fire (way too spammy);
+// only melee/nova, damage taken, explosions, and big events buzz.
+function buzz(pattern) {
+  if (!settings.vibro || !navigator.vibrate) return;
+  try { navigator.vibrate(pattern); } catch (e) { /* some webviews throw on odd patterns */ }
+}
+
 // ---------- controls placement (custom layout) ----------
+// v2 (app 2.6) layout format: per-button positions.
+//   { v:2, tbtns:{right,bottom}|null, joy:{left,bottom,w,h}|null,
+//     btns:{ btnFire:{right,bottom}, ... } }
+// `tbtns` is the LEGACY v1 whole-clump offset — still applied to the #tbtns grid
+// before measuring, so pre-2.6 saves keep their moved cluster with zero migration;
+// per-button entries in `btns` then override individual buttons on top of it.
+const GRID_BTN_IDS = ['btnBuild', 'btnForm', 'btnGren', 'btnDash', 'btnNova', 'btnBeam', 'btnFire'];
+const FLOAT_BTN_IDS = ['btnTalk', 'btnMenu', 'btnSettings']; // fixed-position controls outside the grid
+
 function applyLayout() {
   const tb = $('tbtns'), jz = $('joyZone');
   const L = settings.layout || {};
+  const btns = L.btns || {};
+  // 1) restore stock flow: legacy clump offset on the container, buttons back in the grid
   if (L.tbtns) { tb.style.right = L.tbtns.right + 'px'; tb.style.bottom = L.tbtns.bottom + 'px'; }
   else { tb.style.right = ''; tb.style.bottom = ''; }
+  for (const id of GRID_BTN_IDS) {
+    const s = $(id).style;
+    s.position = s.left = s.top = s.right = s.bottom = '';
+  }
+  for (const id of FLOAT_BTN_IDS) {
+    const s = $(id).style;
+    s.left = s.top = s.right = s.bottom = s.transform = '';
+  }
+  // 2) measure the grid defaults for the current ui scale / clump offset…
+  const defs = {};
+  for (const id of GRID_BTN_IDS) defs[id] = $(id).getBoundingClientRect();
+  // 3) …then take every grid button out of flow at (custom ?? default), clamped
+  // on-screen. All of them leave the grid together, so nothing reflows underneath.
+  // If the controls are hidden right now (desktop, editor closed) the rects are
+  // all zero — no real defaults to measure — so leave untouched buttons in grid
+  // flow and only pin the explicitly-customized ones (re-clamped when visible).
+  const gridHidden = defs.btnFire.width === 0;
+  for (const id of GRID_BTN_IDS) {
+    if (gridHidden && !btns[id]) continue;
+    const el = $(id), r = defs[id];
+    const pos = btns[id] || { right: Math.round(VW - r.right), bottom: Math.round(VH - r.bottom) };
+    el.style.position = 'fixed';
+    el.style.right = clamp(pos.right, 0, Math.max(0, VW - r.width)) + 'px';
+    el.style.bottom = clamp(pos.bottom, 0, Math.max(0, VH - r.height)) + 'px';
+  }
+  // floating controls only get inline styles when the player moved them
+  for (const id of FLOAT_BTN_IDS) {
+    if (!btns[id]) continue;
+    const el = $(id), r = el.getBoundingClientRect();
+    el.style.left = el.style.top = 'auto';
+    el.style.transform = 'none'; // btnTalk is centered via translateX by default
+    el.style.right = clamp(btns[id].right, 0, Math.max(0, VW - r.width)) + 'px';
+    el.style.bottom = clamp(btns[id].bottom, 0, Math.max(0, VH - r.height)) + 'px';
+  }
   if (L.joy) {
-    jz.style.left = L.joy.left + 'px'; jz.style.bottom = L.joy.bottom + 'px';
+    jz.style.left = clamp(L.joy.left, 0, Math.max(0, VW - L.joy.w)) + 'px';
+    jz.style.bottom = clamp(L.joy.bottom, 0, Math.max(0, VH - L.joy.h)) + 'px';
     jz.style.width = L.joy.w + 'px'; jz.style.height = L.joy.h + 'px';
   } else { jz.style.left = ''; jz.style.bottom = ''; jz.style.width = ''; jz.style.height = ''; }
 }
 applyLayout();
+addEventListener('resize', applyLayout);
 
 let layoutEditing = false;
 function ensureLayout() {
   if (!settings.layout) settings.layout = { tbtns: null, joy: null };
+  if (!settings.layout.btns) settings.layout.btns = {}; // migrate v1 saves in place
+  settings.layout.v = 2;
   return settings.layout;
 }
 function positionJoyPlaceholder() {
@@ -344,13 +419,22 @@ function positionJoyPlaceholder() {
   jb.style.left = (zr.width / 2 - 55) + 'px';
   jb.style.top = (zr.height / 2 - 55) + 'px';
 }
+let talkWasHidden = false;
 function setLayoutEditing(on) {
   layoutEditing = on;
   document.body.classList.toggle('layout-editing', on);
   $('layoutBar').classList.toggle('hidden', !on);
   const jb = $('joyBase'), jk = $('joyKnob');
-  if (on) positionJoyPlaceholder();
-  else { jb.style.display = 'none'; jk.style.display = 'none'; jb.style.left = ''; jb.style.top = ''; }
+  if (on) {
+    // TALK only appears near NPCs — show it while editing so it can be placed too
+    talkWasHidden = $('btnTalk').classList.contains('hidden');
+    $('btnTalk').classList.remove('hidden');
+    applyLayout(); // touch controls just became visible → measure real positions
+    positionJoyPlaceholder();
+  } else {
+    if (talkWasHidden) $('btnTalk').classList.add('hidden');
+    jb.style.display = 'none'; jk.style.display = 'none'; jb.style.left = ''; jb.style.top = '';
+  }
 }
 function finishLayoutEdit() {
   persistSettings();
@@ -361,6 +445,7 @@ function makeDraggable(el, apply) {
   el.addEventListener('pointerdown', e => {
     if (!layoutEditing) return;
     e.preventDefault();
+    e.stopPropagation(); // a button drag must not also start a joystick-zone drag
     const r = el.getBoundingClientRect();
     const offX = e.clientX - r.left, offY = e.clientY - r.top;
     const move = ev => {
@@ -378,10 +463,14 @@ function makeDraggable(el, apply) {
     addEventListener('pointercancel', up);
   });
 }
-makeDraggable($('tbtns'), (left, top, w, h) => {
-  ensureLayout().tbtns = { right: Math.round(VW - left - w), bottom: Math.round(VH - top - h) };
-  applyLayout();
-});
+// every action button drags independently; positions are stored edge-relative
+// (right/bottom) so they survive rotation / resolution changes, clamped on apply
+for (const id of GRID_BTN_IDS.concat(FLOAT_BTN_IDS)) {
+  makeDraggable($(id), (left, top, w, h) => {
+    ensureLayout().btns[id] = { right: Math.round(VW - left - w), bottom: Math.round(VH - top - h) };
+    applyLayout();
+  });
+}
 makeDraggable($('joyZone'), (left, top, w, h) => {
   ensureLayout().joy = { left: Math.round(left), bottom: Math.round(VH - top - h), w: Math.round(w), h: Math.round(h) };
   applyLayout();
@@ -443,7 +532,10 @@ function toggleSettings() {
 function refreshToggles() {
   $('togShake').classList.toggle('on', settings.shake);
   $('togDmg').classList.toggle('on', settings.dmgText);
+  $('togVibro').classList.toggle('on', settings.vibro);
   $('uiSizeVal').textContent = settings.uiScale.toUpperCase();
+  $('btnStyleVal').textContent = settings.btnStyle.toUpperCase();
+  $('hudOffVal').textContent = '+' + (settings.hudOffset || 0) + ' PX';
 }
 
 // ========================= GAME STATE =============================
@@ -625,6 +717,7 @@ function gainXp(n) {
     player.hp = Math.min(maxHp(), player.hp + 25);
     addFloater(player.x, player.y - 40, 'LEVEL UP! +1 SKILL POINT ✦', '#ffd54a', true);
     spawnParticles(player.x, player.y, 26, '#ffd54a', 4);
+    buzz([30, 50, 30, 50, 30]);
   }
 }
 
@@ -929,6 +1022,7 @@ function endWave() {
   spawnParticles(chest.x, chest.y, 30, '#ffd54a', 4);
   graceT = 10;
   banner('WAVE CLEARED', '🎁 loot the supply cache — field lab opens soon');
+  buzz([40, 60, 40, 60, 80]);
 }
 
 function openChest() {
@@ -983,6 +1077,7 @@ function releaseBeam() {
   beam = { a: player.aim, t: 0, dur: 0.65 + beamCharge * 0.4,
     w: (16 + beamCharge * 34) * beamWidthMul(), power: beamCharge };
   camera.shake = 12 + beamCharge * 8;
+  buzz(45);
   beamCharge = 0;
 }
 
@@ -994,6 +1089,7 @@ function tryNova() {
   const R = 130 + (player.form ? 30 : 0);
   spawnRing(player.x, player.y, R);
   camera.shake = 8;
+  buzz(20); // light tap on the melee burst
   for (const e of enemies) {
     if (e.dead) continue;
     const d2 = dist2(e.x, e.y, player.x, player.y);
@@ -1018,6 +1114,7 @@ function explodeGrenade(g) {
   spawnRing(g.x, g.y, R);
   decals.push({ x: g.x, y: g.y, r: R * 0.5, color: '20,26,40', life: 10, maxLife: 10 });
   camera.shake = 11;
+  buzz(50);
   for (const e of enemies) {
     if (e.dead) continue;
     const d2 = dist2(e.x, e.y, g.x, g.y);
@@ -1392,6 +1489,7 @@ function hurtPlayer(dmg) {
   player.hp -= dmg * (1 - armorReduce());
   player.hurtT = 0.45;
   camera.shake = 9;
+  buzz(dmg >= 25 ? 60 : 30); // heavy hits (boss slams) rumble harder
   spawnParticles(player.x, player.y - 14, 10, '#ff4d5e', 3);
   if (player.hp <= 0) gameOver();
 }
@@ -2310,9 +2408,22 @@ $('saveGameBtn').onclick = () => {
 };
 $('togShake').onclick = () => { settings.shake = !settings.shake; persistSettings(); refreshToggles(); };
 $('togDmg').onclick = () => { settings.dmgText = !settings.dmgText; persistSettings(); refreshToggles(); };
+$('togVibro').onclick = () => {
+  settings.vibro = !settings.vibro; persistSettings(); refreshToggles();
+  buzz(30); // confirmation blip when turning it on
+};
 $('rowUiSize').onclick = () => {
   settings.uiScale = UI_SCALES[(UI_SCALES.indexOf(settings.uiScale) + 1) % UI_SCALES.length];
-  applyUiScale(); persistSettings(); refreshToggles();
+  applyUiScale(); applyLayout(); persistSettings(); refreshToggles();
+};
+$('rowBtnStyle').onclick = () => {
+  settings.btnStyle = BTN_STYLES[(BTN_STYLES.indexOf(settings.btnStyle) + 1) % BTN_STYLES.length];
+  applyBtnStyle(); persistSettings(); refreshToggles();
+};
+$('rowHudOff').onclick = () => {
+  const i = HUD_OFFSETS.indexOf(settings.hudOffset || 0);
+  settings.hudOffset = HUD_OFFSETS[(i + 1) % HUD_OFFSETS.length];
+  applyHudOffset(); persistSettings(); refreshToggles();
 };
 $('layoutBtn').onclick = () => {
   // hide the overlay but keep settingsOpen=true so the game stays paused while editing

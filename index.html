@@ -11,6 +11,11 @@
   :root{
     --gold:#ffd54a; --cyan:#4de1ff; --green:#7CFC00; --red:#ff4d5e; --purple:#b04dff;
     --bg:#05070d; --panel:rgba(8,14,26,.93); --border:rgba(77,225,255,.35);
+    /* --hudTop = user "HUD offset" setting (game.js writes it); --safeTop = where the
+       top HUD may start: at least 16px, pushed down by the notch/status-bar inset when
+       the webview reports one, plus the user offset (many Android webviews report 0). */
+    --hudTop:0px;
+    --safeTop:calc(max(16px, env(safe-area-inset-top)) + var(--hudTop));
   }
   *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;touch-action:none}
   html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
@@ -85,7 +90,7 @@
     cursor:pointer;padding:2px 6px;line-height:1}
   /* ---------- HUD ---------- */
   #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-  .bars{position:fixed;left:14px;top:14px;width:min(300px,44vw)}
+  .bars{position:fixed;left:14px;top:var(--safeTop);width:min(300px,44vw)}
   .barwrap{margin-top:5px}
   .barlabel{font-size:10px;letter-spacing:2px;color:#9fb2c9;margin-bottom:2px;display:flex;justify-content:space-between}
   .bar{height:14px;border-radius:7px;background:rgba(10,16,30,.8);border:1px solid var(--border);overflow:hidden}
@@ -94,19 +99,20 @@
   #kifill{background:linear-gradient(90deg,#2e9dff,var(--cyan));width:0%}
   #xpfill{background:linear-gradient(90deg,#b96bff,#ff6bd8);width:0%;height:100%}
   .xpbar{height:5px;border-radius:3px;background:rgba(10,16,30,.8);border:1px solid rgba(185,107,255,.3);overflow:hidden;margin-top:5px}
-  #questbox{position:fixed;left:14px;top:112px;max-width:290px;background:rgba(8,14,26,.82);
+  #questbox{position:fixed;left:14px;top:calc(var(--safeTop) + 96px);max-width:290px;background:rgba(8,14,26,.82);
     border-left:3px solid var(--gold);border-radius:6px;padding:8px 12px;font-size:12.5px;
     box-shadow:0 2px 12px rgba(0,0,0,.4)}
   #questbox h4{color:var(--gold);font-size:11px;letter-spacing:2px;margin-bottom:3px}
   #questbox p{color:#c4d2e6;line-height:1.45}
   #questbox .qdone{color:var(--green)}
-  #topbar{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:18px;
+  /* +8px: sits a touch lower by default so a typical Android status bar clears it */
+  #topbar{position:fixed;top:calc(var(--safeTop) + 8px);left:50%;transform:translateX(-50%);display:flex;gap:18px;
     background:var(--panel);border:1px solid var(--border);border-radius:12px;
     padding:7px 20px;font-size:13px;align-items:center;white-space:nowrap}
   #topbar b{color:var(--gold);font-size:15px}
   #topbar .cyan{color:var(--cyan)}
   #topbar .sp{color:#ff6bd8}
-  #adaptbox{position:fixed;right:14px;top:14px;width:206px;background:var(--panel);
+  #adaptbox{position:fixed;right:14px;top:var(--safeTop);width:206px;background:var(--panel);
     border:1px solid rgba(255,77,94,.4);border-radius:12px;padding:8px 12px;font-size:11px}
   #adaptbox h3{font-size:10px;letter-spacing:1.5px;color:#ff8a93;margin-bottom:4px}
   .adaptrow{display:flex;align-items:center;gap:7px;margin-top:3px}
@@ -122,7 +128,7 @@
     opacity:0;transition:opacity .6s;pointer-events:none}
   #chapterbanner h3{font-size:14px;color:var(--purple);letter-spacing:6px}
   #chapterbanner h2{font-size:30px;color:#e8f2ff;letter-spacing:3px;font-weight:600}
-  #grenadeHud{position:fixed;left:14px;top:96px;font-size:12px;color:#9fb2c9}
+  #grenadeHud{position:fixed;left:14px;top:calc(var(--safeTop) + 80px);font-size:12px;color:#9fb2c9}
   /* ---------- Touch controls ---------- */
   .touch-only{display:none}
   body.touch .touch-only{display:block}
@@ -153,8 +159,18 @@
   body.ui-large #joyBase{width:130px;height:130px}
   body.ui-large #joyKnob{width:56px;height:56px}
   .tbtn:active,.tbtn.held{background:rgba(77,225,255,.35);border-color:var(--cyan)}
+  /* ---------- button style setting (classic / neon / minimal) ---------- */
+  body.btn-neon .tbtn{border-color:var(--cyan);background:rgba(10,30,55,.82);color:#eaf8ff;
+    box-shadow:0 0 14px rgba(77,225,255,.45),inset 0 0 10px rgba(77,225,255,.12)}
+  body.btn-neon #btnFire{border-color:var(--gold);
+    box-shadow:0 0 16px rgba(255,213,74,.5),inset 0 0 10px rgba(255,213,74,.15)}
+  body.btn-neon #btnBuild{border-color:var(--green);box-shadow:0 0 14px rgba(124,252,0,.4)}
+  body.btn-neon #joyBase{border-color:rgba(77,225,255,.75);box-shadow:0 0 18px rgba(77,225,255,.35)}
+  body.btn-minimal .tbtn{border-width:1px;background:rgba(14,24,44,.3);opacity:.65;box-shadow:none}
+  body.btn-minimal .tbtn:active,body.btn-minimal .tbtn.held{opacity:1;background:rgba(77,225,255,.3)}
+  body.btn-minimal #joyBase{border-width:1px;background:rgba(20,32,54,.2)}
   /* ---------- controls placement editor ---------- */
-  #layoutBar{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;
+  #layoutBar{position:fixed;top:calc(var(--safeTop) - 6px);left:50%;transform:translateX(-50%);z-index:60;
     display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--gold);
     border-radius:12px;padding:8px 14px;font-size:12px;color:var(--gold);
     pointer-events:auto;white-space:nowrap;max-width:96vw}
@@ -163,8 +179,8 @@
   #layoutDone{background:linear-gradient(180deg,#ffe89a,#ffb62e);border:1px solid var(--gold);color:#0b0e05}
   #layoutReset{background:rgba(20,32,54,.8);border:1px solid var(--border);color:#cfe2ff}
   body.layout-editing .touch-only{display:block}
-  body.layout-editing #tbtns{outline:2px dashed var(--gold);outline-offset:6px;border-radius:12px;cursor:move}
-  body.layout-editing .tbtn{pointer-events:none}
+  /* every button is its own drag handle now (per-button layout, v2.6) */
+  body.layout-editing .tbtn{outline:2px dashed var(--gold);outline-offset:3px;cursor:move;pointer-events:auto}
   body.layout-editing #joyZone{border:2px dashed rgba(77,225,255,.6);background:rgba(77,225,255,.07);
     border-radius:12px;cursor:move}
   body.layout-editing #joyZone::after{content:'MOVE ZONE';position:absolute;left:50%;top:10px;
@@ -175,7 +191,7 @@
   #btnTalk{position:fixed;left:50%;bottom:22vh;transform:translateX(-50%);width:auto;height:auto;
     border-radius:12px;padding:10px 22px;font-size:13px;background:rgba(255,213,74,.16);
     border:2px solid var(--gold);color:var(--gold);z-index:16;pointer-events:auto}
-  #btnMenu{position:fixed;right:14px;top:158px;z-index:16;pointer-events:auto;
+  #btnMenu{position:fixed;right:14px;top:calc(var(--safeTop) + 142px);z-index:16;pointer-events:auto;
     width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
     background:rgba(14,24,44,.72);border:1px solid var(--border);color:#cfe2ff}
   /* ---------- Dialogue ---------- */
@@ -187,7 +203,8 @@
   #dialog p{font-size:15px;line-height:1.6;color:#e4edf8;min-height:44px}
   #dialog small{display:block;text-align:right;color:#6f8199;font-size:11px;margin-top:4px}
   /* ---------- Skill tree ---------- */
-  #skilltree{z-index:45}
+  /* extra top padding tracks --safeTop so the header clears the status bar in landscape */
+  #skilltree{z-index:45;padding-top:calc(var(--safeTop) + 4px)}
   #skilltree .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;
     padding:20px 24px;max-width:900px;width:94vw;max-height:92vh;overflow-y:auto;touch-action:pan-y}
   #skilltree h2{color:var(--gold);letter-spacing:3px;font-size:22px;margin-bottom:2px}
@@ -241,19 +258,20 @@
   .togglerow.on .pill{background:rgba(124,252,0,.35)}
   .togglerow.on .pill::after{left:25px;background:var(--green)}
   #saveNote{font-size:12px;color:#8fa3bd;margin-top:10px;line-height:1.4}
-  #btnSettings{position:fixed;right:14px;top:120px;z-index:16;pointer-events:auto;
+  #btnSettings{position:fixed;right:14px;top:calc(var(--safeTop) + 104px);z-index:16;pointer-events:auto;
     width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
     background:rgba(14,24,44,.72);border:1px solid var(--border);color:#cfe2ff}
-  @media (max-width:1100px){ #btnSettings{top:150px} #btnMenu{top:186px} }
+  @media (max-width:1100px){
+    #btnSettings{top:calc(var(--safeTop) + 134px)} #btnMenu{top:calc(var(--safeTop) + 170px)} }
   /* narrow screens: stack HUD instead of overlapping */
   @media (max-width: 1100px){
-    #topbar{top:6px;gap:12px;padding:5px 12px;font-size:11px}
+    #topbar{top:calc(var(--safeTop) - 10px);gap:12px;padding:5px 12px;font-size:11px}
     #topbar b{font-size:13px}
-    .bars{top:44px;width:min(260px,52vw)}
-    #adaptbox{top:44px;width:172px;font-size:10px;padding:6px 9px}
+    .bars{top:calc(var(--safeTop) + 28px);width:min(260px,52vw)}
+    #adaptbox{top:calc(var(--safeTop) + 28px);width:172px;font-size:10px;padding:6px 9px}
     .adaptrow span{width:48px}
-    #questbox{top:150px;max-width:230px;font-size:11px}
-    #grenadeHud{top:134px}
+    #questbox{top:calc(var(--safeTop) + 134px);max-width:230px;font-size:11px}
+    #grenadeHud{top:calc(var(--safeTop) + 118px)}
   }
 </style>
 </head>
@@ -317,8 +335,11 @@
     <button class="setbtn gold" id="resumeBtn">RESUME</button>
     <button class="setbtn" id="saveGameBtn">💾 SAVE GAME</button>
     <div class="togglerow on" id="togShake"><span>Screen shake</span><div class="pill"></div></div>
+    <div class="togglerow" id="togVibro"><span>Vibration</span><div class="pill"></div></div>
     <div class="togglerow on" id="togDmg"><span>Damage numbers</span><div class="pill"></div></div>
     <div class="togglerow" id="rowUiSize"><span>Controls layout size</span><b id="uiSizeVal" style="color:var(--cyan);letter-spacing:1px">NORMAL</b></div>
+    <div class="togglerow" id="rowBtnStyle"><span>Button style</span><b id="btnStyleVal" style="color:var(--cyan);letter-spacing:1px">CLASSIC</b></div>
+    <div class="togglerow" id="rowHudOff"><span>HUD top offset</span><b id="hudOffVal" style="color:var(--cyan);letter-spacing:1px">+0 PX</b></div>
     <button class="setbtn" id="layoutBtn">✥ EDIT LAYOUT</button>
     <button class="setbtn danger" id="restartBtn">↻ RESTART RUN</button>
     <button class="setbtn danger" id="quitBtn">⏏ SAVE &amp; QUIT TO TITLE</button>

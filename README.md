@@ -60,6 +60,65 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.8 (Arsenal & Checkpoints)
+
+- **Dual-wield Ascension** — while Ascended, your equipped **Twin Weapon** fires
+  alongside the primary (60% rate stock). The new **Twin Channeling** skill
+  (Warrior tree, 2 ranks) brings the off-hand to full rate, then halves the
+  dual-wield spread. Pick the pair in the field lab's ⌖ loadout cards.
+- **Two new guns in the field lab:**
+  - **Gusher** (120 ⬡) — slow teal energy bolts that detonate in a splash,
+    blasting the whole pack backwards (strong knockback + `buzz(40)` haptic)
+    with a synthesized "zap-thump".
+  - **Sticker** (180 ⬡) — rapid pink needles that visibly embed in enemies;
+    0.8 s after the first hit the cluster bursts in a small AoE that scales
+    with the number of needles (max 12), with a "crackle-pop" synth sound.
+  - Both share the rifle upgrade tracks and the learning engine's 'rifle'
+    category, so the horde still reads all gunfire as one tactic.
+- **Companions (SQUAD)** — three recruitable allies, all original designs,
+  bought with cores in the field lab (up to 3 deployed at once):
+  - **Rover** (300 ⬡) — robot dog: plasma-bite melee, cyan visor, fetches
+    loose cores back to your pickup magnet.
+  - **Warden** (500 ⬡) — salvaged combat android: teal arm pulse-cannon,
+    tanky, taunts nearby enemies into attacking it first (it also blocks
+    enemy fire).
+  - **Scout** (800 ⬡) — hooded ranger: piercing tech-crossbow bolts, drops a
+    med/energy supply pack near you every ~16 s.
+  - Each has a mini skill tree in the new **SQUAD** column of the skill-tree
+    overlay (bite damage/fetch radius, fire rate/taunt radius, pack healing/
+    extra pierce) paid with normal skill points. Companions follow with
+    flocking, never body-block you, can be **downed** and revive free at wave
+    end. Owned squad + loadout persist in the save. Combined squad DPS is
+    tuned to ~40–45% of player DPS; each deployed companion adds +1 enemy to
+    the wave budget.
+- **Boss redesign: the Twin-Skulled War-Brute** — Gharok is now a fused
+  horror: two skulls sharing **one ember-orange eye**, ashen-green rotting
+  muscle, and four steel armor plates that visibly crack and **fall off** as
+  the v2.7 armor bar chips at 75/50/25%. One arm ends in a **wolf-claw
+  gauntlet**: when you linger in range he telegraphs a 0.7 s wind-up (claws
+  glow red) then slashes for 1.5× damage and sends you flying — dodge out
+  during the wind-up. The other arm still swings the stone-and-rebar club
+  (the classic heavy contact hit).
+- **Enemy escalation (wave 7+)** — spawns can roll **Ascended** (golden aura,
+  +30% speed, +40% damage, bursts into +8 aether for you on death; max 3
+  alive) or **Plated** (mini grey armor bar that halves damage until chipped
+  off, same mechanics as the boss plate; max 4 alive). Chances ramp gently
+  per wave and are capped so difficulty climbs instead of spiking. Shamans
+  can also swap mid-wave between fireballs and a faster low-damage rift bolt.
+- **Sentry Uplink** — new tiered defense line: mounts an auto-targeting
+  scrappy sentry gun on **every barricade you build**. Tier 1 (200 ⬡) single
+  barrel, Tier 2 (350 ⬡) +fire rate/+range + antenna, Tier 3 (550 ⬡) dual
+  barrels. Sentry fire (amber tracers) doesn't feed the learning engine —
+  it studies you, not your hardware. Tier persists in the save.
+- **Camera view setting** — Normal / Low (5%) / Lower (10%): shifts the
+  camera center down by a fixed % of the viewport so you see further ahead;
+  persisted in settings.
+- **Death checkpoints** — dying no longer wipes the run. **⟲ RESPAWN AT
+  CHECKPOINT** reloads the last end-of-wave auto-save (exact same snapshot
+  format the CONTINUE button uses) minus a **15% core death toll**
+  (`DEATH_CORE_PENALTY`). **☠ GIVE UP — RESTART RUN** deletes the save for a
+  true fresh start.
+
 ### New in Release 2.7 (Update 2 — horde evolution)
 
 - **Zombie fusion** — from wave 4 on, two husks that stay within arm's reach of each

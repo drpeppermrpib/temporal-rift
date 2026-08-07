@@ -261,7 +261,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.7';
+const APP_VERSION = '2.8';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -305,7 +305,7 @@ if (UPDATE_CHANNEL === 'github') checkForUpdate();
 // ==================== SETTINGS & SAVE SYSTEM ======================
 const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';
 let settingsOpen = false;
-const settings = { shake: true, dmgText: true, vibro: IS_TOUCH, uiScale: 'normal', btnStyle: 'classic', hudOffset: 0, layout: null };
+const settings = { shake: true, dmgText: true, vibro: IS_TOUCH, uiScale: 'normal', btnStyle: 'classic', hudOffset: 0, camView: 'normal', layout: null };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
 function persistSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
 
@@ -335,6 +335,19 @@ function applyHudOffset() {
 }
 applyHudOffset();
 
+// camera peek (v2.8): shifts the camera center down by a FIXED % of the
+// viewport height (not aim-following), so the hero sits a little higher on
+// screen and more of the field ahead is visible. Persisted in tr_settings.
+const CAM_VIEWS = [
+  { id: 'normal', label: 'NORMAL',      pct: 0 },
+  { id: 'low',    label: 'LOW (5%)',    pct: 0.05 },
+  { id: 'lower',  label: 'LOWER (10%)', pct: 0.10 },
+];
+function camViewPct() {
+  const v = CAM_VIEWS.find(v => v.id === settings.camView);
+  return v ? v.pct : 0;
+}
+
 // haptic feedback — navigator.vibrate works in the Android webview, silently
 // no-ops elsewhere. Deliberately NOT hooked to rifle fire (way too spammy);
 // only melee/nova, damage taken, explosions, and big events buzz.
@@ -346,7 +359,15 @@ function buzz(pattern) {
 // ---------- synthesized SFX (WebAudio, no samples) ----------
 // Lazy AudioContext: created on first use, resumed whenever the autoplay
 // policy has unlocked it (any tap/keypress after game start qualifies).
-let audioCtx = null, noiseBuf = null, lastWhoosh = -9;
+let audioCtx = null, noiseBuf = null, lastWhoosh = -9, lastZap = -9, lastCrackle = -9;
+function getNoiseBuf(ac) {
+  if (!noiseBuf) {
+    noiseBuf = ac.createBuffer(1, (ac.sampleRate * 0.5) | 0, ac.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuf;
+}
 function getAudio() {
   if (audioCtx === null) {
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -365,12 +386,7 @@ function playWhoosh() {
     const now = ac.currentTime;
     if (now - lastWhoosh < 0.09) return; // throttle boss triple-volleys
     lastWhoosh = now;
-    if (!noiseBuf) {
-      noiseBuf = ac.createBuffer(1, (ac.sampleRate * 0.5) | 0, ac.sampleRate);
-      const d = noiseBuf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    }
-    const src = ac.createBufferSource(); src.buffer = noiseBuf;
+    const src = ac.createBufferSource(); src.buffer = getNoiseBuf(ac);
     const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
     bp.frequency.setValueAtTime(1900, now);
     bp.frequency.exponentialRampToValueAtTime(240, now + 0.32);
@@ -389,6 +405,77 @@ function playWhoosh() {
     osc.connect(og).connect(ac.destination);
     src.start(now); src.stop(now + 0.4);
     osc.start(now); osc.stop(now + 0.35);
+  } catch (e) { /* audio must never break gameplay */ }
+}
+
+// Gusher "zap-thump" (v2.8): a fast square-wave zap dropping an octave into a
+// deep sine thump plus a low-passed noise slap. 100% synthesized, no samples.
+function playZapThump() {
+  try {
+    const ac = getAudio();
+    if (!ac || ac.state !== 'running') return;
+    const now = ac.currentTime;
+    if (now - lastZap < 0.12) return;
+    lastZap = now;
+    const osc = ac.createOscillator(); osc.type = 'square';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+    const og = ac.createGain();
+    og.gain.setValueAtTime(0.0001, now);
+    og.gain.exponentialRampToValueAtTime(0.11, now + 0.015);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+    const th = ac.createOscillator(); th.type = 'sine';
+    th.frequency.setValueAtTime(90, now + 0.02);
+    th.frequency.exponentialRampToValueAtTime(38, now + 0.22);
+    const tg = ac.createGain();
+    tg.gain.setValueAtTime(0.0001, now + 0.02);
+    tg.gain.exponentialRampToValueAtTime(0.2, now + 0.05);
+    tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+    const src = ac.createBufferSource(); src.buffer = getNoiseBuf(ac);
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+    const ng = ac.createGain();
+    ng.gain.setValueAtTime(0.0001, now);
+    ng.gain.exponentialRampToValueAtTime(0.09, now + 0.02);
+    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    osc.connect(og).connect(ac.destination);
+    th.connect(tg).connect(ac.destination);
+    src.connect(lp).connect(ng).connect(ac.destination);
+    osc.start(now); osc.stop(now + 0.18);
+    th.start(now); th.stop(now + 0.3);
+    src.start(now); src.stop(now + 0.16);
+  } catch (e) { /* audio must never break gameplay */ }
+}
+// Sticker "crackle-pop" (v2.8): stuttered high band-passed noise crackle
+// followed by a short falling triangle pop when the needle cluster bursts.
+function playCracklePop() {
+  try {
+    const ac = getAudio();
+    if (!ac || ac.state !== 'running') return;
+    const now = ac.currentTime;
+    if (now - lastCrackle < 0.1) return;
+    lastCrackle = now;
+    const src = ac.createBufferSource(); src.buffer = getNoiseBuf(ac);
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 8;
+    bp.frequency.setValueAtTime(3200, now);
+    bp.frequency.exponentialRampToValueAtTime(1400, now + 0.12);
+    const ng = ac.createGain();
+    ng.gain.setValueAtTime(0.0001, now);
+    for (let i = 0; i < 4; i++) { // stuttered crackle envelope
+      ng.gain.exponentialRampToValueAtTime(0.13, now + 0.01 + i * 0.03);
+      ng.gain.exponentialRampToValueAtTime(0.012, now + 0.025 + i * 0.03);
+    }
+    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+    const osc = ac.createOscillator(); osc.type = 'triangle';
+    osc.frequency.setValueAtTime(420, now + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(120, now + 0.2);
+    const og = ac.createGain();
+    og.gain.setValueAtTime(0.0001, now + 0.1);
+    og.gain.exponentialRampToValueAtTime(0.17, now + 0.12);
+    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    src.connect(bp).connect(ng).connect(ac.destination);
+    osc.connect(og).connect(ac.destination);
+    src.start(now); src.stop(now + 0.18);
+    osc.start(now + 0.1); osc.stop(now + 0.24);
   } catch (e) { /* audio must never break gameplay */ }
 }
 
@@ -537,6 +624,9 @@ function snapshot() {
     mira: { idx: miraIdx, rewarded: miraRewarded },
     tally: { ...tally },
     fenceTier,
+    sentryTier,
+    loadout: { primary: loadout.primary, secondary: loadout.secondary },
+    squad: { owned: { ...squad.owned }, active: { ...squad.active } },
   };
 }
 function saveGame(announce) {
@@ -556,7 +646,19 @@ function loadGame() {
   cores = s.cores; kills = s.kills; totalCores = s.totalCores; runTime = s.runTime;
   gear.forEach((u, i) => u.lvl = s.gear[i] || 0);
   fenceTier = clamp(s.fenceTier || 1, 1, FENCE_MAX_TIER); // pre-2.7 saves default to tier 1
+  sentryTier = clamp(s.sentryTier || 0, 0, SENTRY_MAX_TIER); // pre-2.8: no sentries
   Object.assign(skillRanks, s.skills);
+  // v2.8 squad + weapon loadout (older saves simply have neither)
+  const sq = s.squad || {};
+  squad = { owned: { ...(sq.owned || {}) }, active: { ...(sq.active || {}) } };
+  loadout = { primary: 'rifle', secondary: null };
+  if (s.loadout) {
+    const ow = ownedWeapons();
+    if (ow.indexOf(s.loadout.primary) >= 0) loadout.primary = s.loadout.primary;
+    if (ow.indexOf(s.loadout.secondary) >= 0 && s.loadout.secondary !== loadout.primary)
+      loadout.secondary = s.loadout.secondary;
+  }
+  syncCompanions();
   Object.assign(tally, s.tally);
   questIdx = s.quest.idx; questStage = s.quest.stage; questProgress = s.quest.progress;
   miraIdx = s.mira.idx; miraRewarded = s.mira.rewarded;
@@ -587,6 +689,7 @@ function refreshToggles() {
   $('uiSizeVal').textContent = settings.uiScale.toUpperCase();
   $('btnStyleVal').textContent = settings.btnStyle.toUpperCase();
   $('hudOffVal').textContent = '+' + (settings.hudOffset || 0) + ' PX';
+  $('camViewVal').textContent = (CAM_VIEWS.find(v => v.id === settings.camView) || CAM_VIEWS[0]).label;
 }
 
 // ========================= GAME STATE =============================
@@ -612,6 +715,17 @@ const FENCE_MAX_TIER = 3, FENCE_COSTS = [150, 400]; // cores to reach tier 2 / 3
 const FENCE_SLOW = 0.55;                            // speed mult while touching (tier 2+)
 const fenceZapDps = () => 6 + wave * 0.5;           // tier 3 contact damage/sec
 
+// ---------- sentry turrets (v2.8) ----------
+// The Sentry Uplink mounts an auto-targeting gun on EVERY barricade you build
+// (fence-post mounting was chosen over free placement: barricades already give
+// the player positioning control, enemy aggro and rendering — no new UI).
+// Tier 1: single barrel · Tier 2: +fire rate +range +antenna · Tier 3: dual barrels.
+let sentryTier = 0, sbolts = [];
+const SENTRY_MAX_TIER = 3, SENTRY_COSTS = [200, 350, 550];
+const sentryRange    = () => sentryTier >= 2 ? 340 : 260;
+const sentryInterval = () => sentryTier >= 2 ? 0.55 : 0.85;
+const sentryDamage   = () => 7 + wave * 0.5;
+
 // =========================== PLAYER ===============================
 const player = {};
 function resetPlayer() {
@@ -619,7 +733,7 @@ function resetPlayer() {
     x: CAMP.x, y: CAMP.y + 120, r: 15, vx: 0, vy: 0,
     hp: 100, ki: 30,
     aim: 0, facing: 1, walk: 0, moving: false,
-    fireCd: 0, novaCd: 0, grenCd: 0, dashCd: 0, dashT: 0,
+    fireCd: 0, fire2Cd: 0, novaCd: 0, grenCd: 0, dashCd: 0, dashT: 0,
     grenades: 3,
     form: 0,             // 0 base · 1 Ascended · 2 Storm Ascendant
     xp: 0, level: 1, xpNext: 60, sp: 0,
@@ -637,6 +751,9 @@ const gear = [
   { id: 'gren',  name: 'Grenade Bandolier',  desc: '+1 grenade capacity, +blast',  base: 9,  lvl: 0, max: 4 },
   { id: 'boots', name: 'Anti-Grav Boots',    desc: '+8% move speed, faster dash',  base: 7,  lvl: 0, max: 4 },
   { id: 'armor', name: 'Riftsteel Armor',    desc: '−7% damage taken per plate',   base: 11, lvl: 0, max: 5 },
+  // v2.8 arsenal — new entries APPEND here (the save stores gear by index)
+  { id: 'gusher',  name: 'Gusher',  desc: 'Energy blaster: slow teal bolts that blast whole packs backwards', base: 120, lvl: 0, max: 1, weapon: true },
+  { id: 'sticker', name: 'Sticker', desc: 'Needle launcher: rapid embedding needles that burst after 0.8s',   base: 180, lvl: 0, max: 1, weapon: true },
 ];
 const gearLvl = id => gear.find(u => u.id === id).lvl;
 const gearCost = u => Math.round(u.base * Math.pow(1.6, u.lvl));
@@ -647,6 +764,7 @@ const SKILLS = {
     { id: 'w2', name: 'Rapid Cycler',   desc: '+15% rifle fire rate / rank',                  max: 3 },
     { id: 'w3', name: 'Heavy Payload',  desc: '+30% grenade damage, +18 blast radius / rank', max: 2 },
     { id: 'w4', name: 'Crushing Nova',  desc: '+40% nova damage, −0.25s cooldown / rank',     max: 2 },
+    { id: 'w5', name: 'Twin Channeling', desc: 'Dual-wield mastery while Ascended: rank 1 = off-hand weapon fires at full rate, rank 2 = halves dual-wield spread', max: 2 },
   ]},
   aether:   { label: 'AETHER ARTS', cls: 'aether', nodes: [
     { id: 'a1', name: 'Deep Reserves',  desc: '+25 max aether / rank',                        max: 3 },
@@ -682,6 +800,35 @@ function kiRegen()       { return (3.5 + 1.1 * gearLvl('ki')) * (1 + .4 * sk('a2
 function magnetRange()   { return 150 + 55 * sk('s3'); }
 function armorReduce()   { return 0.07 * gearLvl('armor'); } // up to 35% damage taken reduction
 
+// =============== WEAPON ARSENAL & DUAL-WIELD (v2.8) ===============
+// Three guns share the rifle damage / fire-rate upgrade tracks and the
+// 'rifle' learning-engine category (the engine reads all gunfire as one
+// tactic). While ASCENDED the equipped secondary fires alongside the
+// primary — stock at 60% rate, full rate with Twin Channeling rank 1.
+const WEAPON_IDS = ['rifle', 'gusher', 'sticker'];
+const WEAPON_NAMES = { rifle: 'Pulse Rifle', gusher: 'Gusher', sticker: 'Sticker' };
+let loadout = { primary: 'rifle', secondary: null };
+function ownedWeapons() { return WEAPON_IDS.filter(id => id === 'rifle' || gearLvl(id) > 0); }
+function weaponStats(id) {
+  const dmgMul  = (1 + .22 * gearLvl('rdmg')) * (1 + .2 * sk('w1')) * formMul();
+  const rateMul = (1 + .15 * gearLvl('rrate')) * (1 + .15 * sk('w2'));
+  switch (id) {
+    case 'gusher':  return { dmg: 26 * dmgMul, interval: 0.55  / rateMul, speed: 640, kb: 520, r: 7, spread: 0.05 };
+    case 'sticker': return { dmg: 3  * dmgMul, interval: 0.09  / rateMul, speed: 980, kb: 30,  r: 3, spread: 0.09 };
+    default:        return { dmg: 11 * dmgMul, interval: 0.19  / rateMul, speed: 900, kb: 90,  r: 4, spread: 0.03 };
+  }
+}
+function cycleLoadout(slot) {
+  const owned = ownedWeapons();
+  if (slot === 'primary') {
+    const opts = owned.filter(w => w !== loadout.secondary);
+    loadout.primary = opts[(opts.indexOf(loadout.primary) + 1) % opts.length];
+  } else {
+    const opts = owned.filter(w => w !== loadout.primary).concat([null]);
+    loadout.secondary = opts[(opts.indexOf(loadout.secondary) + 1) % opts.length];
+  }
+}
+
 // =================== HORDE LEARNING ENGINE ========================
 // Damage tallies per category feed a resistance model: lean on one
 // tactic past a 25% share and the horde hardens against it (cap 60%).
@@ -695,30 +842,34 @@ function resistance(cat) {
 }
 let campTrackX = CAMP.x, campTrackY = CAMP.y;
 
+// armor plate chip (boss plate + v2.8 plated enemies): the plate soaks the
+// hit and returns the hp-damage multiplier (halved while the plate holds)
+function chipArmor(e, hit) {
+  if (!(e.armor > 0)) return 1;
+  e.armor -= hit;
+  const q = Math.ceil(Math.max(0, e.armor) / e.maxArmor * 4);
+  if (q < e.armorCrack) { // crack fleck burst at 75/50/25%
+    e.armorCrack = q;
+    spawnParticles(e.x, e.y - e.r, 10, '#aab4c4', 4);
+  }
+  if (e.armor <= 0) { // shattered: full damage from now on + enrage hint
+    e.armor = 0;
+    e.spd *= 1.18;
+    spawnParticles(e.x, e.y - e.r, 26, '#c8d2e0', 5);
+    addFloater(e.x, e.y - e.r * 2.8, 'ARMOR SHATTERED!', '#c8d2e0', true);
+    camera.shake = Math.max(camera.shake, 8);
+    buzz(40);
+  }
+  return 0.5;
+}
+
 function dealDamage(e, dmg, cat, kbx, kby, kb) {
   if (e.invulnT > 0) return; // emerging skeletons can't be hit yet
   const res = resistance(cat);
   let final = dmg * (1 - res);
   tally[cat] += dmg;
   waveCatsUsed.add(cat);
-  // boss armor plate: while it holds, hp damage is halved and hits chip the plate
-  if (e.armor > 0) {
-    e.armor -= final;
-    final *= 0.5;
-    const q = Math.ceil(Math.max(0, e.armor) / e.maxArmor * 4);
-    if (q < e.armorCrack) { // crack fleck burst at 75/50/25%
-      e.armorCrack = q;
-      spawnParticles(e.x, e.y - e.r, 10, '#aab4c4', 4);
-    }
-    if (e.armor <= 0) { // shattered: full damage from now on + enrage hint
-      e.armor = 0;
-      e.spd *= 1.18;
-      spawnParticles(e.x, e.y - e.r, 26, '#c8d2e0', 5);
-      addFloater(e.x, e.y - e.r * 2.8, 'ARMOR SHATTERED!', '#c8d2e0', true);
-      camera.shake = Math.max(camera.shake, 8);
-      buzz(40);
-    }
-  }
+  final *= chipArmor(e, final);
   e.hp -= final;
   e.flash = 0.12;
   if (kb) { e.vx += kbx * kb; e.vy += kby * kb; }
@@ -728,10 +879,225 @@ function dealDamage(e, dmg, cat, kbx, kby, kb) {
   if (e.hp <= 0 && !e.dead) killEnemy(e);
 }
 
+// ally damage (sentries + companions): respects armor plates but does NOT
+// feed the learning engine (it studies the player, not the squad), grants
+// no aether, and shows no damage floater — keeps ally fire low-noise.
+function directDamage(e, dmg, kbx, kby, kb) {
+  if (e.invulnT > 0 || e.dead) return;
+  let final = dmg * chipArmor(e, dmg);
+  e.hp -= final;
+  e.flash = 0.12;
+  if (kb) { e.vx += kbx * kb; e.vy += kby * kb; }
+  if (e.hp <= 0 && !e.dead) killEnemy(e);
+}
+
+// ======================= COMPANIONS (v2.8) ========================
+// A squad of up to 3 original allies bought in the field lab with cores:
+//   Rover  — robot dog, plasma-bite melee, fetches loose cores back to you
+//   Warden — salvaged combat android, arm pulse-cannon, tanky, taunts foes
+//   Scout  — human ranger, piercing tech-crossbow, drops med/energy packs
+// They follow with simple flocking (never body-block you), auto-engage,
+// can be downed and revive automatically at wave end. Combined DPS is
+// tuned to ~40-45% of the player's at equal progression.
+const COMP_TYPES = {
+  rover:  { name: 'Rover',  desc: 'Robot dog: plasma-bite melee, fetches loose cores back to you',            cost: 300, hp: 90,  spd: 305, range: 480, dmg: 10, atk: 0.9 },
+  warden: { name: 'Warden', desc: 'Combat android: arm pulse-cannon, tanky, nearby enemies attack it first',  cost: 500, hp: 240, spd: 205, range: 430, dmg: 9,  atk: 1.15 },
+  scout:  { name: 'Scout',  desc: 'Ranger: piercing tech-crossbow bolts, periodically drops med/energy packs', cost: 800, hp: 120, spd: 255, range: 540, dmg: 8,  atk: 1.35 },
+};
+// mini skill trees — ranks live in skillRanks, so they ride the existing
+// skill-point economy AND the existing save snapshot for free
+const COMP_NODES = {
+  rover: [
+    { id: 'cr1', name: 'Overvolt Fangs',   desc: '+35% bite damage / rank', max: 2 },
+    { id: 'cr2', name: 'Fetch Protocol',   desc: '+80% core-fetch radius',  max: 1 },
+  ],
+  warden: [
+    { id: 'cw1', name: 'Rapid Capacitors', desc: '+25% cannon fire rate / rank', max: 2 },
+    { id: 'cw2', name: 'Menace Beacon',    desc: '+45% taunt radius — more enemies attack Warden', max: 1 },
+  ],
+  scout: [
+    { id: 'cs1', name: 'Field Medkits',    desc: '+50% pack healing, faster drops / rank', max: 2 },
+    { id: 'cs2', name: 'Lancer Bolts',     desc: 'Crossbow bolts pierce one extra enemy',  max: 1 },
+  ],
+};
+let squad = { owned: {}, active: {} };
+let companions = [], cbolts = [];
+const tauntRadius    = () => 240 * (1 + 0.45 * sk('cw2'));
+const fetchRadius    = () => 260 * (1 + 0.8 * sk('cr2'));
+const scoutPackDelay = () => Math.max(8, 16 - 3 * sk('cs1'));
+const scoutPierce    = () => 2 + sk('cs2');
+function compDamage(c) {
+  let d = COMP_TYPES[c.type].dmg;
+  if (c.type === 'rover') d *= 1 + 0.35 * sk('cr1');
+  return d;
+}
+function compInterval(c) {
+  const t = COMP_TYPES[c.type];
+  return c.type === 'warden' ? t.atk / (1 + 0.25 * sk('cw1')) : t.atk;
+}
+// keep runtime entities in lockstep with the owned+active flags
+function syncCompanions() {
+  companions = companions.filter(c => squad.owned[c.type] && squad.active[c.type]);
+  for (const k of Object.keys(COMP_TYPES)) {
+    if (!squad.owned[k] || !squad.active[k]) continue;
+    if (companions.some(c => c.type === k)) continue;
+    const t = COMP_TYPES[k];
+    companions.push({
+      type: k, x: player.x + rand(-70, 70), y: player.y + rand(30, 80),
+      vx: 0, vy: 0, r: k === 'rover' ? 11 : 13,
+      hp: t.hp, maxHp: t.hp, downed: false, hurtT: 0,
+      atkCd: rand(0.3, 1), walk: rand(0, 9), facing: 1, aim: 0,
+      packT: scoutPackDelay(), fetchCd: 0,
+    });
+  }
+}
+function buyCompanion(k) {
+  if (squad.owned[k]) return false;
+  const t = COMP_TYPES[k];
+  if (cores < t.cost) return false;
+  cores -= t.cost;
+  squad.owned[k] = true;
+  squad.active[k] = true;
+  syncCompanions();
+  spawnParticles(player.x, player.y, 22, '#4de1ff', 4);
+  addFloater(player.x, player.y - 46, t.name.toUpperCase() + ' JOINS THE SQUAD!', '#7CFC00', true);
+  return true;
+}
+function hurtCompanion(c, dmg) {
+  if (c.downed || c.hurtT > 0) return;
+  c.hp -= dmg;
+  c.hurtT = 0.5;
+  spawnParticles(c.x, c.y - 10, 6, '#ff8a93', 3);
+  if (c.hp <= 0) {
+    c.hp = 0;
+    c.downed = true;
+    addFloater(c.x, c.y - 32, COMP_TYPES[c.type].name.toUpperCase() + ' DOWN', '#ff8a93', true);
+    spawnParticles(c.x, c.y, 20, '#8d99ae', 4);
+    buzz(40);
+  }
+}
+function updateCompanions(dt) {
+  companions.forEach((c, idx) => {
+    if (c.downed) return;
+    c.hurtT = Math.max(0, c.hurtT - dt);
+    c.atkCd -= dt;
+    const t = COMP_TYPES[c.type];
+    // nearest living enemy in engagement range
+    let foe = null, fd2 = t.range * t.range;
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0.3 || e.emergeT > 0) continue;
+      const d2 = dist2(e.x, e.y, c.x, c.y);
+      if (d2 < fd2) { fd2 = d2; foe = e; }
+    }
+    // ---- move goal: formation slot / melee dive / core-fetch run ----
+    const slotA = idx * 2.4 + 2.2; // fanned out behind the player
+    let gx = player.x + Math.cos(slotA) * 64, gy = player.y + Math.sin(slotA) * 64;
+    if (c.type === 'rover') {
+      if (foe) { gx = foe.x; gy = foe.y; }
+      else { // fetch: run loose cores back toward the player's magnet
+        c.fetchCd = Math.max(0, c.fetchCd - dt);
+        if (c.fetchCd <= 0) {
+          let pk = null, pd2 = fetchRadius() ** 2;
+          for (const p of pickups) {
+            if (p.type !== 'core' || p.fetched) continue;
+            const d2 = dist2(p.x, p.y, c.x, c.y);
+            if (d2 < pd2) { pd2 = d2; pk = p; }
+          }
+          if (pk) {
+            gx = pk.x; gy = pk.y;
+            if (pd2 < (c.r + 16) ** 2) {
+              pk.fetched = true; // flies to the player from here (pickup update)
+              c.fetchCd = 1.2;
+              addFloater(c.x, c.y - 24, '⬡ fetch!', '#4de1ff', false);
+            }
+          }
+        }
+      }
+    } else if (foe) {
+      // ranged units hold ~55% of their range from the target
+      const fd = Math.sqrt(fd2) || 1;
+      const hold = t.range * 0.55;
+      if (fd < hold * 0.7) { gx = c.x - (foe.x - c.x) / fd * 60; gy = c.y - (foe.y - c.y) / fd * 60; }
+      else if (fd > hold) { gx = foe.x; gy = foe.y; }
+      else { gx = c.x; gy = c.y; }
+    }
+    // ---- steering: seek goal + separation (never body-blocks the player) ----
+    const dx = gx - c.x, dy = gy - c.y, gd = Math.hypot(dx, dy);
+    if (gd > 26) { c.vx = lerp(c.vx, dx / gd * t.spd, dt * 5); c.vy = lerp(c.vy, dy / gd * t.spd, dt * 5); }
+    else { c.vx *= 0.82; c.vy *= 0.82; }
+    for (const o of companions) {
+      if (o === c || o.downed) continue;
+      const d2 = dist2(c.x, c.y, o.x, o.y);
+      if (d2 < 30 * 30 && d2 > 0.01) { const d = Math.sqrt(d2); c.vx += (c.x - o.x) / d * 60; c.vy += (c.y - o.y) / d * 60; }
+    }
+    const pd2 = dist2(c.x, c.y, player.x, player.y);
+    if (pd2 < 34 * 34 && pd2 > 0.01) { const d = Math.sqrt(pd2); c.vx += (c.x - player.x) / d * 90; c.vy += (c.y - player.y) / d * 90; }
+    c.x = clamp(c.x + c.vx * dt, c.r, WORLD.w - c.r);
+    c.y = clamp(c.y + c.vy * dt, c.r, WORLD.h - c.r);
+    collideObstacles(c);
+    c.walk += dt * Math.hypot(c.vx, c.vy) * 0.045;
+    if (Math.abs(c.vx) > 4) c.facing = c.vx >= 0 ? 1 : -1;
+    // leash: teleport back if hopelessly far behind (dashes, respawns)
+    if (pd2 > 1300 * 1300) { c.x = player.x + rand(-70, 70); c.y = player.y + rand(-70, 70); }
+    // ---- attacks ----
+    if (foe) {
+      c.aim = Math.atan2(foe.y - c.y, foe.x - c.x);
+      c.facing = Math.cos(c.aim) >= 0 ? 1 : -1;
+      if (c.type === 'rover') {
+        if (c.atkCd <= 0 && fd2 < (c.r + foe.r + 12) ** 2) {
+          c.atkCd = compInterval(c);
+          const d = Math.sqrt(fd2) || 1;
+          directDamage(foe, compDamage(c), (foe.x - c.x) / d, (foe.y - c.y) / d, 140);
+          zap(c.x, c.y - 8, foe.x, foe.y - 10); // plasma-bite arc
+          spawnParticles(foe.x, foe.y - 8, 5, '#4de1ff', 3);
+        }
+      } else if (c.atkCd <= 0) {
+        c.atkCd = compInterval(c);
+        const a = c.aim + rand(-0.04, 0.04);
+        const spd = c.type === 'scout' ? 820 : 620;
+        cbolts.push({
+          x: c.x + Math.cos(a) * 16, y: c.y - 12 + Math.sin(a) * 16,
+          vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+          life: 1.0, r: c.type === 'scout' ? 3 : 4,
+          dmg: compDamage(c), pierce: c.type === 'scout' ? scoutPierce() : 1,
+          hit: [], scout: c.type === 'scout',
+        });
+      }
+    }
+    // ---- scout support packs ----
+    if (c.type === 'scout') {
+      c.packT -= dt;
+      if (c.packT <= 0) {
+        c.packT = scoutPackDelay();
+        pickups.push({ x: player.x + rand(-50, 50), y: player.y + rand(-50, 50), type: 'pack', t: 0 });
+        addFloater(c.x, c.y - 26, '⊕ supply pack', '#7CFC00', false);
+      }
+    }
+  });
+  // ---- companion bolts (teal cannon shots / piercing crossbow bolts) ----
+  for (const b of cbolts) {
+    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    if (obstacles.some(o => o.type !== 'tree' && dist2(b.x, b.y, o.x, o.y) < o.r * o.r)) { b.life = 0; continue; }
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0.4 || b.hit.indexOf(e) >= 0) continue;
+      if (dist2(b.x, b.y + 12, e.x, e.y) < (e.r + b.r + 5) ** 2) {
+        directDamage(e, b.dmg, b.vx / 800, b.vy / 800, 70);
+        b.hit.push(e);
+        spawnParticles(b.x, b.y, 4, b.scout ? '#ffd7a8' : '#3ef0c8', 2);
+        if (b.hit.length >= b.pierce) { b.life = 0; break; }
+      }
+    }
+  }
+  cbolts = cbolts.filter(b => b.life > 0);
+}
+
 // =========================== ENEMIES ==============================
 // husk (shambler) · sprinter (fast ghoul) · shaman (ranged caster)
-// ravager (ork brute) · warlord (ork boss, every 5 waves)
+// ravager (ork brute) · warlord (twin-skulled war-brute boss, every 5 waves)
 // bulwark (two husks fused mid-wave) · skeleton (claws out of husk graves)
+
+// boss claw slash (v2.8): wind-up is the dodge window
+const CLAW_WINDUP = 0.7, CLAW_RANGE = 150, CLAW_CD = 5, CLAW_DMG_MUL = 1.5, CLAW_KB = 820;
 const ETYPES = {
   husk:     { r: 14, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
   sprinter: { r: 11, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
@@ -765,6 +1131,24 @@ function makeEnemy(type, x, y, opts = {}) {
   return e;
 }
 
+// ---------- wave-7+ escalation: ascended & plated enemies ----------
+// Chances ramp gently with the wave and are hard-capped by concurrent
+// counts so difficulty climbs instead of spiking.
+const ESC_WAVE = 7, ASC_CAP = 3, PLATE_CAP = 4;
+const ascChance   = () => wave < ESC_WAVE ? 0 : Math.min(0.20, 0.06 + (wave - ESC_WAVE) * 0.015);
+const plateChance = () => wave < ESC_WAVE ? 0 : Math.min(0.25, 0.08 + (wave - ESC_WAVE) * 0.02);
+function makeAscended(e) { // rift-blessed: golden aura, faster, harder-hitting
+  e.ascended = true;
+  e.spd *= 1.3;
+  e.dmg = Math.round(e.dmg * 1.4);
+  e.xp = Math.round(e.xp * 1.5);
+}
+function makePlated(e) { // mini armor plate — same chip mechanics as the boss
+  e.maxArmor = 16 + wave * 2.5;
+  e.armor = e.maxArmor;
+  e.armorCrack = 4;
+}
+
 function spawnEnemy(type) {
   let x, y;
   if (Math.random() < 0.55) { // learning engine: rift opens near your camping spot
@@ -781,8 +1165,14 @@ function spawnEnemy(type) {
     x = clamp(player.x + Math.cos(a) * 480, 60, WORLD.w - 60);
     y = clamp(player.y + Math.sin(a) * 480, 60, WORLD.h - 60);
   }
-  makeEnemy(type, x, y);
-  spawnParticles(x, y, 14, '#b04dff', 3);
+  const e = makeEnemy(type, x, y);
+  if (!e.boss && wave >= ESC_WAVE) {
+    const asc = enemies.filter(o => o.ascended && !o.dead).length;
+    const pl  = enemies.filter(o => !o.boss && o.maxArmor && !o.dead).length;
+    if (asc < ASC_CAP && Math.random() < ascChance()) makeAscended(e);
+    else if (pl < PLATE_CAP && Math.random() < plateChance()) makePlated(e);
+  }
+  spawnParticles(x, y, 14, e.ascended ? '#ffd54a' : '#b04dff', 3);
 }
 
 // ---------- zombie fusion: two lingering husks merge into a Bulwark ----------
@@ -841,6 +1231,12 @@ function updateGraves(dt) {
 function killEnemy(e) {
   e.dead = true;
   kills++;
+  if (e.ascended) { // rift-blessed foes burst into raw aether when slain
+    player.ki = clamp(player.ki + 8, 0, maxKi());
+    spawnRing(e.x, e.y, 60);
+    spawnParticles(e.x, e.y, 14, '#ffd54a', 4);
+    addFloater(e.x, e.y - 30, '+8 AETHER', '#4de1ff', false);
+  }
   spawnParticles(e.x, e.y, e.boss ? 60 : 16, e.type === 'ravager' || e.type === 'warlord' ? '#5f8f3a' : '#7a8f5a', e.boss ? 5 : 3);
   decals.push({ x: e.x, y: e.y, r: e.r * 1.6, color: '46,66,36', life: 14, maxLife: 14 });
   camera.shake = Math.min(camera.shake + (e.boss ? 14 : 2), 18);
@@ -1148,6 +1544,7 @@ function startWave() {
   CATS.forEach(c => tally[c] *= 0.82); // the engine forgets, slowly
   graves = []; graveCount = 0;         // grave markers never cross waves
   spawnQueue = 6 + Math.round(wave * 3.2);
+  spawnQueue += companions.length; // a squad draws a slightly bigger horde
   spawnTimer = 0.5;
   if (wave % 5 === 0) { spawnEnemy('warlord'); spawnQueue += 4; }
   banner(`WAVE ${wave}`, wave % 5 === 0 ? '⚠ ORK WARLORD APPROACHES ⚠' : 'the horde emerges…');
@@ -1162,6 +1559,14 @@ function pickEnemyType() {
 function endWave() {
   waveActive = false;
   graves = []; // pending skeletons die with the wave
+  // downed companions patch themselves up between assaults — no permanent loss
+  for (const c of companions) {
+    if (!c.downed) continue;
+    c.downed = false;
+    c.hp = c.maxHp;
+    spawnParticles(c.x, c.y, 16, '#7CFC00', 3);
+    addFloater(c.x, c.y - 28, COMP_TYPES[c.type].name.toUpperCase() + ' BACK UP!', '#7CFC00', false);
+  }
   cores += 4 + wave; totalCores += 4 + wave;
   questEvent('waveEnd');
   saveGame(false); // auto-save after every wave
@@ -1211,15 +1616,83 @@ function autoAim() {
   else if (touch.joy.active) player.aim = Math.atan2(touch.joy.y, touch.joy.x);
 }
 
-function fireRifle(dt) {
+function fireWeapons(dt) {
   player.fireCd -= dt;
+  player.fire2Cd -= dt;
   const wantFire = mouse.down || touch.fire;
-  if (!wantFire || player.fireCd > 0 || charging) return;
-  player.fireCd = rifleInterval();
-  const a = player.aim + rand(-0.03, 0.03);
-  bolts.push({ x: player.x + Math.cos(a) * 24, y: player.y + Math.sin(a) * 24 - 14,
-    vx: Math.cos(a) * 900, vy: Math.sin(a) * 900, life: 1.1, r: 4 });
-  camera.shake = Math.min(camera.shake + 0.6, 4);
+  if (!wantFire || charging) return;
+  if (player.fireCd <= 0) {
+    player.fireCd = weaponStats(loadout.primary).interval;
+    shootBolt(loadout.primary, false);
+  }
+  // dual-wield ascension: while transformed the off-hand weapon fires too —
+  // 60% rate stock, full rate once Twin Channeling rank 1 is learned
+  if (player.form > 0 && loadout.secondary && player.fire2Cd <= 0) {
+    player.fire2Cd = weaponStats(loadout.secondary).interval * (sk('w5') >= 1 ? 1 : 1.65);
+    shootBolt(loadout.secondary, true);
+  }
+}
+function shootBolt(id, offHand) {
+  const st = weaponStats(id);
+  // Twin Channeling rank 2 halves the dual-wield spread penalty
+  const spread = st.spread * (offHand ? 1.8 : 1) / (player.form > 0 && sk('w5') >= 2 ? 2 : 1);
+  const a = player.aim + rand(-spread, spread);
+  const side = offHand ? -1 : 1; // each hand shoots from its own muzzle
+  bolts.push({
+    x: player.x + Math.cos(a) * 24 - Math.sin(a) * side * 6,
+    y: player.y + Math.sin(a) * 24 + Math.cos(a) * side * 6 - 14,
+    vx: Math.cos(a) * st.speed, vy: Math.sin(a) * st.speed,
+    life: 1.1, r: st.r, wpn: id, dmg: st.dmg, kb: st.kb,
+  });
+  camera.shake = Math.min(camera.shake + (id === 'gusher' ? 1.4 : 0.6), 4);
+}
+
+// Gusher impact: teal energy splash that blasts the whole pack backwards
+const GUSHER_SPLASH_R = 90;
+function gusherSplash(b, hitEnemy) {
+  spawnRing(b.x, b.y, GUSHER_SPLASH_R);
+  spawnParticles(b.x, b.y, 26, '#3ef0c8', 4);
+  spawnParticles(b.x, b.y, 8, '#bff7ec', 3);
+  playZapThump();
+  buzz(40);
+  camera.shake = Math.max(camera.shake, 6);
+  for (const e of enemies) {
+    if (e.dead || e.spawnT > 0.4) continue;
+    const d2 = dist2(e.x, e.y, b.x, b.y);
+    if (d2 > (GUSHER_SPLASH_R + e.r) ** 2) continue;
+    const d = Math.sqrt(d2) || 1;
+    dealDamage(e, b.dmg * (e === hitEnemy ? 1 : 0.6), 'rifle', (e.x - b.x) / d, (e.y - b.y) / d, b.kb);
+  }
+}
+
+// Sticker needles: stick visibly into the target; ~0.8s after the FIRST
+// needle lands the whole cluster bursts — damage scales with the count.
+const NEEDLE_FUSE = 0.8, NEEDLE_MAX = 12;
+function embedNeedle(e, ang) {
+  e.needleN = Math.min(NEEDLE_MAX, (e.needleN || 0) + 1);
+  if (!(e.needleT > 0)) e.needleT = NEEDLE_FUSE;
+  e.needleA = ang; // approach angle, used to draw the cluster fan
+}
+function needleBurst(e) {
+  const n = e.needleN || 0;
+  e.needleN = 0; e.needleT = 0;
+  if (!n) return;
+  const R = 55 + n * 3;
+  const dmgMul = (1 + .22 * gearLvl('rdmg')) * (1 + .2 * sk('w1')) * formMul();
+  const dmg = (5 + 2.5 * n) * dmgMul; // strong with a full cluster, never auto-kill
+  playCracklePop();
+  buzz(30);
+  spawnRing(e.x, e.y - e.r, R);
+  spawnParticles(e.x, e.y - e.r, 10 + n * 2, '#ff6bd8', 4);
+  spawnParticles(e.x, e.y - e.r, 8, '#b04dff', 3);
+  camera.shake = Math.max(camera.shake, 4);
+  for (const o of enemies) {
+    if (o.dead || o.spawnT > 0.4) continue;
+    const d2 = dist2(o.x, o.y, e.x, e.y);
+    if (d2 > (R + o.r) ** 2) continue;
+    const d = Math.sqrt(d2) || 1;
+    dealDamage(o, o === e ? dmg : dmg * 0.5, 'rifle', (o.x - e.x) / d, (o.y - e.y) / d, 160);
+  }
 }
 
 function releaseBeam() {
@@ -1294,6 +1767,48 @@ function tryBuild() {
   barricades.push({ x: bx, y: by, r: 34, hp: BARRICADE_HP + wave * 8, maxHp: BARRICADE_HP + wave * 8 });
   spawnParticles(bx, by, 18, '#7CFC00', 4);
   spawnRing(bx, by, 40);
+}
+
+// sentry turrets mounted on barricades: auto-target the nearest enemy in
+// range and pepper it with tracers (ally damage — see directDamage)
+function updateSentries(dt) {
+  if (sentryTier > 0) {
+    for (const b of barricades) {
+      b.gunCd = (b.gunCd || 0) - dt;
+      b.gunFlash = Math.max(0, (b.gunFlash || 0) - dt);
+      let foe = null, fd2 = sentryRange() ** 2;
+      for (const e of enemies) {
+        if (e.dead || e.spawnT > 0.3 || e.emergeT > 0) continue;
+        const d2 = dist2(e.x, e.y, b.x, b.y);
+        if (d2 < fd2) { fd2 = d2; foe = e; }
+      }
+      if (!foe) continue;
+      b.gunA = Math.atan2(foe.y - b.y, foe.x - b.x); // scrappy servo: snaps to target
+      if (b.gunCd > 0) continue;
+      b.gunCd = sentryInterval();
+      b.gunFlash = 0.07;
+      const barrels = sentryTier >= 3 ? 2 : 1;
+      for (let i = 0; i < barrels; i++) {
+        const a = b.gunA + (barrels === 1 ? 0 : (i - 0.5) * 0.12) + rand(-0.03, 0.03);
+        sbolts.push({ x: b.x + Math.cos(a) * 14, y: b.y - 28 + Math.sin(a) * 14,
+          vx: Math.cos(a) * 760, vy: Math.sin(a) * 760, life: 0.8 });
+      }
+    }
+  }
+  for (const s of sbolts) {
+    s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
+    if (obstacles.some(o => o.type !== 'tree' && dist2(s.x, s.y, o.x, o.y) < o.r * o.r)) { s.life = 0; continue; }
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0.4) continue;
+      if (dist2(s.x, s.y + 22, e.x, e.y) < (e.r + 6) ** 2) {
+        directDamage(e, sentryDamage(), s.vx / 760, s.vy / 760, 40);
+        s.life = 0;
+        spawnParticles(s.x, s.y, 3, '#ffb02e', 2);
+        break;
+      }
+    }
+  }
+  sbolts = sbolts.filter(s => s.life > 0);
 }
 
 // enemies can't pass barricades — they smash them down instead
@@ -1459,7 +1974,7 @@ function update(dt) {
   }
 
   // ---- weapons ----
-  fireRifle(dt);
+  fireWeapons(dt);
   const wantCharge = mouse.rdown || touch.beamHeld;
   if (wantCharge && !beam) {
     charging = true;
@@ -1502,22 +2017,63 @@ function update(dt) {
   // ---- enemies ----
   updateFusion(dt);
   updateGraves(dt);
+  const warden = companions.find(c => c.type === 'warden' && !c.downed);
   for (const e of enemies) {
     if (e.dead) continue;
     e.flash = Math.max(0, e.flash - dt);
     if (e.invulnT > 0) e.invulnT -= dt;
+    // sticker needle cluster fuse
+    if (e.needleT > 0) {
+      e.needleT -= dt;
+      if (e.needleT <= 0) needleBurst(e);
+      if (e.dead) continue;
+    }
     if (e.emergeT > 0) { // skeleton clawing out of the ground
       e.emergeT -= dt;
       if (Math.random() < dt * 24) spawnParticles(e.x + rand(-8, 8), e.y, 1, '#6b5636', 2);
       continue;
     }
     if (e.spawnT > 0) { e.spawnT -= dt; continue; }
-    const ex = player.x - e.x, ey = player.y - e.y;
+    // taunt: a standing Warden pulls nearby non-boss enemies onto itself
+    let tgt = player;
+    if (warden && !e.boss && dist2(e.x, e.y, warden.x, warden.y) < tauntRadius() ** 2) tgt = warden;
+    e._tgt = tgt; // exposed for the test harness
+    const ex = tgt.x - e.x, ey = tgt.y - e.y;
     const d = Math.hypot(ex, ey) || 1;
     const wantD = e.ranged && !e.boss ? 260 : 0;
     const dir = d > wantD ? 1 : -0.6;
     let spdMul = 1;
     if (e.slowT > 0) { e.slowT -= dt; spdMul = FENCE_SLOW; } // fence tier 2+ drag
+    // boss claw slash (v2.8): telegraphed wind-up, then a slash that sends
+    // the player flying with bonus damage — dodgeable during the wind-up
+    if (e.boss) {
+      e.clawCd = (e.clawCd === undefined ? 2.5 : e.clawCd) - dt;
+      if (e.clawWind > 0) {
+        e.clawWind -= dt;
+        e.vx *= 0.8; e.vy *= 0.8; // plants its feet for the swing
+        if (Math.random() < dt * 26) spawnParticles(e.x + e.facing * 34, e.y - 74, 1, '#ff6a4d', 3);
+        if (e.clawWind <= 0) {
+          camera.shake = Math.max(camera.shake, 10);
+          spawnRing(e.x, e.y - 20, CLAW_RANGE);
+          spawnParticles(e.x, e.y - 40, 18, '#ff6a4d', 5);
+          buzz(60);
+          const pdx = player.x - e.x, pdy = player.y - e.y;
+          const pd = Math.hypot(pdx, pdy) || 1;
+          if (pd < CLAW_RANGE + player.r) {
+            hurtPlayer(e.dmg * CLAW_DMG_MUL);
+            player.vx = pdx / pd * CLAW_KB;
+            player.vy = pdy / pd * CLAW_KB;
+            player.dashT = Math.max(player.dashT, 0.26); // sent flying
+            addFloater(player.x, player.y - 44, 'CLAW SLAM!', '#ff4d5e', true);
+          }
+          e.clawCd = CLAW_CD;
+        }
+      } else if (e.clawCd <= 0 && dist2(e.x, e.y, player.x, player.y) < (CLAW_RANGE * 0.9) ** 2) {
+        e.clawWind = CLAW_WINDUP;
+        addFloater(e.x, e.y - e.r * 2.4, '⚠ CLAW WIND-UP', '#ff8a93', true);
+        buzz(20);
+      }
+    }
     e.vx = lerp(e.vx, ex / d * e.spd * spdMul * dir, dt * 4);
     e.vy = lerp(e.vy, ey / d * e.spd * spdMul * dir, dt * 4);
     for (const o of enemies) {
@@ -1534,30 +2090,45 @@ function update(dt) {
     collideBarricades(e, dt);
     e.walk += dt * (Math.hypot(e.vx, e.vy) * 0.075);
     e.facing = e.vx >= 0 ? 1 : -1;
-    if (d < e.r + player.r + 6 && player.hurtT <= 0) {
+    // melee swipes hit whatever is in reach: the player or a companion
+    const pd2c = dist2(e.x, e.y, player.x, player.y);
+    if (pd2c < (e.r + player.r + 6) ** 2 && player.hurtT <= 0) {
       hurtPlayer(e.dmg);
       if (e.kbPlayer) { // bulwark slam shoves the player back
-        player.vx += ex / d * e.kbPlayer;
-        player.vy += ey / d * e.kbPlayer;
+        const pd = Math.sqrt(pd2c) || 1;
+        player.vx += (player.x - e.x) / pd * e.kbPlayer;
+        player.vy += (player.y - e.y) / pd * e.kbPlayer;
         player.dashT = Math.max(player.dashT, 0.12); // let the shove play out
       }
+    }
+    for (const c of companions) {
+      if (c.downed) continue;
+      if (dist2(e.x, e.y, c.x, c.y) < (e.r + c.r + 4) ** 2) hurtCompanion(c, e.dmg * 0.7);
     }
     if (e.ranged) {
       e.atkCd -= dt;
       if (e.atkCd <= 0 && d < 540) {
-        e.atkCd = e.boss ? 1.1 : rand(1.6, 2.6);
+        // wave-7+ escalation: casters swap between slow fireballs and rapid
+        // low-damage rift bolts mid-wave
+        if (!e.boss && wave >= ESC_WAVE && Math.random() < 0.35) e.boltMode = !e.boltMode;
+        const rapid = !!e.boltMode && !e.boss;
+        e.atkCd = e.boss ? 1.1 : rapid ? rand(1.0, 1.6) : rand(1.6, 2.6);
         const a = Math.atan2(ey, ex) + rand(-0.05, 0.05);
         const n = e.boss ? 3 : 1;
-        playWhoosh();
+        if (!rapid) playWhoosh();
         for (let i = 0; i < n; i++) {
           const aa = a + (i - (n - 1) / 2) * 0.22;
-          ebolts.push({ x: e.x, y: e.y - e.r, vx: Math.cos(aa) * 300, vy: Math.sin(aa) * 300, life: 2.4, r: 6, dmg: e.dmg * 0.8, fire: true });
+          const spd = rapid ? 520 : 300;
+          ebolts.push({ x: e.x, y: e.y - e.r, vx: Math.cos(aa) * spd, vy: Math.sin(aa) * spd,
+            life: rapid ? 1.5 : 2.4, r: rapid ? 4 : 6, dmg: e.dmg * (rapid ? 0.4 : 0.8), fire: !rapid });
         }
       }
       if (e.boss && Math.random() < dt * 0.25) spawnEnemy('sprinter');
     }
   }
   enemies = enemies.filter(e => !e.dead);
+  updateCompanions(dt);
+  updateSentries(dt);
 
   // ---- projectiles ----
   for (const b of bolts) {
@@ -1568,8 +2139,17 @@ function update(dt) {
     for (const e of enemies) {
       if (e.dead || e.spawnT > 0.4) continue;
       if (dist2(b.x, b.y + 14, e.x, e.y) < (e.r + b.r + 6) ** 2) {
-        dealDamage(e, rifleDamage(), 'rifle', b.vx / 900, b.vy / 900, 90);
-        b.life = 0; spawnParticles(b.x, b.y, 5, '#4de1ff', 2);
+        const dmg = b.dmg !== undefined ? b.dmg : rifleDamage();
+        if (b.wpn === 'gusher') {
+          gusherSplash(b, e); // splash handles damage + pack knockback
+        } else if (b.wpn === 'sticker') {
+          dealDamage(e, dmg, 'rifle', b.vx / 980, b.vy / 980, b.kb);
+          if (!e.dead) embedNeedle(e, Math.atan2(b.vy, b.vx));
+        } else {
+          dealDamage(e, dmg, 'rifle', b.vx / 900, b.vy / 900, b.kb || 90);
+        }
+        b.life = 0;
+        spawnParticles(b.x, b.y, 5, b.wpn === 'gusher' ? '#3ef0c8' : b.wpn === 'sticker' ? '#ff6bd8' : '#4de1ff', 2);
         break;
       }
     }
@@ -1587,6 +2167,14 @@ function update(dt) {
     }
     const wall = barricades.find(w => dist2(b.x, b.y, w.x, w.y) < w.r * w.r);
     if (wall) { wall.hp -= b.dmg * 0.6; b.life = 0; spawnParticles(b.x, b.y, 4, '#7CFC00', 2); if (b.fire) emberBurst(b.x, b.y); continue; }
+    // companions can body-block enemy fire (the Warden tanks for the squad)
+    const ch = companions.find(c => !c.downed && dist2(b.x, b.y, c.x, c.y - 10) < (c.r + b.r + 4) ** 2);
+    if (ch) {
+      b.life = 0;
+      if (b.fire) emberBurst(b.x, b.y);
+      hurtCompanion(ch, b.dmg);
+      continue;
+    }
     if (dist2(b.x, b.y, player.x, player.y - 12) < (player.r + b.r + 4) ** 2) {
       b.life = 0;
       if (b.fire) emberBurst(b.x, b.y);
@@ -1608,14 +2196,21 @@ function update(dt) {
     p.t += dt;
     const d2 = dist2(p.x, p.y, player.x, player.y);
     const mag = magnetRange();
-    if (d2 < mag * mag) {
+    if (p.fetched || d2 < mag * mag) { // Rover-fetched cores fly home from anywhere
       const d = Math.sqrt(d2) || 1;
-      p.x += (player.x - p.x) / d * 380 * dt;
-      p.y += (player.y - p.y) / d * 380 * dt;
+      const spd = p.fetched ? 640 : 380;
+      p.x += (player.x - p.x) / d * spd * dt;
+      p.y += (player.y - p.y) / d * spd * dt;
     }
     if (d2 < (player.r + 14) ** 2) {
       p.got = true;
       if (p.type === 'core') { cores++; totalCores++; addFloater(p.x, p.y, '+1 ⬡', '#4de1ff', false); questEvent('core'); }
+      else if (p.type === 'pack') { // Scout's med/energy supply pack
+        const heal = 20 * (1 + 0.5 * sk('cs1'));
+        player.hp = Math.min(maxHp(), player.hp + heal);
+        player.ki = clamp(player.ki + heal, 0, maxKi());
+        addFloater(p.x, p.y, `+${Math.round(heal)} HP & AETHER`, '#7CFC00', false);
+      }
       else { player.hp = Math.min(maxHp(), player.hp + 25); addFloater(p.x, p.y, '+25 HP', '#7CFC00', false); }
     }
   }
@@ -1641,7 +2236,8 @@ function update(dt) {
   // ---- camera ----
   camera.shake = Math.max(0, camera.shake - dt * 30);
   camera.x = clamp(player.x - VW / 2, 0, Math.max(0, WORLD.w - VW));
-  camera.y = clamp(player.y - VH / 2, 0, Math.max(0, WORLD.h - VH));
+  // camera peek: fixed downward shift of the camera center (0/5/10% of VH)
+  camera.y = clamp(player.y - VH / 2 + VH * camViewPct(), 0, Math.max(0, WORLD.h - VH));
 
   // ---- region banner ----
   regionCheckT -= dt;
@@ -1720,6 +2316,31 @@ function renderTree() {
     });
     cols.appendChild(div);
   }
+  // ---- SQUAD column (v2.8): companion mini-trees, unlocked by ownership ----
+  const sq = document.createElement('div');
+  sq.className = 'treecol squad';
+  sq.innerHTML = '<h3>SQUAD</h3>';
+  for (const k of Object.keys(COMP_NODES)) {
+    const ownedC = !!squad.owned[k];
+    COMP_NODES[k].forEach((n, i) => {
+      const rank = sk(n.id);
+      const prevOk = ownedC && (i === 0 || sk(COMP_NODES[k][i - 1].id) >= 1);
+      const maxed = rank >= n.max;
+      const canBuy = prevOk && !maxed && player.sp > 0;
+      const node = document.createElement('div');
+      node.className = 'skillnode' + (canBuy ? ' avail' : '') + (maxed ? ' maxed' : '') + (!prevOk ? ' locked' : '');
+      node.innerHTML = `<h5>${COMP_TYPES[k].name}: ${n.name}<span>${maxed ? 'MAX' : rank + '/' + n.max}</span></h5>
+        <small>${n.desc}${!ownedC ? ' — recruit ' + COMP_TYPES[k].name + ' at the field lab first' : (!prevOk ? ' — requires previous skill' : '')}</small>`;
+      if (canBuy) node.onclick = () => {
+        player.sp--;
+        skillRanks[n.id] = rank + 1;
+        spawnParticles(player.x, player.y, 20, '#4de1ff', 4);
+        renderTree();
+      };
+      sq.appendChild(node);
+    });
+  }
+  cols.appendChild(sq);
 }
 $('closeTreeBtn').onclick = () => toggleTree();
 
@@ -1759,6 +2380,59 @@ function renderShop() {
     <div class="price">${fMax ? '—' : '⬡ ' + FENCE_COSTS[fenceTier - 1]}</div>`;
   if (!fMax) fDiv.onclick = () => buyFence();
   grid.appendChild(fDiv);
+  // sentry uplink (v2.8) — same tiered pattern as the fence grid
+  const sMax = sentryTier >= SENTRY_MAX_TIER;
+  const sDesc = sentryTier === 0 ? 'Tier 1: mount an auto-targeting sentry gun on every barricade you build'
+    : sentryTier === 1 ? 'Tier 2: +fire rate, +range, targeting antenna'
+    : sentryTier === 2 ? 'Tier 3: dual barrels — every volley fires two bolts'
+    : 'Dual-barrel long-range sentries on every fence post';
+  const sDiv = document.createElement('div');
+  sDiv.className = 'shopitem' + (sMax ? ' maxed' : '');
+  sDiv.innerHTML = `<h4>Sentry Uplink<span class="lvl">${sMax ? 'MAX' : 'Tier ' + sentryTier + '/' + SENTRY_MAX_TIER}</span></h4>
+    <small>${sDesc}</small>
+    <div class="price">${sMax ? '—' : '⬡ ' + SENTRY_COSTS[sentryTier]}</div>`;
+  if (!sMax) sDiv.onclick = () => buySentry();
+  grid.appendChild(sDiv);
+  // ---- weapon loadout (v2.8): tap to cycle owned weapons per hand ----
+  for (const slot of ['primary', 'secondary']) {
+    const cur = loadout[slot];
+    const div = document.createElement('div');
+    div.className = 'shopitem';
+    div.innerHTML = `<h4>${slot === 'primary' ? '⌖ Primary Weapon' : '⌖ Twin Weapon'}<span class="lvl">tap to cycle</span></h4>
+      <small>${slot === 'primary' ? 'Your main trigger weapon' : 'Fires alongside the primary while ASCENDED (dual-wield)'}</small>
+      <div class="price">${cur ? WEAPON_NAMES[cur] : '— none —'}</div>`;
+    div.onclick = () => { cycleLoadout(slot); renderShop(); };
+    grid.appendChild(div);
+  }
+  // ---- squad (v2.8): buy companions, tap owned ones to bench/deploy ----
+  for (const k of Object.keys(COMP_TYPES)) {
+    const t = COMP_TYPES[k];
+    const owned = !!squad.owned[k];
+    const div = document.createElement('div');
+    div.className = 'shopitem';
+    if (!owned) {
+      div.innerHTML = `<h4>☍ ${t.name}<span class="lvl">SQUAD</span></h4>
+        <small>${t.desc}</small><div class="price">⬡ ${t.cost}</div>`;
+      div.onclick = () => {
+        if (!buyCompanion(k)) { $('shopCores').style.color = '#ff4d5e'; setTimeout(() => $('shopCores').style.color = '', 300); return; }
+        renderShop();
+      };
+    } else {
+      const on = !!squad.active[k];
+      div.innerHTML = `<h4>☍ ${t.name}<span class="lvl" style="color:${on ? 'var(--green)' : '#8fa3bd'}">${on ? 'DEPLOYED' : 'BENCHED'}</span></h4>
+        <small>${t.desc}</small><div class="price">tap to ${on ? 'bench' : 'deploy'}</div>`;
+      div.onclick = () => { squad.active[k] = !squad.active[k]; syncCompanions(); renderShop(); };
+    }
+    grid.appendChild(div);
+  }
+}
+function buySentry() {
+  if (sentryTier >= SENTRY_MAX_TIER) return;
+  const cost = SENTRY_COSTS[sentryTier];
+  if (cores < cost) { $('shopCores').style.color = '#ff4d5e'; setTimeout(() => $('shopCores').style.color = '', 300); return; }
+  cores -= cost;
+  sentryTier++;
+  renderShop();
 }
 function buyFence() {
   if (fenceTier >= FENCE_MAX_TIER) return;
@@ -1769,11 +2443,14 @@ function buyFence() {
   renderShop();
 }
 function buyGear(u) {
+  if (u.lvl >= u.max) return;
   const cost = gearCost(u);
   if (cores < cost) { $('shopCores').style.color = '#ff4d5e'; setTimeout(() => $('shopCores').style.color = '', 300); return; }
   cores -= cost; u.lvl++;
   if (u.id === 'hp') player.hp = maxHp();
   if (u.id === 'gren') player.grenades = maxGrenades();
+  // a freshly bought gun slots straight into the empty off-hand
+  if (u.weapon && !loadout.secondary && u.id !== loadout.primary) loadout.secondary = u.id;
   renderShop();
 }
 $('openTreeLink').onclick = e => { e.preventDefault(); toggleTree(); };
@@ -1784,6 +2461,13 @@ function statsHtml() {
   return `Waves survived: <b>${wave}</b> · Kills: <b>${kills}</b> · Cores gathered: <b>${totalCores}</b><br>
     Level <b>${player.level}</b> · Quests completed: <b>${questIdx}</b>/${QUESTS.length} · Time in the rift: <b>${mins}m ${secs}s</b>`;
 }
+// ---------- death checkpoints (v2.8) ----------
+// Dying no longer wipes the run. The last end-of-wave auto-save doubles as a
+// checkpoint: RESPAWN reloads it through the exact same loadGame() path the
+// CONTINUE button uses (same snapshot format — cannot corrupt saves), then
+// docks a slice of carried cores so death still stings. GIVE UP deletes the
+// save for a true fresh start.
+const DEATH_CORE_PENALTY = 0.15; // fraction of carried cores lost on respawn
 function gameOver() {
   state = 'over';
   $('hud').classList.add('hidden');
@@ -1793,8 +2477,26 @@ function gameOver() {
   $('goTitle').textContent = 'YOU HAVE FALLEN';
   $('goSub').textContent = 'Emberfall burns behind you…';
   $('goStats').innerHTML = statsHtml();
-  $('retryBtn').textContent = 'RE-ENTER THE RIFT';
-  $('retryBtn').onclick = () => { $('gameover').classList.add('hidden'); newGame(); };
+  const canCp = hasSave();
+  const rb = $('respawnBtn');
+  rb.classList.toggle('hidden', !canCp);
+  if (canCp) {
+    rb.textContent = `⟲ RESPAWN AT CHECKPOINT (−${Math.round(DEATH_CORE_PENALTY * 100)}% ⬡)`;
+    rb.onclick = () => {
+      $('gameover').classList.add('hidden');
+      if (!loadGame()) { newGame(); return; } // corrupt/missing save → fresh run
+      const lost = Math.floor(cores * DEATH_CORE_PENALTY);
+      cores -= lost;
+      if (lost) addFloater(player.x, player.y - 60, `−${lost} ⬡ death toll`, '#ff8a93', true);
+      saveGame(false); // persist the toll so re-dying can't refund it
+    };
+  }
+  $('retryBtn').textContent = canCp ? '☠ GIVE UP — RESTART RUN' : 'RE-ENTER THE RIFT';
+  $('retryBtn').onclick = () => {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    $('gameover').classList.add('hidden');
+    newGame();
+  };
   $('gameover').classList.remove('hidden');
 }
 function showVictory() {
@@ -1802,6 +2504,7 @@ function showVictory() {
   $('hud').classList.add('hidden');
   $('btnMenu').classList.add('hidden');
   $('btnSettings').classList.add('hidden');
+  $('respawnBtn').classList.add('hidden');
   $('goTitle').textContent = 'THE RIFT IS SEALED';
   $('goSub').textContent = 'Emberfall stands. The three worlds begin to heal.';
   $('goStats').innerHTML = statsHtml() + '<br><br>You held the line for 15 waves. The rift stirs again — dare you continue?';
@@ -1831,6 +2534,7 @@ function updateHud() {
   if (player.novaCd > 0.05) cds.push(`nova ${player.novaCd.toFixed(1)}`);
   $('grenadeHud').textContent = '✦ ' + '●'.repeat(player.grenades) + '○'.repeat(Math.max(0, maxGrenades() - player.grenades)) +
     `  ·  ⛨ ${barricades.length}/${BARRICADE_MAX}` +
+    (loadout.secondary ? `  ·  ⌖ ${WEAPON_NAMES[loadout.primary]} + ${WEAPON_NAMES[loadout.secondary]}` : '') +
     (cds.length ? '  ·  ' + cds.join(' · ') : '');
   for (const c of CATS) {
     const r = resistance(c);
@@ -1926,6 +2630,51 @@ function drawFigure(x, y, o) {
     ctx.fillRect(18 * s, -1.4 * s, 4 * s, 2.8 * s);
     ctx.fillStyle = flash ? '#fff' : '#7a89a6';
     ctx.fillRect(7 * s, 2 * s, 3 * s, 4 * s); // grip
+    ctx.restore();
+    // dual-wield ascension: a compact off-hand blaster below the rifle
+    if (o.dualGun) {
+      ctx.save();
+      ctx.translate(lean, armY + 3 * s);
+      ctx.rotate((o.gunAngle || 0) + 0.18);
+      ctx.strokeStyle = skin; ctx.lineWidth = 3 * s;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(9 * s, 2 * s); ctx.stroke();
+      ctx.fillStyle = flash ? '#fff' : '#a8b6cc';
+      ctx.fillRect(5 * s, -1.6 * s, 10 * s, 3.2 * s);
+      ctx.fillStyle = flash ? '#fff' : (o.dualColor || '#3ef0c8');
+      ctx.fillRect(13 * s, -1.2 * s, 2.6 * s, 2.4 * s);
+      ctx.restore();
+    }
+  } else if (o.weapon === 'cannon') {
+    // arm-mounted pulse cannon: chunky tube in place of a hand (Warden)
+    const ga = o.gunAngle || 0;
+    ctx.beginPath(); ctx.moveTo(lean, armY); ctx.lineTo(lean - 5 * s, armY + 10 * s); ctx.stroke(); // off arm hangs
+    ctx.save();
+    ctx.translate(lean, armY);
+    ctx.rotate(ga);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(9 * s, 1.5 * s); ctx.stroke();
+    ctx.fillStyle = flash ? '#fff' : '#5a6478';
+    ctx.fillRect(3 * s, -3 * s, 13 * s, 6 * s);
+    ctx.fillStyle = flash ? '#fff' : '#3ef0c8';
+    ctx.shadowColor = '#3ef0c8'; ctx.shadowBlur = 6;
+    ctx.fillRect(15 * s, -2 * s, 3.5 * s, 4 * s); // emitter
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  } else if (o.weapon === 'crossbow') {
+    // tech crossbow: wooden stock, steel bow arms, taut string (Scout)
+    const ga = o.gunAngle || 0;
+    ctx.save();
+    ctx.translate(lean, armY);
+    ctx.rotate(ga);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(8 * s, 2 * s); ctx.moveTo(0, 0); ctx.lineTo(12 * s, 0.5 * s); ctx.stroke();
+    ctx.strokeStyle = flash ? '#fff' : '#6b4c30'; ctx.lineWidth = 2.4 * s;
+    ctx.beginPath(); ctx.moveTo(2 * s, 0); ctx.lineTo(15 * s, 0); ctx.stroke(); // stock
+    ctx.strokeStyle = flash ? '#fff' : '#8d99ae'; ctx.lineWidth = 1.8 * s;
+    ctx.beginPath();
+    ctx.moveTo(15 * s, 0); ctx.quadraticCurveTo(11 * s, -6 * s, 7 * s, -7 * s);
+    ctx.moveTo(15 * s, 0); ctx.quadraticCurveTo(11 * s, 6 * s, 7 * s, 7 * s);
+    ctx.stroke();
+    ctx.strokeStyle = flash ? '#fff' : '#d8e6f5'; ctx.lineWidth = 0.8 * s;
+    ctx.beginPath(); ctx.moveTo(7 * s, -7 * s); ctx.lineTo(7 * s, 7 * s); ctx.stroke(); // string
     ctx.restore();
   } else if (o.weapon === 'club') {
     // one arm hangs, one arm raised with a spiked club
@@ -2069,6 +2818,8 @@ function playerFigure() {
     legs: '#20242e',
     weapon: 'rifle',
     gunAngle: player.facing === 1 ? player.aim : Math.PI - player.aim,
+    dualGun: player.form > 0 && !!loadout.secondary,
+    dualColor: loadout.secondary === 'sticker' ? '#ff6bd8' : '#3ef0c8',
     aura: player.form === 2 ? '#fff2a8' : player.form === 1 ? '#ffd54a' : null,
     flash: 0,
     alpha: player.hurtT > 0 && Math.sin(performance.now() / 40) > 0 ? 0.4 : 1,
@@ -2085,6 +2836,258 @@ function npcFigure(n) {
     default: return { ...base, skin: '#d9a878', cloth: '#7a5a34', pauldron: '#9b7648',
       legs: '#3a3226', weapon: 'staff' };
   }
+}
+
+// ============ TWIN-SKULLED WAR-BRUTE (v2.8 boss redesign) =========
+// Original procedural boss sprite: two fused skulls sharing ONE ember-orange
+// eye, ashen-green rotting muscle, cracked steel plates that fall off as the
+// armor bar chips (armorCrack 4 → 0), a wolf-claw gauntlet on one arm and a
+// crude stone-and-rebar club in the other. No image assets — pure canvas.
+function drawWarlord(e, alpha) {
+  const s = 2.6;
+  const t = e.walk, swing = Math.sin(t) * 0.5, bob = Math.abs(Math.sin(t)) * 2.5;
+  const flash = e.flash > 0;
+  const muscle = flash ? '#fff' : '#5c7a45';      // ashen-green rotting muscle
+  const muscleDark = flash ? '#fff' : '#46603a';
+  const rot = flash ? '#fff' : '#39512f';
+  const bone = flash ? '#fff' : '#d9d2ba';
+  const steel = flash ? '#fff' : '#78849a';
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 30, 11, 0, 0, TAU); ctx.fill();
+  ctx.scale(e.facing || 1, 1);
+  ctx.translate(0, -bob);
+  const hipY = -15 * s, shY = -26 * s, headY = -33 * s;
+  // rift aura
+  const ar = 40 * s * 0.62 + Math.sin(performance.now() / 70) * 3;
+  const ag = ctx.createRadialGradient(0, hipY, 3, 0, hipY, ar);
+  ag.addColorStop(0, '#b04dff66'); ag.addColorStop(1, '#b04dff00');
+  ctx.fillStyle = ag;
+  ctx.beginPath(); ctx.ellipse(0, hipY, ar * 0.8, ar, 0, 0, TAU); ctx.fill();
+  ctx.lineCap = 'round';
+  // ---- legs ----
+  ctx.strokeStyle = muscleDark; ctx.lineWidth = 4 * s;
+  ctx.beginPath();
+  ctx.moveTo(-2 * s, hipY); ctx.lineTo(-2 * s + Math.sin(t) * 5 * s, -1);
+  ctx.moveTo(2 * s, hipY); ctx.lineTo(2 * s - Math.sin(t) * 5 * s, -1);
+  ctx.stroke();
+  // ---- torso: heavy muscle mass with rot patches ----
+  ctx.strokeStyle = muscle; ctx.lineWidth = 11 * s;
+  ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(2 * s, shY); ctx.stroke();
+  ctx.fillStyle = muscleDark;
+  ctx.beginPath(); ctx.ellipse(1 * s, shY + 6 * s, 6.5 * s, 4 * s, 0.3, 0, TAU); ctx.fill();
+  ctx.fillStyle = rot; // exposed rot
+  ctx.beginPath(); ctx.ellipse(-2 * s, hipY - 3 * s, 3 * s, 2 * s, -0.4, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(4 * s, shY + 9 * s, 2 * s, 1.4 * s, 0.6, 0, TAU); ctx.fill();
+  // ---- club arm (back): crude stone-and-rebar club, hangs & sways ----
+  ctx.save();
+  ctx.translate(-3 * s, shY + 3 * s);
+  ctx.rotate(2.05 - swing * 0.12); // hangs down-back
+  ctx.strokeStyle = muscle; ctx.lineWidth = 4 * s;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(10 * s, 0); ctx.stroke();
+  // stone head: irregular grey blob
+  ctx.fillStyle = flash ? '#fff' : '#6f7480'; ctx.strokeStyle = flash ? '#fff' : '#4c5058'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(9 * s, -3 * s); ctx.lineTo(14 * s, -4.4 * s); ctx.lineTo(17 * s, -1.5 * s);
+  ctx.lineTo(16.4 * s, 2.8 * s); ctx.lineTo(11.5 * s, 4 * s); ctx.lineTo(8.6 * s, 1.6 * s);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // rusted rebar rods jutting out
+  ctx.strokeStyle = flash ? '#fff' : '#8a5a3a'; ctx.lineWidth = 1.4 * s;
+  ctx.beginPath();
+  ctx.moveTo(13 * s, -4 * s); ctx.lineTo(14.5 * s, -7.5 * s); ctx.lineTo(16 * s, -7 * s);
+  ctx.moveTo(16.5 * s, 0); ctx.lineTo(20 * s, -1 * s);
+  ctx.moveTo(14 * s, 3.4 * s); ctx.lineTo(16.5 * s, 6 * s);
+  ctx.stroke();
+  ctx.restore();
+  // ---- steel armor plates (chest rig) — fall off as the bar chips ----
+  // armorCrack counts intact quarters: 4 full → 0 shattered
+  if (e.maxArmor) {
+    const plates = e.armor > 0 ? e.armorCrack : 0;
+    const spots = [ // [x, y, w, h] in s-units, chest/gut/shoulder rig
+      [-1.5, -29, 7, 5], [-1.5, -23.5, 7, 5], [-2.5, -18, 6, 4.5], [3.5, -28, 4.5, 6],
+    ];
+    for (let i = 0; i < 4; i++) {
+      const [px, py, pw, ph] = spots[i];
+      if (i < plates) {
+        ctx.fillStyle = steel; ctx.strokeStyle = flash ? '#fff' : '#4a5468'; ctx.lineWidth = 1.4;
+        ctx.fillRect(px * s, py * s, pw * s, ph * s);
+        ctx.strokeRect(px * s, py * s, pw * s, ph * s);
+        ctx.fillStyle = flash ? '#fff' : '#9aa6ba'; // rivets
+        ctx.fillRect(px * s + 1.5, py * s + 1.5, 2, 2);
+        ctx.fillRect((px + pw) * s - 3.5, py * s + 1.5, 2, 2);
+        // the next plate to fall shows spreading cracks
+        if (i === plates - 1 && e.armor < e.maxArmor) {
+          ctx.strokeStyle = flash ? '#fff' : '#2e3542'; ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(px * s + 2, py * s + 1);
+          ctx.lineTo((px + pw * 0.5) * s, (py + ph * 0.55) * s);
+          ctx.lineTo((px + pw * 0.3) * s, (py + ph) * s - 1);
+          ctx.moveTo((px + pw * 0.5) * s, (py + ph * 0.55) * s);
+          ctx.lineTo((px + pw) * s - 2, (py + ph * 0.8) * s);
+          ctx.stroke();
+        }
+      } else { // fallen plate: torn strap + scarred muscle beneath
+        ctx.strokeStyle = rot; ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(px * s + 1, py * s + 1); ctx.lineTo((px + pw) * s - 1, (py + ph) * s - 1);
+        ctx.moveTo((px + pw) * s - 1, py * s + 1); ctx.lineTo(px * s + 1, (py + ph) * s - 1);
+        ctx.stroke();
+      }
+    }
+  }
+  // ---- claw arm (front): wolf-claw gauntlet, raised during the wind-up ----
+  const wind = e.clawWind > 0 ? clamp(e.clawWind / CLAW_WINDUP, 0, 1) : 0;
+  ctx.save();
+  ctx.translate(4 * s, shY + 3 * s);
+  ctx.rotate(wind > 0 ? -1.7 + (1 - wind) * 0.5 : -0.3 + Math.sin(t * 0.7) * 0.12);
+  ctx.strokeStyle = muscle; ctx.lineWidth = 4 * s;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(11 * s, 0); ctx.stroke();
+  // steel gauntlet cuff
+  ctx.fillStyle = steel; ctx.strokeStyle = flash ? '#fff' : '#4a5468'; ctx.lineWidth = 1.4;
+  ctx.fillRect(8.5 * s, -2.6 * s, 4.5 * s, 5.2 * s);
+  ctx.strokeRect(8.5 * s, -2.6 * s, 4.5 * s, 5.2 * s);
+  // wolf-like talons — glow red while winding up (the telegraph)
+  ctx.strokeStyle = wind > 0 ? '#ff5a3d' : bone;
+  if (wind > 0) { ctx.shadowColor = '#ff5a3d'; ctx.shadowBlur = 12; }
+  ctx.lineWidth = 1.8 * s;
+  for (let i = 0; i < 4; i++) {
+    const cy = (-2.2 + i * 1.5) * s;
+    ctx.beginPath();
+    ctx.moveTo(13 * s, cy);
+    ctx.quadraticCurveTo(17.5 * s, cy - 0.8 * s, 19 * s, cy + 1.8 * s);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+  ctx.restore();
+  // ---- twin fused skulls ----
+  for (const off of [-3, 3]) {
+    const ox = off * s;
+    ctx.fillStyle = bone;
+    ctx.beginPath(); ctx.arc(ox, headY, 4.6 * s, Math.PI * 0.95, Math.PI * 2.05); ctx.fill(); // dome
+    ctx.beginPath(); // jaw taper
+    ctx.moveTo(ox - 4.2 * s, headY + 0.6 * s);
+    ctx.lineTo(ox - 2.6 * s, headY + 4.6 * s);
+    ctx.lineTo(ox + 2.6 * s, headY + 4.6 * s);
+    ctx.lineTo(ox + 4.2 * s, headY + 0.6 * s);
+    ctx.closePath(); ctx.fill();
+    // outer eye socket (dark, empty — the shared eye lives in the middle)
+    ctx.fillStyle = flash ? '#fff' : '#1a1712';
+    ctx.beginPath(); ctx.arc(ox + off * 0.55 * s, headY + 0.4 * s, 1.4 * s, 0, TAU); ctx.fill();
+    // cheek crack
+    ctx.strokeStyle = flash ? '#fff' : '#a89f85'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ox + off * 0.4 * s, headY + 2 * s);
+    ctx.lineTo(ox + off * 0.8 * s, headY + 3.4 * s);
+    ctx.stroke();
+    // teeth
+    ctx.fillStyle = flash ? '#fff' : '#c4bb9f';
+    for (let i = -1; i <= 1; i++) ctx.fillRect(ox + i * 1.4 * s - 0.5 * s, headY + 4 * s, s, 1.4 * s);
+  }
+  // fusion seam between the skulls
+  ctx.strokeStyle = flash ? '#fff' : '#8f866c'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(0, headY - 4.4 * s); ctx.lineTo(0, headY + 4.4 * s); ctx.stroke();
+  // ---- ONE shared ember eye ----
+  const pulse = 0.75 + Math.sin(performance.now() / 130) * 0.25;
+  const eg = ctx.createRadialGradient(0, headY + 0.6 * s, 0.5, 0, headY + 0.6 * s, 3 * s * pulse);
+  eg.addColorStop(0, '#fff3c4');
+  eg.addColorStop(0.45, '#ff9d2e');
+  eg.addColorStop(1, '#ff3d1f00');
+  ctx.fillStyle = eg;
+  ctx.shadowColor = '#ff7a1f'; ctx.shadowBlur = 16;
+  ctx.beginPath(); ctx.arc(0, headY + 0.6 * s, 3 * s * pulse, 0, TAU); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+// ================== COMPANION SPRITES (v2.8) ======================
+// Rover: quadruped robot dog with a cyan visor. Warden/Scout reuse the
+// shared humanoid rig with cannon/crossbow arms.
+function drawRover(c) {
+  const flash = c.hurtT > 0.35;
+  const body = flash ? '#fff' : '#8d99ae';
+  const dark = flash ? '#fff' : '#5a6478';
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 12, 4.5, 0, 0, TAU); ctx.fill();
+  ctx.scale(c.facing, 1);
+  if (c.downed) { ctx.globalAlpha = 0.45; ctx.rotate(0.5); }
+  const t = c.walk;
+  ctx.lineCap = 'round';
+  // 4 trotting legs (diagonal pairs in phase)
+  ctx.strokeStyle = dark; ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(-8, -10); ctx.lineTo(-8 + Math.sin(t) * 4, 0);
+  ctx.moveTo(-3, -10); ctx.lineTo(-3 - Math.sin(t) * 4, 0);
+  ctx.moveTo(4, -10);  ctx.lineTo(4 - Math.sin(t) * 4, 0);
+  ctx.moveTo(9, -10);  ctx.lineTo(9 + Math.sin(t) * 4, 0);
+  ctx.stroke();
+  // body chassis
+  ctx.fillStyle = body; ctx.strokeStyle = dark; ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-12, -10); ctx.lineTo(10, -11.5); ctx.lineTo(11, -16.5) ; ctx.lineTo(-10, -16);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // head block + snout
+  ctx.fillStyle = body;
+  ctx.fillRect(8, -21, 9, 7);
+  ctx.fillRect(15, -19, 4.5, 4);
+  // cyan visor strip
+  ctx.fillStyle = flash ? '#fff' : '#4de1ff';
+  ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 7;
+  ctx.fillRect(11, -19.5, 5, 2.6);
+  ctx.shadowBlur = 0;
+  // plasma jaw glow right after a bite
+  if (c.atkCd > compInterval(c) - 0.18 && !c.downed) {
+    ctx.fillStyle = '#9ef0ff';
+    ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(18, -15.5, 2.4, 0, TAU); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  // antenna tail
+  ctx.strokeStyle = dark; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(-11, -15); ctx.lineTo(-16, -22 + Math.sin(t * 1.3) * 1.5); ctx.stroke();
+  ctx.fillStyle = flash ? '#fff' : '#ff9d2e';
+  ctx.beginPath(); ctx.arc(-16, -22 + Math.sin(t * 1.3) * 1.5, 1.6, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+function companionFigure(c) {
+  const base = {
+    walk: c.walk, facing: c.facing, moving: Math.hypot(c.vx, c.vy) > 20,
+    flash: c.hurtT > 0.35 ? 0.1 : 0,
+    alpha: c.downed ? 0.45 : 1,
+    gunAngle: c.facing === 1 ? c.aim : Math.PI - c.aim,
+  };
+  if (c.type === 'warden') return { ...base, s: 1.25, bulk: 1.5, skin: '#9aa7b8', cloth: '#5a6478',
+    pauldron: '#7e8ba0', legs: '#3c4454', helmet: '#6b7686', glowEyes: '#3ef0c8', weapon: 'cannon' };
+  return { ...base, s: 1.0, skin: '#d8a87e', cloth: '#3e5a48', hood: '#2e4438',
+    legs: '#2e4038', weapon: 'crossbow' };
+}
+function drawCompanion(c) {
+  if (c.type === 'rover') drawRover(c);
+  else drawFigure(c.x, c.y, companionFigure(c));
+  // downed marker
+  if (c.downed) {
+    ctx.fillStyle = '#ff8a93';
+    ctx.font = 'bold 12px Segoe UI'; ctx.textAlign = 'center';
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+    ctx.strokeText('✚ DOWN', c.x, c.y - 34);
+    ctx.fillText('✚ DOWN', c.x, c.y - 34);
+  } else if (c.hp < c.maxHp) {
+    const w = 26;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(c.x - w / 2, c.y - 34, w, 3.5);
+    ctx.fillStyle = '#4de1ff';
+    ctx.fillRect(c.x - w / 2, c.y - 34, w * clamp(c.hp / c.maxHp, 0, 1), 3.5);
+  }
+  // tiny name tag
+  ctx.font = '9px Segoe UI'; ctx.textAlign = 'center';
+  ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 2.5;
+  ctx.strokeText(COMP_TYPES[c.type].name, c.x, c.y + 11);
+  ctx.fillStyle = 'rgba(158,240,255,0.85)';
+  ctx.fillText(COMP_TYPES[c.type].name, c.x, c.y + 11);
 }
 
 // =========================== RENDER ===============================
@@ -2134,6 +3137,11 @@ function render() {
       ctx.beginPath();
       for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; i ? ctx.lineTo(Math.cos(a) * 8, Math.sin(a) * 8) : ctx.moveTo(8, 0); }
       ctx.closePath(); ctx.fill();
+    } else if (p.type === 'pack') { // scout's supply pack: green box, cyan cross
+      ctx.fillStyle = '#2e6a3a'; ctx.shadowColor = '#7CFC00'; ctx.shadowBlur = 10;
+      ctx.fillRect(-8, -8, 16, 16);
+      ctx.fillStyle = '#9ef0ff';
+      ctx.fillRect(-6, -2, 12, 4); ctx.fillRect(-2, -6, 4, 12);
     } else {
       ctx.fillStyle = '#7CFC00'; ctx.shadowColor = '#7CFC00'; ctx.shadowBlur = 12;
       ctx.fillRect(-8, -3, 16, 6); ctx.fillRect(-3, -8, 6, 16);
@@ -2196,6 +3204,32 @@ function render() {
       ctx.shadowColor = '#7CFC00'; ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(b.x, b.y - 24, 4, 0, TAU); ctx.fill();
       ctx.shadowBlur = 0;
+      // v2.8 sentry: scrappy box turret bolted onto the pylon top
+      if (sentryTier >= 1) {
+        ctx.save();
+        ctx.translate(b.x, b.y - 32);
+        ctx.fillStyle = '#5a6478';
+        ctx.fillRect(-5, 5, 10, 4); // mount collar
+        ctx.rotate(b.gunA || 0);
+        ctx.fillStyle = '#6f7a8e'; ctx.strokeStyle = '#3c4454'; ctx.lineWidth = 1.5;
+        ctx.fillRect(-7, -5, 14, 10);
+        ctx.strokeRect(-7, -5, 14, 10);
+        ctx.fillStyle = '#454f66';
+        for (const off of (sentryTier >= 3 ? [-2.6, 2.6] : [0])) ctx.fillRect(6, off - 1.2, 11, 2.4);
+        if (b.gunFlash > 0) { // muzzle flash
+          ctx.fillStyle = '#ffd54a';
+          ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 8;
+          ctx.beginPath(); ctx.arc(18, 0, 3, 0, TAU); ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        ctx.restore();
+        if (sentryTier >= 2) { // targeting antenna + status LED
+          ctx.strokeStyle = '#8d99ae'; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.moveTo(b.x + 5, b.y - 36); ctx.lineTo(b.x + 9, b.y - 46); ctx.stroke();
+          ctx.fillStyle = '#ff4d5e';
+          ctx.beginPath(); ctx.arc(b.x + 9, b.y - 47, 1.6, 0, TAU); ctx.fill();
+        }
+      }
       // tier 2+: reinforced steel posts around the ring
       if (fenceTier >= 2) {
         ctx.fillStyle = '#8d99ae'; ctx.strokeStyle = '#5a6478'; ctx.lineWidth = 1;
@@ -2274,9 +3308,26 @@ function render() {
         ctx.strokeStyle = `rgba(176,77,255,${1 - emerge})`; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(e.x, e.y, 18 * (1 - emerge) + 6, 0, TAU); ctx.stroke();
       }
-      const fig = enemyFigure(e);
-      fig.alpha = emerge;
-      drawFigure(e.x, e.y, fig);
+      if (e.type === 'warlord') {
+        drawWarlord(e, emerge); // v2.8 twin-skulled war-brute
+      } else {
+        const fig = enemyFigure(e);
+        fig.alpha = emerge;
+        if (e.ascended) { fig.aura = '#ffd54a'; fig.glowEyes = '#ffd54a'; } // rift-blessed glow
+        drawFigure(e.x, e.y, fig);
+      }
+      // sticker needles sticking out of the target
+      if (e.needleN > 0) {
+        ctx.strokeStyle = '#ff6bd8'; ctx.lineWidth = 1.6;
+        ctx.shadowColor = '#ff6bd8'; ctx.shadowBlur = 4;
+        for (let i = 0; i < e.needleN; i++) {
+          const a = (e.needleA || 0) + Math.PI + Math.sin(i * 2.7) * 0.9;
+          const bx = e.x - Math.cos(a) * e.r * 0.5;
+          const by = e.y - e.r + Math.sin(i * 1.7) * e.r * 0.5;
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(a) * 7, by + Math.sin(a) * 7); ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+      }
       if (e.hp < e.maxHp && !e.boss) {
         const w = e.r * 2.4;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -2284,8 +3335,19 @@ function render() {
         ctx.fillStyle = '#7fbf4d';
         ctx.fillRect(e.x - w / 2, e.y - e.r * 2.9, w * clamp(e.hp / e.maxHp, 0, 1), 4);
       }
+      // mini armor plate bar (v2.8 plated enemies) — small grey strip
+      if (!e.boss && e.maxArmor) {
+        const w = e.r * 2.4;
+        ctx.fillStyle = 'rgba(8,14,26,0.7)';
+        ctx.fillRect(e.x - w / 2, e.y - e.r * 2.9 + 5, w, 3);
+        if (e.armor > 0) {
+          ctx.fillStyle = '#aab8cc';
+          ctx.fillRect(e.x - w / 2, e.y - e.r * 2.9 + 5, w * clamp(e.armor / e.maxArmor, 0, 1), 3);
+        }
+      }
     }});
   }
+  for (const c of companions) draws.push({ y: c.y, f: () => drawCompanion(c) });
   draws.push({ y: player.y, f: () => drawFigure(player.x, player.y, playerFigure()) });
   draws.sort((a, b) => a.y - b.y);
   for (const d of draws) d.f();
@@ -2293,9 +3355,46 @@ function render() {
   // ---- projectiles over actors ----
   ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 10;
   for (const b of bolts) {
-    ctx.strokeStyle = '#9ef0ff'; ctx.lineWidth = 3.5;
-    ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.02, b.y - b.vy * 0.02); ctx.stroke();
+    if (b.wpn === 'gusher') { // teal energy orb with a bright core
+      ctx.shadowColor = '#3ef0c8'; ctx.shadowBlur = 12;
+      const gg = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+      gg.addColorStop(0, '#eafff8');
+      gg.addColorStop(0.5, '#3ef0c8');
+      gg.addColorStop(1, '#0f9c86');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+      ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 10;
+    } else if (b.wpn === 'sticker') { // pink needle with a violet trail
+      ctx.shadowColor = '#ff6bd8'; ctx.shadowBlur = 6;
+      ctx.strokeStyle = 'rgba(176,77,255,0.45)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.03, b.y - b.vy * 0.03); ctx.stroke();
+      ctx.strokeStyle = '#ff9de6'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.012, b.y - b.vy * 0.012); ctx.stroke();
+      ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 10;
+    } else {
+      ctx.strokeStyle = '#9ef0ff'; ctx.lineWidth = 3.5;
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.02, b.y - b.vy * 0.02); ctx.stroke();
+    }
   }
+  // companion fire: teal cannon shots / pale crossbow bolts
+  for (const b of cbolts) {
+    if (b.scout) {
+      ctx.shadowColor = '#ffd7a8'; ctx.shadowBlur = 5;
+      ctx.strokeStyle = '#ffe9cc'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.015, b.y - b.vy * 0.015); ctx.stroke();
+    } else {
+      ctx.shadowColor = '#3ef0c8'; ctx.shadowBlur = 8;
+      ctx.fillStyle = '#3ef0c8';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+    }
+  }
+  // sentry tracers: short amber streaks
+  ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 6;
+  for (const s of sbolts) {
+    ctx.strokeStyle = '#ffd08a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 0.014, s.y - s.vy * 0.014); ctx.stroke();
+  }
+  ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 10;
   for (const b of ebolts) {
     if (b.fire) { // fireball: white-hot core, orange body, red rim, size pulse
       const pulse = 1 + Math.sin(performance.now() / 45 + b.x * 0.1) * 0.16;
@@ -2419,7 +3518,7 @@ function render() {
     }
     ctx.fillStyle = '#ffb0b7'; ctx.font = 'bold 11px Segoe UI'; ctx.textAlign = 'center';
     ctx.fillText(boss.maxArmor && boss.armor <= 0 ? 'GHAROK — ARMOR SHATTERED · ENRAGED'
-      : 'GHAROK — ORK WARLORD OF THE RIFT', VW / 2, by - 5);
+      : 'GHAROK — TWIN-SKULLED WAR-BRUTE', VW / 2, by - 5);
   }
 
   // ---- current region name, above the boss bar when one is showing ----
@@ -2650,6 +3749,10 @@ function newGame() {
   miraIdx = 0; miraRewarded = false;
   chest = null; graceT = 0; barricades = []; pulseCd = 0;
   fenceTier = 1; graves = []; graveCount = 0;
+  sentryTier = 0; sbolts = [];
+  companions = []; cbolts = [];
+  squad = { owned: {}, active: {} };
+  loadout = { primary: 'rifle', secondary: null };
   currentRegion = '';
   buildWorld();
   resetPlayer();
@@ -2698,6 +3801,11 @@ $('rowHudOff').onclick = () => {
   const i = HUD_OFFSETS.indexOf(settings.hudOffset || 0);
   settings.hudOffset = HUD_OFFSETS[(i + 1) % HUD_OFFSETS.length];
   applyHudOffset(); persistSettings(); refreshToggles();
+};
+$('rowCamView').onclick = () => {
+  const i = CAM_VIEWS.findIndex(v => v.id === settings.camView);
+  settings.camView = CAM_VIEWS[(i + 1) % CAM_VIEWS.length].id;
+  persistSettings(); refreshToggles();
 };
 $('layoutBtn').onclick = () => {
   // hide the overlay but keep settingsOpen=true so the game stays paused while editing

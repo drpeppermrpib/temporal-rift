@@ -15,3 +15,10 @@ playstore/KEYSTORE-INFO.txt
 # Binary release artifacts stay on disk only
 playstore/*.aab
 playstore/*-release.apk
+
+# Rollout shelf (versioned artifact copies) + beta-build temp backups
+rollouts/
+*.beta-bak
+
+# Test harness screenshots
+test-v*.png

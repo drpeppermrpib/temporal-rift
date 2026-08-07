@@ -60,6 +60,15 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.8.1 (Gharok green twin-goblin)
+
+- **Boss look pass** — Gharok’s procedural sprite shifts toward a muscular
+  **double-headed green goblin** war-brute (bright green skin, solid glowing
+  red eyes, big swirl-ears, jewelry, tattered tunic/sash, metal greaves). Still
+  pure canvas — no Meiker image assets. Keeps the claw red telegraph and the
+  four steel plates that crack/fall with `armorCrack`. Concept sketch:
+  `gharok-hybrid-concept.png`.
+
 ### New in Release 2.8 (Arsenal & Checkpoints)
 
 - **Dual-wield Ascension** — while Ascended, your equipped **Twin Weapon** fires
@@ -91,14 +100,12 @@ No install, no build step:
     end. Owned squad + loadout persist in the save. Combined squad DPS is
     tuned to ~40–45% of player DPS; each deployed companion adds +1 enemy to
     the wave budget.
-- **Boss redesign: the Twin-Skulled War-Brute** — Gharok is now a fused
-  horror: two skulls sharing **one ember-orange eye**, ashen-green rotting
-  muscle, and four steel armor plates that visibly crack and **fall off** as
-  the v2.7 armor bar chips at 75/50/25%. One arm ends in a **wolf-claw
-  gauntlet**: when you linger in range he telegraphs a 0.7 s wind-up (claws
-  glow red) then slashes for 1.5× damage and sends you flying — dodge out
-  during the wind-up. The other arm still swings the stone-and-rebar club
-  (the classic heavy contact hit).
+- **Boss redesign: Gharok the Twin-Goblin War-Brute** — muscular double-headed
+  green goblin (v2.8.1 look pass): two heads fused at the neck with glowing
+  red eyes, swirl-ears, tunic/jewelry/greaves. Four steel armor plates crack
+  and **fall off** as the armor bar chips at 75/50/25%. One arm ends in a
+  **claw gauntlet**: linger in range → 0.7 s red telegraph wind-up, then a
+  1.5× knockback slash. Other arm swings a spiked war club.
 - **Enemy escalation (wave 7+)** — spawns can roll **Ascended** (golden aura,
   +30% speed, +40% damage, bursts into +8 aether for you on death; max 3
   alive) or **Plated** (mini grey armor bar that halves damage until chipped

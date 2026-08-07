@@ -261,7 +261,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.8.1';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -2838,29 +2838,34 @@ function npcFigure(n) {
   }
 }
 
-// ============ TWIN-SKULLED WAR-BRUTE (v2.8 boss redesign) =========
-// Original procedural boss sprite: two fused skulls sharing ONE ember-orange
-// eye, ashen-green rotting muscle, cracked steel plates that fall off as the
-// armor bar chips (armorCrack 4 → 0), a wolf-claw gauntlet on one arm and a
-// crude stone-and-rebar club in the other. No image assets — pure canvas.
+// ============ GHAROK — MUSCLE TWIN-GOBLIN (v2.8.1) =================
+// Procedural canvas only (no Meiker PNGs). Primary look: bright green skin,
+// two goblin heads fused at the neck, solid glowing red eyes, big swirl-ears,
+// hooked nose + septum, tattered brown tunic / sash / gold jewelry, metal
+// greaves. Muscular war-brute bulk + subtle demon cues (tiny forehead horns,
+// clawed gauntlet). Keeps claw red telegraph + 4 armor plates (armorCrack).
 function drawWarlord(e, alpha) {
   const s = 2.6;
   const t = e.walk, swing = Math.sin(t) * 0.5, bob = Math.abs(Math.sin(t)) * 2.5;
   const flash = e.flash > 0;
-  const muscle = flash ? '#fff' : '#5c7a45';      // ashen-green rotting muscle
-  const muscleDark = flash ? '#fff' : '#46603a';
-  const rot = flash ? '#fff' : '#39512f';
-  const bone = flash ? '#fff' : '#d9d2ba';
+  const skin = flash ? '#fff' : '#4caf50';       // bright goblin green (ref #1)
+  const skinDark = flash ? '#fff' : '#2e7d32';
+  const skinDeep = flash ? '#fff' : '#1b5e20';
+  const tunic = flash ? '#fff' : '#6b4423';
+  const tunicDark = flash ? '#fff' : '#4a2e16';
+  const sash = flash ? '#fff' : '#8b3a2a';
+  const gold = flash ? '#fff' : '#e0b84a';
   const steel = flash ? '#fff' : '#78849a';
+  const shorts = flash ? '#fff' : '#2a2a2e';
+  const clawBone = flash ? '#fff' : '#d9d2ba';
   ctx.save();
   ctx.translate(e.x, e.y);
   if (alpha !== undefined) ctx.globalAlpha = alpha;
-  // shadow
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.beginPath(); ctx.ellipse(0, 0, 30, 11, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 32, 12, 0, 0, TAU); ctx.fill();
   ctx.scale(e.facing || 1, 1);
   ctx.translate(0, -bob);
-  const hipY = -15 * s, shY = -26 * s, headY = -33 * s;
+  const hipY = -15 * s, shY = -26 * s, headY = -34 * s;
   // rift aura
   const ar = 40 * s * 0.62 + Math.sin(performance.now() / 70) * 3;
   const ag = ctx.createRadialGradient(0, hipY, 3, 0, hipY, ar);
@@ -2868,45 +2873,93 @@ function drawWarlord(e, alpha) {
   ctx.fillStyle = ag;
   ctx.beginPath(); ctx.ellipse(0, hipY, ar * 0.8, ar, 0, 0, TAU); ctx.fill();
   ctx.lineCap = 'round';
-  // ---- legs ----
-  ctx.strokeStyle = muscleDark; ctx.lineWidth = 4 * s;
+  // ---- thick muscular legs + greaves (horn stubs) ----
+  const legL = -2 * s + Math.sin(t) * 5 * s, legR = 2 * s - Math.sin(t) * 5 * s;
+  ctx.strokeStyle = skinDark; ctx.lineWidth = 5.5 * s;
   ctx.beginPath();
-  ctx.moveTo(-2 * s, hipY); ctx.lineTo(-2 * s + Math.sin(t) * 5 * s, -1);
-  ctx.moveTo(2 * s, hipY); ctx.lineTo(2 * s - Math.sin(t) * 5 * s, -1);
+  ctx.moveTo(-3 * s, hipY); ctx.lineTo(legL, -4);
+  ctx.moveTo(3 * s, hipY); ctx.lineTo(legR, -4);
   ctx.stroke();
-  // ---- torso: heavy muscle mass with rot patches ----
-  ctx.strokeStyle = muscle; ctx.lineWidth = 11 * s;
-  ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(2 * s, shY); ctx.stroke();
-  ctx.fillStyle = muscleDark;
-  ctx.beginPath(); ctx.ellipse(1 * s, shY + 6 * s, 6.5 * s, 4 * s, 0.3, 0, TAU); ctx.fill();
-  ctx.fillStyle = rot; // exposed rot
-  ctx.beginPath(); ctx.ellipse(-2 * s, hipY - 3 * s, 3 * s, 2 * s, -0.4, 0, TAU); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(4 * s, shY + 9 * s, 2 * s, 1.4 * s, 0.6, 0, TAU); ctx.fill();
-  // ---- club arm (back): crude stone-and-rebar club, hangs & sways ----
+  // dark shorts
+  ctx.fillStyle = shorts;
+  ctx.beginPath();
+  ctx.moveTo(-5.5 * s, hipY - 1 * s); ctx.lineTo(5.5 * s, hipY - 1 * s);
+  ctx.lineTo(4.5 * s, hipY + 5 * s); ctx.lineTo(-4.5 * s, hipY + 5 * s);
+  ctx.closePath(); ctx.fill();
+  // metal greaves + outward horn nubs
+  for (const gx of [legL, legR]) {
+    ctx.fillStyle = steel; ctx.strokeStyle = flash ? '#fff' : '#4a5468'; ctx.lineWidth = 1.2;
+    ctx.fillRect(gx - 2.2 * s, -3, 4.4 * s, 5.5 * s);
+    ctx.strokeRect(gx - 2.2 * s, -3, 4.4 * s, 5.5 * s);
+    ctx.fillStyle = flash ? '#fff' : '#c8cdd6';
+    ctx.beginPath();
+    ctx.moveTo(gx + (gx < 0 ? -2.2 : 2.2) * s, -2.2 * s);
+    ctx.lineTo(gx + (gx < 0 ? -4.2 : 4.2) * s, -3.4 * s);
+    ctx.lineTo(gx + (gx < 0 ? -2.0 : 2.0) * s, -0.6 * s);
+    ctx.closePath(); ctx.fill();
+    // bare green toe + gold toe ring
+    ctx.fillStyle = skin;
+    ctx.beginPath(); ctx.ellipse(gx, 3.2, 2.2 * s, 1.2 * s, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = gold; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(gx + 1.2 * s, 3.2, 1.1 * s, 0, TAU); ctx.stroke();
+  }
+  // ---- bulked torso (muscle mass, not lanky) ----
+  ctx.strokeStyle = skin; ctx.lineWidth = 14 * s;
+  ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(1.5 * s, shY); ctx.stroke();
+  ctx.fillStyle = skinDark;
+  ctx.beginPath(); ctx.ellipse(0.5 * s, shY + 5 * s, 8 * s, 5.5 * s, 0.15, 0, TAU); ctx.fill(); // pecs/shoulders
+  ctx.beginPath(); ctx.ellipse(0, hipY - 2 * s, 6.5 * s, 4 * s, 0, 0, TAU); ctx.fill(); // gut bulk
+  // tattered sleeveless tunic (jagged hem)
+  ctx.fillStyle = tunic;
+  ctx.beginPath();
+  ctx.moveTo(-7 * s, shY + 2 * s); ctx.lineTo(7 * s, shY + 2 * s);
+  ctx.lineTo(6.5 * s, hipY + 2 * s);
+  ctx.lineTo(3 * s, hipY + 0.5 * s); ctx.lineTo(0, hipY + 3 * s);
+  ctx.lineTo(-3 * s, hipY + 0.5 * s); ctx.lineTo(-6.5 * s, hipY + 2 * s);
+  ctx.closePath(); ctx.fill();
+  // jagged shoulder tears
+  ctx.fillStyle = tunicDark;
+  ctx.beginPath();
+  ctx.moveTo(-7 * s, shY + 2 * s); ctx.lineTo(-4 * s, shY - 1 * s); ctx.lineTo(-5 * s, shY + 4 * s);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(7 * s, shY + 2 * s); ctx.lineTo(4 * s, shY - 1 * s); ctx.lineTo(5 * s, shY + 4 * s);
+  ctx.closePath(); ctx.fill();
+  // diagonal reddish sash
+  ctx.strokeStyle = sash; ctx.lineWidth = 2.8 * s;
+  ctx.beginPath(); ctx.moveTo(-5 * s, shY + 4 * s); ctx.lineTo(5.5 * s, hipY + 1 * s); ctx.stroke();
+  // gold necklaces
+  ctx.strokeStyle = gold; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.arc(0, shY + 1 * s, 4.2 * s, 0.15, Math.PI - 0.15); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, shY + 2.2 * s, 5 * s, 0.2, Math.PI - 0.2); ctx.stroke();
+  ctx.fillStyle = gold;
+  ctx.beginPath(); ctx.arc(0, shY + 6.5 * s, 1.1 * s, 0, TAU); ctx.fill(); // pendant
+  // ---- club arm (back): spiked war club ----
   ctx.save();
-  ctx.translate(-3 * s, shY + 3 * s);
-  ctx.rotate(2.05 - swing * 0.12); // hangs down-back
-  ctx.strokeStyle = muscle; ctx.lineWidth = 4 * s;
+  ctx.translate(-4 * s, shY + 3 * s);
+  ctx.rotate(2.05 - swing * 0.12);
+  ctx.strokeStyle = skin; ctx.lineWidth = 5 * s;
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(10 * s, 0); ctx.stroke();
-  // stone head: irregular grey blob
-  ctx.fillStyle = flash ? '#fff' : '#6f7480'; ctx.strokeStyle = flash ? '#fff' : '#4c5058'; ctx.lineWidth = 1.6;
+  // gold bracelet
+  ctx.strokeStyle = gold; ctx.lineWidth = 1.6 * s;
+  ctx.beginPath(); ctx.moveTo(3 * s, -2.2 * s); ctx.lineTo(3 * s, 2.2 * s); ctx.stroke();
+  ctx.fillStyle = flash ? '#fff' : '#5a606c'; ctx.strokeStyle = flash ? '#fff' : '#3a3e48'; ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.moveTo(9 * s, -3 * s); ctx.lineTo(14 * s, -4.4 * s); ctx.lineTo(17 * s, -1.5 * s);
-  ctx.lineTo(16.4 * s, 2.8 * s); ctx.lineTo(11.5 * s, 4 * s); ctx.lineTo(8.6 * s, 1.6 * s);
+  ctx.moveTo(9 * s, -3.2 * s); ctx.lineTo(15 * s, -4.6 * s); ctx.lineTo(18 * s, -1.2 * s);
+  ctx.lineTo(17 * s, 3.2 * s); ctx.lineTo(11 * s, 4.2 * s); ctx.lineTo(8.4 * s, 1.4 * s);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-  // rusted rebar rods jutting out
-  ctx.strokeStyle = flash ? '#fff' : '#8a5a3a'; ctx.lineWidth = 1.4 * s;
-  ctx.beginPath();
-  ctx.moveTo(13 * s, -4 * s); ctx.lineTo(14.5 * s, -7.5 * s); ctx.lineTo(16 * s, -7 * s);
-  ctx.moveTo(16.5 * s, 0); ctx.lineTo(20 * s, -1 * s);
-  ctx.moveTo(14 * s, 3.4 * s); ctx.lineTo(16.5 * s, 6 * s);
-  ctx.stroke();
+  // spikes
+  ctx.fillStyle = flash ? '#fff' : '#9aa0aa';
+  for (const [sx, sy] of [[13, -4.2], [16.5, -0.5], [14, 3.2]]) {
+    ctx.beginPath();
+    ctx.moveTo(sx * s, sy * s); ctx.lineTo((sx + 3.2) * s, (sy - 1.2) * s); ctx.lineTo((sx + 0.6) * s, (sy + 1.4) * s);
+    ctx.closePath(); ctx.fill();
+  }
   ctx.restore();
-  // ---- steel armor plates (chest rig) — fall off as the bar chips ----
-  // armorCrack counts intact quarters: 4 full → 0 shattered
+  // ---- steel armor plates — fall off as armorCrack chips ----
   if (e.maxArmor) {
     const plates = e.armor > 0 ? e.armorCrack : 0;
-    const spots = [ // [x, y, w, h] in s-units, chest/gut/shoulder rig
+    const spots = [
       [-1.5, -29, 7, 5], [-1.5, -23.5, 7, 5], [-2.5, -18, 6, 4.5], [3.5, -28, 4.5, 6],
     ];
     for (let i = 0; i < 4; i++) {
@@ -2915,10 +2968,9 @@ function drawWarlord(e, alpha) {
         ctx.fillStyle = steel; ctx.strokeStyle = flash ? '#fff' : '#4a5468'; ctx.lineWidth = 1.4;
         ctx.fillRect(px * s, py * s, pw * s, ph * s);
         ctx.strokeRect(px * s, py * s, pw * s, ph * s);
-        ctx.fillStyle = flash ? '#fff' : '#9aa6ba'; // rivets
+        ctx.fillStyle = flash ? '#fff' : '#9aa6ba';
         ctx.fillRect(px * s + 1.5, py * s + 1.5, 2, 2);
         ctx.fillRect((px + pw) * s - 3.5, py * s + 1.5, 2, 2);
-        // the next plate to fall shows spreading cracks
         if (i === plates - 1 && e.armor < e.maxArmor) {
           ctx.strokeStyle = flash ? '#fff' : '#2e3542'; ctx.lineWidth = 1;
           ctx.beginPath();
@@ -2929,8 +2981,8 @@ function drawWarlord(e, alpha) {
           ctx.lineTo((px + pw) * s - 2, (py + ph * 0.8) * s);
           ctx.stroke();
         }
-      } else { // fallen plate: torn strap + scarred muscle beneath
-        ctx.strokeStyle = rot; ctx.lineWidth = 1.6;
+      } else {
+        ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.6;
         ctx.beginPath();
         ctx.moveTo(px * s + 1, py * s + 1); ctx.lineTo((px + pw) * s - 1, (py + ph) * s - 1);
         ctx.moveTo((px + pw) * s - 1, py * s + 1); ctx.lineTo(px * s + 1, (py + ph) * s - 1);
@@ -2938,67 +2990,91 @@ function drawWarlord(e, alpha) {
       }
     }
   }
-  // ---- claw arm (front): wolf-claw gauntlet, raised during the wind-up ----
+  // ---- claw arm (front): red telegraph on wind-up ----
   const wind = e.clawWind > 0 ? clamp(e.clawWind / CLAW_WINDUP, 0, 1) : 0;
   ctx.save();
-  ctx.translate(4 * s, shY + 3 * s);
+  ctx.translate(5 * s, shY + 3 * s);
   ctx.rotate(wind > 0 ? -1.7 + (1 - wind) * 0.5 : -0.3 + Math.sin(t * 0.7) * 0.12);
-  ctx.strokeStyle = muscle; ctx.lineWidth = 4 * s;
+  ctx.strokeStyle = skin; ctx.lineWidth = 5 * s;
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(11 * s, 0); ctx.stroke();
-  // steel gauntlet cuff
+  ctx.strokeStyle = gold; ctx.lineWidth = 1.6 * s;
+  ctx.beginPath(); ctx.moveTo(3.5 * s, -2.4 * s); ctx.lineTo(3.5 * s, 2.4 * s); ctx.stroke();
   ctx.fillStyle = steel; ctx.strokeStyle = flash ? '#fff' : '#4a5468'; ctx.lineWidth = 1.4;
-  ctx.fillRect(8.5 * s, -2.6 * s, 4.5 * s, 5.2 * s);
-  ctx.strokeRect(8.5 * s, -2.6 * s, 4.5 * s, 5.2 * s);
-  // wolf-like talons — glow red while winding up (the telegraph)
-  ctx.strokeStyle = wind > 0 ? '#ff5a3d' : bone;
+  ctx.fillRect(8.5 * s, -2.8 * s, 4.8 * s, 5.6 * s);
+  ctx.strokeRect(8.5 * s, -2.8 * s, 4.8 * s, 5.6 * s);
+  ctx.strokeStyle = wind > 0 ? '#ff5a3d' : clawBone;
   if (wind > 0) { ctx.shadowColor = '#ff5a3d'; ctx.shadowBlur = 12; }
-  ctx.lineWidth = 1.8 * s;
+  ctx.lineWidth = 1.9 * s;
   for (let i = 0; i < 4; i++) {
-    const cy = (-2.2 + i * 1.5) * s;
+    const cy = (-2.4 + i * 1.55) * s;
     ctx.beginPath();
     ctx.moveTo(13 * s, cy);
-    ctx.quadraticCurveTo(17.5 * s, cy - 0.8 * s, 19 * s, cy + 1.8 * s);
+    ctx.quadraticCurveTo(17.8 * s, cy - 0.9 * s, 19.5 * s, cy + 2 * s);
     ctx.stroke();
   }
   ctx.shadowBlur = 0;
   ctx.restore();
-  // ---- twin fused skulls ----
-  for (const off of [-3, 3]) {
+  // ---- twin goblin heads (side-by-side, fused at neck) ----
+  const pulse = 0.8 + Math.sin(performance.now() / 140) * 0.2;
+  // shared thick neck
+  ctx.fillStyle = skinDark;
+  ctx.beginPath(); ctx.ellipse(0, headY + 5.5 * s, 5.5 * s, 3.2 * s, 0, 0, TAU); ctx.fill();
+  for (const off of [-3.6, 3.6]) {
     const ox = off * s;
-    ctx.fillStyle = bone;
-    ctx.beginPath(); ctx.arc(ox, headY, 4.6 * s, Math.PI * 0.95, Math.PI * 2.05); ctx.fill(); // dome
-    ctx.beginPath(); // jaw taper
-    ctx.moveTo(ox - 4.2 * s, headY + 0.6 * s);
-    ctx.lineTo(ox - 2.6 * s, headY + 4.6 * s);
-    ctx.lineTo(ox + 2.6 * s, headY + 4.6 * s);
-    ctx.lineTo(ox + 4.2 * s, headY + 0.6 * s);
-    ctx.closePath(); ctx.fill();
-    // outer eye socket (dark, empty — the shared eye lives in the middle)
-    ctx.fillStyle = flash ? '#fff' : '#1a1712';
-    ctx.beginPath(); ctx.arc(ox + off * 0.55 * s, headY + 0.4 * s, 1.4 * s, 0, TAU); ctx.fill();
-    // cheek crack
-    ctx.strokeStyle = flash ? '#fff' : '#a89f85'; ctx.lineWidth = 1;
+    // head dome
+    ctx.fillStyle = skin;
+    ctx.beginPath(); ctx.ellipse(ox, headY, 4.8 * s, 5.2 * s, 0, 0, TAU); ctx.fill();
+    // tiny forehead horn (secondary blend cue)
+    ctx.fillStyle = flash ? '#fff' : '#c8cdd6';
     ctx.beginPath();
-    ctx.moveTo(ox + off * 0.4 * s, headY + 2 * s);
-    ctx.lineTo(ox + off * 0.8 * s, headY + 3.4 * s);
+    ctx.moveTo(ox - 0.7 * s, headY - 4.6 * s);
+    ctx.lineTo(ox, headY - 7.2 * s);
+    ctx.lineTo(ox + 0.7 * s, headY - 4.6 * s);
+    ctx.closePath(); ctx.fill();
+    // big pointed ears with swirl inners
+    const earDir = off < 0 ? -1 : 1;
+    ctx.fillStyle = skin;
+    ctx.beginPath();
+    ctx.moveTo(ox + earDir * 3.5 * s, headY - 1 * s);
+    ctx.quadraticCurveTo(ox + earDir * 9 * s, headY - 2.5 * s, ox + earDir * 8.5 * s, headY + 1.5 * s);
+    ctx.quadraticCurveTo(ox + earDir * 5.5 * s, headY + 0.5 * s, ox + earDir * 3.8 * s, headY + 1.2 * s);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(ox + earDir * 5.8 * s, headY - 0.2 * s, 1.6 * s, earDir < 0 ? 0.4 : Math.PI - 0.4, earDir < 0 ? Math.PI + 0.6 : -0.6);
+    ctx.stroke(); // swirl
+    // gold ear studs
+    ctx.fillStyle = gold;
+    ctx.beginPath(); ctx.arc(ox + earDir * 6.5 * s, headY + 0.6 * s, 0.7 * s, 0, TAU); ctx.fill();
+    // hooked nose + septum ring
+    ctx.fillStyle = skinDark;
+    ctx.beginPath();
+    ctx.moveTo(ox - 0.8 * s, headY + 0.6 * s);
+    ctx.quadraticCurveTo(ox + earDir * 2.2 * s, headY + 2.4 * s, ox, headY + 3.2 * s);
+    ctx.quadraticCurveTo(ox - earDir * 0.6 * s, headY + 2.2 * s, ox - 0.8 * s, headY + 0.6 * s);
+    ctx.fill();
+    ctx.strokeStyle = flash ? '#fff' : '#b0b8c4'; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.arc(ox + earDir * 0.3 * s, headY + 2.8 * s, 1.1 * s, 0.2, Math.PI - 0.2); ctx.stroke();
+    // solid glowing RED eyes (ref #1)
+    const ex = ox + earDir * 0.9 * s, ey = headY - 0.4 * s;
+    const eg = ctx.createRadialGradient(ex, ey, 0.3, ex, ey, 2.2 * s * pulse);
+    eg.addColorStop(0, '#ffcccc');
+    eg.addColorStop(0.4, '#ff2a1f');
+    eg.addColorStop(1, '#ff2a1f00');
+    ctx.fillStyle = eg;
+    ctx.shadowColor = '#ff3a2a'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(ex, ey, 1.7 * s * pulse, 0, TAU); ctx.fill();
+    ctx.shadowBlur = 0;
+    // grumpy mouth
+    ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(ox - 1.6 * s, headY + 4.2 * s);
+    ctx.quadraticCurveTo(ox, headY + 3.4 * s, ox + 1.6 * s, headY + 4.2 * s);
     ctx.stroke();
-    // teeth
-    ctx.fillStyle = flash ? '#fff' : '#c4bb9f';
-    for (let i = -1; i <= 1; i++) ctx.fillRect(ox + i * 1.4 * s - 0.5 * s, headY + 4 * s, s, 1.4 * s);
   }
-  // fusion seam between the skulls
-  ctx.strokeStyle = flash ? '#fff' : '#8f866c'; ctx.lineWidth = 1.4;
-  ctx.beginPath(); ctx.moveTo(0, headY - 4.4 * s); ctx.lineTo(0, headY + 4.4 * s); ctx.stroke();
-  // ---- ONE shared ember eye ----
-  const pulse = 0.75 + Math.sin(performance.now() / 130) * 0.25;
-  const eg = ctx.createRadialGradient(0, headY + 0.6 * s, 0.5, 0, headY + 0.6 * s, 3 * s * pulse);
-  eg.addColorStop(0, '#fff3c4');
-  eg.addColorStop(0.45, '#ff9d2e');
-  eg.addColorStop(1, '#ff3d1f00');
-  ctx.fillStyle = eg;
-  ctx.shadowColor = '#ff7a1f'; ctx.shadowBlur = 16;
-  ctx.beginPath(); ctx.arc(0, headY + 0.6 * s, 3 * s * pulse, 0, TAU); ctx.fill();
-  ctx.shadowBlur = 0;
+  // fusion seam down shared brow/neck
+  ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, headY - 3 * s); ctx.lineTo(0, headY + 6 * s); ctx.stroke();
   ctx.restore();
 }
 
@@ -3309,7 +3385,7 @@ function render() {
         ctx.beginPath(); ctx.arc(e.x, e.y, 18 * (1 - emerge) + 6, 0, TAU); ctx.stroke();
       }
       if (e.type === 'warlord') {
-        drawWarlord(e, emerge); // v2.8 twin-skulled war-brute
+        drawWarlord(e, emerge); // v2.8.1 twin-goblin war-brute
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

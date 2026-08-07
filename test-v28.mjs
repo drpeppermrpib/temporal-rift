@@ -109,8 +109,8 @@ try {
 
   // ================= load 1: fresh profile =================
   await navigate(GAME_URL);
-  check('APP_VERSION is 2.8', await evaluate('APP_VERSION') === '2.8');
-  check('version label on menu', await evaluate(`document.getElementById('appVer').textContent`) === 'v2.8');
+  check('APP_VERSION is 2.8.1', await evaluate('APP_VERSION') === '2.8.1');
+  check('version label on menu', await evaluate(`document.getElementById('appVer').textContent`) === 'v2.8.1');
 
   // ---- keyboard gameplay sanity run (natural wave 1) ----
   await evaluate(`document.getElementById('startBtn').click(); state`);

@@ -1,12 +1,20 @@
 # Gharok art plan
 
-Active look as of **v2.8.3**: procedural canvas redraw of an **original** twin-headed green war-brute (Image 1 silhouette cues only — purple tunic, asymmetric pauldrons, spiked mace + cleaver, barefoot). No Hero Forge / Warhammer / Warcraft assets shipped.
+Active look as of **v2.8.4**: procedural canvas redraw of an **original** twin-headed
+green war-brute with soft connected limbs (overlapping ellipses / tapered capsules).
+Silhouette cues only from refs — purple tunic, asymmetric pauldrons, spiked mace +
+cleaver, barefoot. No Hero Forge / Warhammer / Warcraft assets shipped.
+
+## Flow concept
+
+- T-pose concept (studio grey, twin necks → trapezius, tapered legs): `gharok-tpose-flow-concept.png`
+  (also under `rollouts/`).
 
 ## Preserved template
 
 - `drawWarlord_v282_template` in `game.js` — the v2.8.2 clean geometric twin-brute (unused; restore by swapping the warlord draw call).
 - Preview archive: `gharok-template-2.8.2.png` (also under `rollouts/`).
-- Concept sketch (original gen, not used as a sprite): `gharok-twinorc-concept.png`.
+- Older twin-orc concept (original gen, not used as a sprite): `gharok-twinorc-concept.png`.
 
 ## Combat that must stay
 
@@ -22,9 +30,10 @@ Active look as of **v2.8.3**: procedural canvas redraw of an **original** twin-h
 
 - Skill tree improvements
 - Better sound engine (beyond current WebAudio synth snippets)
+- Optional game-ready sprite bake if procedural canvas stays too blob-limited
 
 ## Reference notes (inspiration only — never ship the PNGs)
 
-1. **Primary** — twin green muscular war-brute: tunic, belt/buckle, skull+horn pauldron vs silver pauldron, mace + cleaver.
-2. **Secondary help** — twin red ogre T-pose: belly mass, tusks, rounded pauldrons.
-3. **Detail ideas only** — tusks, amber eyes, scars, spiked pauldrons, skull buckle grit.
+1. **Primary silhouette** — twin green muscular war-brute: tunic, belt/buckle, skull+horn pauldron vs silver pauldron, mace + cleaver.
+2. **Pose / limb flow** — twin red ogre T-pose: arms out, tapered thighs/calves, soft joins.
+3. **Detail ideas only** — tusks, amber eyes, scars, spiked pauldrons, skull buckle grit (original shapes).

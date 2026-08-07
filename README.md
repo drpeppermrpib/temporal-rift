@@ -60,6 +60,15 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.8.4 (Gharok limb-flow pass)
+
+- **Boss draw** — `drawWarlord` evolves the 2.8.3 twin war-brute toward soft
+  connected limbs (overlapping ellipses / tapered capsules): thigh→knee→calf→foot,
+  deltoid→bicep→forearm, twin necks into a shared trapezius. Same weapons,
+  pauldrons, `armorCrack`, cleaver red telegraph, and name. Concept:
+  `gharok-tpose-flow-concept.png`. `drawWarlord_v282_template` still preserved.
+  Stomps still deferred (`GHAROK_STOMP_JUICE = false`).
+
 ### New in Release 2.8.3 (Gharok twin war-brute)
 
 - **Boss look** — Gharok redrawn as a bigger original twin-headed green war-brute

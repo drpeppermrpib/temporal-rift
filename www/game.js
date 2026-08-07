@@ -261,7 +261,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.8.3';
+const APP_VERSION = '2.8.4';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -2891,7 +2891,7 @@ function npcFigure(n) {
 }
 
 // ============ GHAROK — v2.8.2 CLEAN GEOMETRIC TEMPLATE ============
-// PRESERVED for restore/reuse. Active boss draw is drawWarlord() below (v2.8.3).
+// PRESERVED for restore/reuse. Active boss draw is drawWarlord() below (v2.8.4).
 // Procedural canvas only (no Meiker/Hero Forge PNGs). Top-down readable silhouette:
 // chunky shapes, dark outlines, HIGH contrast, LARGE separated twin heads,
 // one club arm + one claw arm (red telegraph). Armor plates chip via armorCrack.
@@ -3132,18 +3132,20 @@ function drawWarlord_v282_template(e, alpha) {
   ctx.restore();
 }
 
-// ============ GHAROK — IMAGE-1 TWIN WAR-BRUTE (v2.8.3) ============
-// Original procedural redraw of twin-headed green boss concept (Hero Forge
-// silhouette reference only — no meshes/exports). Bigger boss footprint.
-// Mace = heavy arm; oversized cleaver = claw-slash telegraph (red wind-up).
-// armorCrack plates still chip. See docs/gharok-art-plan.md for next passes.
+// ============ GHAROK — FLOWING TWIN WAR-BRUTE (v2.8.4) ============
+// Evolves v2.8.3 silhouette toward soft connected limbs (concept:
+// gharok-tpose-flow-concept.png). Overlapping ellipses / tapered capsules —
+// NOT stacked rectangles. Twin necks → shared trapezius. Thigh→knee→calf→foot.
+// Mace + cleaver (red wind-up), armorCrack, original Gharok only.
+// Template drawWarlord_v282_template preserved above.
 function drawWarlord(e, alpha) {
   const s = 3.2;
   const t = e.walk, swing = Math.sin(t) * 0.4, bob = Math.abs(Math.sin(t)) * 2.6;
   const flash = e.flash > 0;
-  const skin = flash ? '#fff' : '#4ecf3a';
-  const skinDark = flash ? '#fff' : '#2f9a28';
-  const skinDeep = flash ? '#fff' : '#1f6e1c';
+  const skin = flash ? '#fff' : '#5aaf3a';
+  const skinMid = flash ? '#fff' : '#458c2e';
+  const skinDark = flash ? '#fff' : '#2f6e22';
+  const skinDeep = flash ? '#fff' : '#1f4e18';
   const outline = flash ? '#fff' : '#0c180e';
   const steel = flash ? '#fff' : '#9aa8bc';
   const steelBlue = flash ? '#fff' : '#7a8fa8';
@@ -3156,15 +3158,46 @@ function drawWarlord(e, alpha) {
   const bone = flash ? '#fff' : '#e8e0c8';
   const blade = flash ? '#fff' : '#6a727c';
   const bladeEdge = flash ? '#fff' : '#d8dee8';
-  const OL = 2.5;
+  const OL = 2.4;
 
   const strokeFill = (drawPath) => { drawPath(); ctx.fill(); ctx.stroke(); };
+  // Soft connected limb blob (ellipse with outline) — joins by overlap.
+  const blob = (cx, cy, rx, ry, rot, fill) => {
+    ctx.fillStyle = fill; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+    strokeFill(() => {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, rot || 0, 0, TAU);
+    });
+  };
+  // Tapered capsule along an axis: wide near (x0,y0), narrower toward (x1,y1).
+  const limbSeg = (x0, y0, x1, y1, r0, r1, fill) => {
+    const dx = x1 - x0, dy = y1 - y0;
+    const len = Math.hypot(dx, dy) || 1;
+    const ang = Math.atan2(dy, dx);
+    const mx = (x0 + x1) * 0.5, my = (y0 + y1) * 0.5;
+    // overlapping ellipses: shoulder/hip end, mid, distal — reads as one soft limb
+    blob(x0, y0, r0 * 1.05, r0 * 0.92, ang, fill);
+    blob(mx, my, (r0 + r1) * 0.52, Math.max(r0, r1) * 0.78, ang, fill);
+    blob(x1, y1, r1 * 1.05, r1 * 0.9, ang, fill);
+    // thin highlight ridge for muscle volume
+    if (!flash) {
+      ctx.save();
+      ctx.globalAlpha *= 0.35;
+      ctx.strokeStyle = skinMid;
+      ctx.lineWidth = Math.max(1.2, (r0 + r1) * 0.18);
+      ctx.beginPath();
+      ctx.moveTo(x0 + Math.cos(ang - 1.2) * r0 * 0.35, y0 + Math.sin(ang - 1.2) * r0 * 0.35);
+      ctx.lineTo(x1 + Math.cos(ang - 1.2) * r1 * 0.3, y1 + Math.sin(ang - 1.2) * r1 * 0.3);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
 
   ctx.save();
   ctx.translate(e.x, e.y);
   if (alpha !== undefined) ctx.globalAlpha = alpha;
   ctx.fillStyle = 'rgba(0,0,0,0.46)';
-  ctx.beginPath(); ctx.ellipse(0, 2, 46, 16, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 2, 48, 17, 0, 0, TAU); ctx.fill();
   ctx.scale(e.facing || 1, 1);
   ctx.translate(0, -bob);
 
@@ -3178,152 +3211,162 @@ function drawWarlord(e, alpha) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  // ---- BARE THICK LEGS + FEET (top-down readable) ----
-  const legL = -6.2 * s + Math.sin(t) * 4.5 * s;
-  const legR = 6.2 * s - Math.sin(t) * 4.5 * s;
-  ctx.strokeStyle = outline; ctx.lineWidth = 8.4 * s;
-  ctx.beginPath();
-  ctx.moveTo(-4.5 * s, hipY); ctx.lineTo(legL, 2);
-  ctx.moveTo(4.5 * s, hipY); ctx.lineTo(legR, 2);
-  ctx.stroke();
-  ctx.strokeStyle = skinDark; ctx.lineWidth = 6.0 * s;
-  ctx.beginPath();
-  ctx.moveTo(-4.5 * s, hipY); ctx.lineTo(legL, 2);
-  ctx.moveTo(4.5 * s, hipY); ctx.lineTo(legR, 2);
-  ctx.stroke();
-  // chunky bare feet (toes readable)
-  for (const [fx, dir] of [[legL, -1], [legR, 1]]) {
-    ctx.fillStyle = skin; ctx.strokeStyle = outline; ctx.lineWidth = OL;
-    strokeFill(() => {
-      ctx.beginPath();
-      ctx.ellipse(fx + dir * 1.2 * s, 3.2, 4.2 * s, 2.4 * s, 0, 0, TAU);
-    });
-    ctx.fillStyle = skinDeep;
+  // ---- LEGS: thigh → knee → calf → foot (overlapping soft shapes) ----
+  const footYL = 3.4, footYR = 3.4;
+  const legSwing = Math.sin(t) * 4.2 * s;
+  const legs = [
+    { hipX: -5.2 * s, footX: -6.4 * s + legSwing, dir: -1 },
+    { hipX: 5.2 * s, footX: 6.4 * s - legSwing, dir: 1 },
+  ];
+  for (const L of legs) {
+    const kneeX = L.hipX * 0.35 + L.footX * 0.65;
+    const kneeY = hipY + (footYL - hipY) * 0.48;
+    const calfX = L.hipX * 0.12 + L.footX * 0.88;
+    const calfY = hipY + (footYL - hipY) * 0.78;
+    // thigh (wide → mid)
+    limbSeg(L.hipX, hipY + 1 * s, kneeX, kneeY, 4.6 * s, 3.4 * s, skinDark);
+    // knee joint blob
+    blob(kneeX, kneeY, 2.8 * s, 2.5 * s, 0, skin);
+    // calf (mid → ankle)
+    limbSeg(kneeX, kneeY + 0.4 * s, calfX, calfY, 3.5 * s, 2.4 * s, skin);
+    // ankle → foot pad
+    blob(L.footX, footYL, 4.4 * s, 2.3 * s, 0.08 * L.dir, skin);
+    blob(L.footX + L.dir * 1.6 * s, footYL + 0.6, 3.2 * s, 1.7 * s, 0.12 * L.dir, skinMid);
+    // toes
     for (let i = 0; i < 3; i++) {
-      ctx.beginPath();
-      ctx.ellipse(fx + dir * (0.2 + i * 1.35) * s, 4.6, 0.85 * s, 1.1 * s, 0, 0, TAU);
-      ctx.fill();
+      blob(
+        L.footX + L.dir * (0.4 + i * 1.35) * s,
+        footYL + 1.8,
+        0.9 * s, 1.15 * s, 0, skinDeep
+      );
     }
   }
 
-  // ---- SPIKED MACE ARM (back / left) — heavy hit weapon ----
+  // ---- SPIKED MACE ARM (back / left) — soft deltoid→bicep→forearm ----
   ctx.save();
-  ctx.translate(-13.5 * s, shY + 5 * s);
-  ctx.rotate(2.32 - swing * 0.12);
-  ctx.strokeStyle = outline; ctx.lineWidth = 8.2 * s;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(12 * s, 0); ctx.stroke();
-  ctx.strokeStyle = skin; ctx.lineWidth = 5.8 * s;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(12 * s, 0); ctx.stroke();
+  ctx.translate(-12.5 * s, shY + 4.5 * s);
+  ctx.rotate(2.28 - swing * 0.12);
+  limbSeg(0, 0, 6.5 * s, 0, 4.2 * s, 3.4 * s, skin); // upper arm
+  blob(6.5 * s, 0, 2.6 * s, 2.4 * s, 0, skinMid); // elbow
+  limbSeg(6.5 * s, 0, 13 * s, 0, 3.3 * s, 2.6 * s, skin); // forearm
+  blob(13.2 * s, 0, 2.4 * s, 2.2 * s, 0, skinDark); // fist
   // leather wrap on haft
-  ctx.fillStyle = woodEdge; ctx.fillRect(4 * s, -1.6 * s, 5 * s, 3.2 * s);
+  ctx.fillStyle = woodEdge; ctx.fillRect(5 * s, -1.5 * s, 4.5 * s, 3 * s);
   ctx.fillStyle = wood; ctx.strokeStyle = woodEdge; ctx.lineWidth = OL;
-  ctx.fillRect(8.5 * s, -1.4 * s, 5 * s, 2.8 * s);
-  // blocky spiked mace head
+  strokeFill(() => {
+    ctx.beginPath();
+    ctx.roundRect(9 * s, -1.5 * s, 5.2 * s, 3 * s, 1.2);
+  });
+  // rounded spiked mace head (softer than pure rect)
   ctx.fillStyle = steelEdge; ctx.strokeStyle = outline; ctx.lineWidth = OL;
-  ctx.fillRect(12.5 * s, -4.4 * s, 11 * s, 8.8 * s);
-  ctx.strokeRect(12.5 * s, -4.4 * s, 11 * s, 8.8 * s);
+  strokeFill(() => {
+    ctx.beginPath();
+    ctx.roundRect(13.5 * s, -4.2 * s, 11.2 * s, 8.4 * s, 2.2 * s);
+  });
   ctx.fillStyle = steel;
-  ctx.fillRect(13.2 * s, -3.6 * s, 9.6 * s, 7.2 * s);
-  // pyramid spikes on mace head
+  ctx.beginPath();
+  ctx.roundRect(14.2 * s, -3.4 * s, 9.8 * s, 6.8 * s, 1.6 * s);
+  ctx.fill();
   ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
   const maceSpikes = [
-    [14.2, -4.4, 0, -1], [18.8, -4.4, 0, -1], [23.5, 0, 1, 0],
-    [14.2, 4.4, 0, 1], [18.8, 4.4, 0, 1],
+    [15.0, -4.2, 0, -1], [19.5, -4.2, 0, -1], [24.2, 0, 1, 0],
+    [15.0, 4.2, 0, 1], [19.5, 4.2, 0, 1],
   ];
   for (const [mx, my, dx, dy] of maceSpikes) {
     strokeFill(() => {
       ctx.beginPath();
       if (dx === 0) {
         ctx.moveTo(mx * s, my * s);
-        ctx.lineTo((mx + 1.8) * s, my * s + dy * 4.2 * s);
+        ctx.lineTo((mx + 1.8) * s, my * s + dy * 4.0 * s);
         ctx.lineTo((mx + 3.6) * s, my * s);
       } else {
-        ctx.moveTo(mx * s, my * s - 2.2 * s);
-        ctx.lineTo(mx * s + dx * 4.5 * s, my * s);
-        ctx.lineTo(mx * s, my * s + 2.2 * s);
+        ctx.moveTo(mx * s, my * s - 2.0 * s);
+        ctx.lineTo(mx * s + dx * 4.2 * s, my * s);
+        ctx.lineTo(mx * s, my * s + 2.0 * s);
       }
       ctx.closePath();
     });
   }
   ctx.restore();
 
-  // ---- MUSCULAR TORSO ----
-  ctx.fillStyle = skin; ctx.strokeStyle = outline; ctx.lineWidth = OL + 0.5;
-  strokeFill(() => {
-    ctx.beginPath();
-    ctx.ellipse(0, (shY + hipY) * 0.48 + 1 * s, 11.2 * s, 12.8 * s, 0, 0, TAU);
-  });
-  // pec / ab hint (minimal — readable, not clutter)
-  ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.8;
+  // ---- TORSO + SHARED TRAPEZIUS / SHOULDER YOKE ----
+  // barrel torso
+  blob(0, (shY + hipY) * 0.48 + 1.2 * s, 11.6 * s, 13.2 * s, 0, skin);
+  // pec / ab hint
+  ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.7;
   ctx.beginPath();
-  ctx.moveTo(-5 * s, shY + 8 * s); ctx.quadraticCurveTo(0, shY + 10 * s, 5 * s, shY + 8 * s);
-  ctx.moveTo(0, shY + 10 * s); ctx.lineTo(0, hipY - 2 * s);
+  ctx.moveTo(-5.2 * s, shY + 7.5 * s); ctx.quadraticCurveTo(0, shY + 9.8 * s, 5.2 * s, shY + 7.5 * s);
+  ctx.moveTo(0, shY + 9.5 * s); ctx.lineTo(0, hipY - 1.5 * s);
+  ctx.moveTo(-4 * s, shY + 14 * s); ctx.lineTo(4 * s, shY + 14 * s);
+  ctx.moveTo(-3.6 * s, shY + 17.5 * s); ctx.lineTo(3.6 * s, shY + 17.5 * s);
   ctx.stroke();
-  // shoulder mass
-  ctx.fillStyle = skinDark; ctx.strokeStyle = outline; ctx.lineWidth = OL;
-  strokeFill(() => { ctx.beginPath(); ctx.ellipse(-11.5 * s, shY + 4 * s, 5.2 * s, 4.4 * s, 0, 0, TAU); });
-  strokeFill(() => { ctx.beginPath(); ctx.ellipse(11.5 * s, shY + 4 * s, 5.2 * s, 4.4 * s, 0, 0, TAU); });
+  // one connected trapezius / collar mass (both necks grow from this)
+  blob(0, shY + 1.5 * s, 13.5 * s, 5.2 * s, 0, skinMid);
+  blob(-10.5 * s, shY + 4 * s, 5.6 * s, 4.6 * s, -0.15, skinDark); // L deltoid
+  blob(10.5 * s, shY + 4 * s, 5.6 * s, 4.6 * s, 0.15, skinDark); // R deltoid
+  // twin neck columns merging into trapezius
+  limbSeg(-5.2 * s, headY + 7.5 * s, -4.2 * s, shY + 2 * s, 3.6 * s, 4.4 * s, skinDark);
+  limbSeg(5.2 * s, headY + 7.5 * s, 4.2 * s, shY + 2 * s, 3.6 * s, 4.4 * s, skinDark);
+  blob(0, shY - 0.5 * s, 7.5 * s, 3.8 * s, 0, skinDark); // neck join saddle
 
-  // ---- PURPLE TUNIC OVER TORSO + BELT / SKULL BUCKLE ----
+  // ---- PURPLE TUNIC + BELT / SKULL BUCKLE ----
   ctx.fillStyle = tunic; ctx.strokeStyle = outline; ctx.lineWidth = OL;
   strokeFill(() => {
     ctx.beginPath();
-    ctx.moveTo(-10 * s, shY + 10 * s);
-    ctx.lineTo(10 * s, shY + 10 * s);
-    ctx.lineTo(9.2 * s, hipY + 7.5 * s);
-    ctx.lineTo(4.2 * s, hipY + 5.4 * s);
-    ctx.lineTo(1.2 * s, hipY + 8.2 * s);
-    ctx.lineTo(-2.8 * s, hipY + 5.6 * s);
-    ctx.lineTo(-5.8 * s, hipY + 8 * s);
-    ctx.lineTo(-9.2 * s, hipY + 7.2 * s);
+    ctx.moveTo(-10.2 * s, shY + 9 * s);
+    ctx.quadraticCurveTo(0, shY + 11 * s, 10.2 * s, shY + 9 * s);
+    ctx.lineTo(9.4 * s, hipY + 7.8 * s);
+    ctx.lineTo(4.4 * s, hipY + 5.6 * s);
+    ctx.lineTo(1.2 * s, hipY + 8.4 * s);
+    ctx.lineTo(-2.6 * s, hipY + 5.8 * s);
+    ctx.lineTo(-5.6 * s, hipY + 8.2 * s);
+    ctx.lineTo(-9.4 * s, hipY + 7.4 * s);
     ctx.closePath();
   });
   ctx.fillStyle = tunicDark;
   ctx.beginPath();
-  ctx.moveTo(-7 * s, hipY + 4 * s); ctx.lineTo(-5.5 * s, hipY + 9.5 * s); ctx.lineTo(-3.5 * s, hipY + 5 * s);
-  ctx.moveTo(3 * s, hipY + 4.5 * s); ctx.lineTo(5.2 * s, hipY + 9.2 * s); ctx.lineTo(6.5 * s, hipY + 5 * s);
+  ctx.moveTo(-7 * s, hipY + 4 * s); ctx.lineTo(-5.5 * s, hipY + 9.8 * s); ctx.lineTo(-3.5 * s, hipY + 5 * s);
+  ctx.moveTo(3 * s, hipY + 4.5 * s); ctx.lineTo(5.2 * s, hipY + 9.4 * s); ctx.lineTo(6.5 * s, hipY + 5 * s);
   ctx.fill();
   ctx.fillStyle = belt; ctx.strokeStyle = outline; ctx.lineWidth = OL;
-  ctx.fillRect(-8.8 * s, hipY + 0.2 * s, 17.6 * s, 2.8 * s);
-  ctx.strokeRect(-8.8 * s, hipY + 0.2 * s, 17.6 * s, 2.8 * s);
-  // circular skull buckle (detail cue from portrait ref — original shapes)
+  strokeFill(() => {
+    ctx.beginPath();
+    ctx.roundRect(-9 * s, hipY + 0.1 * s, 18 * s, 2.9 * s, 1.2);
+  });
   ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
-  strokeFill(() => { ctx.beginPath(); ctx.arc(0, hipY + 1.6 * s, 2.6 * s, 0, TAU); });
+  strokeFill(() => { ctx.beginPath(); ctx.arc(0, hipY + 1.55 * s, 2.65 * s, 0, TAU); });
   ctx.fillStyle = bone;
-  ctx.beginPath(); ctx.ellipse(0, hipY + 1.35 * s, 1.45 * s, 1.55 * s, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, hipY + 1.3 * s, 1.45 * s, 1.55 * s, 0, 0, TAU); ctx.fill();
   ctx.fillStyle = '#2a2218';
   ctx.beginPath();
-  ctx.ellipse(-0.55 * s, hipY + 1.15 * s, 0.35 * s, 0.45 * s, 0, 0, TAU);
-  ctx.ellipse(0.55 * s, hipY + 1.15 * s, 0.35 * s, 0.45 * s, 0, 0, TAU);
+  ctx.ellipse(-0.55 * s, hipY + 1.1 * s, 0.35 * s, 0.45 * s, 0, 0, TAU);
+  ctx.ellipse(0.55 * s, hipY + 1.1 * s, 0.35 * s, 0.45 * s, 0, 0, TAU);
   ctx.fill();
   ctx.fillStyle = bone;
-  ctx.fillRect(-0.9 * s, hipY + 2.35 * s, 0.55 * s, 0.85 * s);
-  ctx.fillRect(0.35 * s, hipY + 2.35 * s, 0.55 * s, 0.85 * s);
+  ctx.fillRect(-0.9 * s, hipY + 2.3 * s, 0.55 * s, 0.85 * s);
+  ctx.fillRect(0.35 * s, hipY + 2.3 * s, 0.55 * s, 0.85 * s);
 
-  // ---- PAULDRONS: horned skull (left) + spiked metal (right) ----
-  // armorCrack maps: 4 = both pauldrons + 2 chest straps; chips peel straps then pauldrons
+  // ---- PAULDRONS (armorCrack) ----
   const plates = e.maxArmor ? (e.armor > 0 ? e.armorCrack : 0) : 4;
-  // skull / horn trophy pauldron (chips when plates < 2)
   if (plates >= 2) {
     ctx.fillStyle = bone; ctx.strokeStyle = outline; ctx.lineWidth = OL;
     strokeFill(() => {
-      ctx.beginPath(); ctx.ellipse(-12.5 * s, shY + 1.5 * s, 5.8 * s, 4.6 * s, -0.25, 0, TAU);
+      ctx.beginPath(); ctx.ellipse(-12.8 * s, shY + 1.2 * s, 6.0 * s, 4.8 * s, -0.28, 0, TAU);
     });
     ctx.fillStyle = '#2a2218';
     ctx.beginPath();
-    ctx.ellipse(-14.2 * s, shY + 0.8 * s, 1.4 * s, 1.6 * s, 0, 0, TAU);
-    ctx.ellipse(-11 * s, shY + 0.6 * s, 1.3 * s, 1.5 * s, 0, 0, TAU);
+    ctx.ellipse(-14.5 * s, shY + 0.5 * s, 1.35 * s, 1.55 * s, 0, 0, TAU);
+    ctx.ellipse(-11.1 * s, shY + 0.35 * s, 1.25 * s, 1.45 * s, 0, 0, TAU);
     ctx.fill();
-    // one bold spiral horn (Image-1 cue)
     ctx.strokeStyle = bone; ctx.lineWidth = 3.2 * s;
     ctx.beginPath();
-    ctx.moveTo(-15.5 * s, shY - 1 * s);
-    ctx.quadraticCurveTo(-20 * s, shY - 5 * s, -18.5 * s, shY - 11 * s);
+    ctx.moveTo(-15.8 * s, shY - 1.2 * s);
+    ctx.quadraticCurveTo(-20.5 * s, shY - 5.5 * s, -18.8 * s, shY - 11.5 * s);
     ctx.stroke();
-    ctx.strokeStyle = outline; ctx.lineWidth = 1.6;
+    ctx.strokeStyle = outline; ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(-15.5 * s, shY - 1 * s);
-    ctx.quadraticCurveTo(-20 * s, shY - 5 * s, -18.5 * s, shY - 11 * s);
+    ctx.moveTo(-15.8 * s, shY - 1.2 * s);
+    ctx.quadraticCurveTo(-20.5 * s, shY - 5.5 * s, -18.8 * s, shY - 11.5 * s);
     ctx.stroke();
     if (plates === 2 && e.armor < e.maxArmor) {
       ctx.strokeStyle = outline; ctx.lineWidth = 1.8;
@@ -3338,22 +3381,20 @@ function drawWarlord(e, alpha) {
     ctx.moveTo(-10 * s, shY); ctx.lineTo(-15 * s, shY + 5 * s);
     ctx.stroke();
   }
-  // spiked silver pauldron (chips when plates < 1)
   if (plates >= 1) {
     ctx.fillStyle = steelBlue; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
     strokeFill(() => {
       ctx.beginPath();
-      ctx.moveTo(7.5 * s, shY - 1 * s);
-      ctx.lineTo(17 * s, shY - 2.5 * s);
-      ctx.lineTo(18.5 * s, shY + 5 * s);
-      ctx.lineTo(9 * s, shY + 7 * s);
+      ctx.moveTo(7.2 * s, shY - 1.2 * s);
+      ctx.quadraticCurveTo(13 * s, shY - 3.5 * s, 17.2 * s, shY - 2.2 * s);
+      ctx.lineTo(18.8 * s, shY + 5.2 * s);
+      ctx.quadraticCurveTo(12 * s, shY + 7.5 * s, 8.6 * s, shY + 6.8 * s);
       ctx.closePath();
     });
     ctx.fillStyle = flash ? '#fff' : '#c8d4e4';
-    ctx.fillRect(10 * s, shY + 0.5 * s, 6 * s, 1.6);
-    // 3 bold spikes on metal pauldron (grit cue)
+    ctx.fillRect(10 * s, shY + 0.4 * s, 6 * s, 1.5);
     ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
-    for (const [px, py] of [[11.5, -2.2], [14.5, -3.2], [17.2, -1.5]]) {
+    for (const [px, py] of [[11.5, -2.4], [14.5, -3.4], [17.2, -1.6]]) {
       strokeFill(() => {
         ctx.beginPath();
         ctx.moveTo(px * s, shY + py * s);
@@ -3383,13 +3424,15 @@ function drawWarlord(e, alpha) {
       [1.2, -22, 6.5, 3.6],
     ];
     for (let i = 0; i < 2; i++) {
-      const need = i + 3; // plate thresholds 3 and 4
+      const need = i + 3;
       const [px, py, pw, ph] = spots[i];
       const x = px * s, y = py * s, w = pw * s, h = ph * s;
       if (plates >= need) {
         ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
-        ctx.fillRect(x, y, w, h);
-        ctx.strokeRect(x, y, w, h);
+        strokeFill(() => {
+          ctx.beginPath();
+          ctx.roundRect(x, y, w, h, 1.4);
+        });
         ctx.fillStyle = flash ? '#fff' : '#c8d2e0';
         ctx.fillRect(x + 2, y + 1.5, w - 4, 1.5);
         if (plates === need && e.armor < e.maxArmor) {
@@ -3408,64 +3451,57 @@ function drawWarlord(e, alpha) {
     }
   }
 
-  // ---- CLEAVER ARM (front / right) — red telegraph on wind-up ----
+  // ---- CLEAVER ARM (front / right) — soft limb + red telegraph ----
   const wind = e.clawWind > 0 ? clamp(e.clawWind / CLAW_WINDUP, 0, 1) : 0;
   ctx.save();
-  ctx.translate(13 * s, shY + 5 * s);
-  ctx.rotate(wind > 0 ? -1.5 + (1 - wind) * 0.35 : -0.35 + Math.sin(t * 0.7) * 0.08);
-  ctx.strokeStyle = outline; ctx.lineWidth = 8.2 * s;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(11 * s, 0); ctx.stroke();
-  ctx.strokeStyle = skin; ctx.lineWidth = 5.8 * s;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(11 * s, 0); ctx.stroke();
-  // grip
+  ctx.translate(12.5 * s, shY + 4.5 * s);
+  ctx.rotate(wind > 0 ? -1.48 + (1 - wind) * 0.35 : -0.32 + Math.sin(t * 0.7) * 0.08);
+  limbSeg(0, 0, 6.2 * s, 0, 4.2 * s, 3.3 * s, skin);
+  blob(6.2 * s, 0, 2.5 * s, 2.3 * s, 0, skinMid);
+  limbSeg(6.2 * s, 0, 12.2 * s, 0, 3.2 * s, 2.5 * s, skin);
+  blob(12.4 * s, 0, 2.3 * s, 2.1 * s, 0, skinDark);
   ctx.fillStyle = wood; ctx.strokeStyle = woodEdge; ctx.lineWidth = OL;
-  ctx.fillRect(8 * s, -1.8 * s, 5 * s, 3.6 * s);
-  ctx.strokeRect(8 * s, -1.8 * s, 5 * s, 3.6 * s);
-  // oversized cleaver blade
+  strokeFill(() => {
+    ctx.beginPath();
+    ctx.roundRect(8.2 * s, -1.7 * s, 5 * s, 3.4 * s, 1.1);
+  });
   if (wind > 0) { ctx.shadowColor = '#ff3a28'; ctx.shadowBlur = 16; }
   ctx.fillStyle = wind > 0 ? '#ff4a38' : blade;
   ctx.strokeStyle = wind > 0 ? '#ff1e14' : outline;
   ctx.lineWidth = OL + (wind > 0 ? 0.6 : 0);
   strokeFill(() => {
     ctx.beginPath();
-    ctx.moveTo(12 * s, -5.5 * s);
-    ctx.lineTo(28 * s, -4.2 * s);
-    ctx.lineTo(30 * s, -1.2 * s);
-    ctx.lineTo(28.5 * s, 5.8 * s);
-    ctx.lineTo(12 * s, 4.2 * s);
+    ctx.moveTo(12.2 * s, -5.4 * s);
+    ctx.lineTo(28 * s, -4.0 * s);
+    ctx.lineTo(30.2 * s, -1.0 * s);
+    ctx.lineTo(28.6 * s, 5.6 * s);
+    ctx.lineTo(12.2 * s, 4.0 * s);
     ctx.closePath();
   });
-  // cutting edge highlight
   ctx.strokeStyle = wind > 0 ? '#ffc9c4' : bladeEdge;
   ctx.lineWidth = 2.2 * s;
   ctx.beginPath();
-  ctx.moveTo(13 * s, 3.6 * s);
-  ctx.lineTo(28 * s, 5.2 * s);
+  ctx.moveTo(13.2 * s, 3.4 * s);
+  ctx.lineTo(28 * s, 5.0 * s);
   ctx.stroke();
-  // jagged spine
   ctx.strokeStyle = outline; ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.moveTo(13 * s, -4.8 * s);
-  ctx.lineTo(16 * s, -6.2 * s);
-  ctx.lineTo(19 * s, -4.5 * s);
-  ctx.lineTo(23 * s, -5.8 * s);
-  ctx.lineTo(27 * s, -3.8 * s);
+  ctx.moveTo(13.2 * s, -4.6 * s);
+  ctx.lineTo(16.2 * s, -6.0 * s);
+  ctx.lineTo(19.2 * s, -4.3 * s);
+  ctx.lineTo(23.2 * s, -5.6 * s);
+  ctx.lineTo(27.2 * s, -3.6 * s);
   ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // ---- TWIN NECKS + SNARLING HEADS ----
-  ctx.fillStyle = skinDark; ctx.strokeStyle = outline; ctx.lineWidth = OL;
-  strokeFill(() => { ctx.beginPath(); ctx.ellipse(-5 * s, headY + 9 * s, 4.4 * s, 3.6 * s, 0, 0, TAU); });
-  strokeFill(() => { ctx.beginPath(); ctx.ellipse(5 * s, headY + 9 * s, 4.4 * s, 3.6 * s, 0, 0, TAU); });
-
+  // ---- TWIN HEADS (sit on neck columns already drawn) ----
   const pulse = 0.85 + Math.sin(performance.now() / 160) * 0.15;
   for (const off of [-8.6, 8.6]) {
     const ox = off * s;
     const earDir = off < 0 ? -1 : 1;
-    const hr = 5.8 * s;
+    const hr = 5.9 * s;
 
-    // pointed ear
     ctx.fillStyle = skin; ctx.strokeStyle = outline; ctx.lineWidth = OL;
     strokeFill(() => {
       ctx.beginPath();
@@ -3475,19 +3511,13 @@ function drawWarlord(e, alpha) {
       ctx.closePath();
     });
 
-    // head
-    ctx.fillStyle = skin; ctx.strokeStyle = outline; ctx.lineWidth = OL + 0.4;
-    strokeFill(() => {
-      ctx.beginPath(); ctx.ellipse(ox, headY, hr, hr * 1.1, 0, 0, TAU);
-    });
+    blob(ox, headY, hr, hr * 1.1, 0, skin);
 
-    // brow ridge
     ctx.fillStyle = skinDark;
     ctx.beginPath();
     ctx.ellipse(ox + earDir * 0.6 * s, headY - 2.2 * s, hr * 0.7, hr * 0.28, earDir * 0.15, 0, TAU);
     ctx.fill();
 
-    // scar on left head only (grit cue)
     if (off < 0) {
       ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.8;
       ctx.beginPath();
@@ -3496,7 +3526,6 @@ function drawWarlord(e, alpha) {
       ctx.stroke();
     }
 
-    // amber/yellow glowing eyes (portrait detail cue — original orbs)
     const ex = ox + earDir * 0.9 * s, ey = headY - 0.3 * s;
     const er = 2.5 * s * pulse;
     ctx.fillStyle = '#ffd428';
@@ -3510,7 +3539,6 @@ function drawWarlord(e, alpha) {
     ctx.strokeStyle = outline; ctx.lineWidth = 1.8;
     ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.stroke();
 
-    // snarling open mouth
     ctx.fillStyle = '#1a0e0c'; ctx.strokeStyle = outline; ctx.lineWidth = OL;
     strokeFill(() => {
       ctx.beginPath();
@@ -3520,7 +3548,6 @@ function drawWarlord(e, alpha) {
       ctx.lineTo(ox - 2.4 * s, headY + 5.8 * s);
       ctx.closePath();
     });
-    // teeth row
     ctx.fillStyle = '#f0ead8';
     for (let i = 0; i < 4; i++) {
       const tx = ox - 2.2 * s + i * 1.4 * s;
@@ -3530,7 +3557,6 @@ function drawWarlord(e, alpha) {
       ctx.lineTo(tx + 1.1 * s, headY + 2.9 * s);
       ctx.fill();
     }
-    // lower tusks
     ctx.fillStyle = bone; ctx.strokeStyle = outline; ctx.lineWidth = 1.5;
     for (const tdx of [-1.6, 1.0]) {
       strokeFill(() => {
@@ -3853,7 +3879,7 @@ function render() {
         ctx.beginPath(); ctx.arc(e.x, e.y, 18 * (1 - emerge) + 6, 0, TAU); ctx.stroke();
       }
       if (e.type === 'warlord') {
-        drawWarlord(e, emerge); // v2.8.3 Image-1 twin war-brute (template: drawWarlord_v282_template)
+        drawWarlord(e, emerge); // v2.8.4 flowing twin war-brute (template: drawWarlord_v282_template)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

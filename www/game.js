@@ -261,7 +261,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.8.2';
+const APP_VERSION = '2.8.3';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -359,7 +359,7 @@ function buzz(pattern) {
 // ---------- synthesized SFX (WebAudio, no samples) ----------
 // Lazy AudioContext: created on first use, resumed whenever the autoplay
 // policy has unlocked it (any tap/keypress after game start qualifies).
-let audioCtx = null, noiseBuf = null, lastWhoosh = -9, lastZap = -9, lastCrackle = -9;
+let audioCtx = null, noiseBuf = null, lastWhoosh = -9, lastZap = -9, lastCrackle = -9, lastStomp = -9;
 function getNoiseBuf(ac) {
   if (!noiseBuf) {
     noiseBuf = ac.createBuffer(1, (ac.sampleRate * 0.5) | 0, ac.sampleRate);
@@ -476,6 +476,35 @@ function playCracklePop() {
     osc.connect(og).connect(ac.destination);
     src.start(now); src.stop(now + 0.18);
     osc.start(now + 0.1); osc.stop(now + 0.24);
+  } catch (e) { /* audio must never break gameplay */ }
+}
+
+// Gharok foot-stomp thump (v2.8.3): deep sine drop + low-passed dirt slap.
+// Synthesized only — matches whoosh/zap/crackle patterns above.
+function playStomp() {
+  try {
+    const ac = getAudio();
+    if (!ac || ac.state !== 'running') return;
+    const now = ac.currentTime;
+    if (now - lastStomp < 0.14) return;
+    lastStomp = now;
+    const th = ac.createOscillator(); th.type = 'sine';
+    th.frequency.setValueAtTime(72, now);
+    th.frequency.exponentialRampToValueAtTime(28, now + 0.18);
+    const tg = ac.createGain();
+    tg.gain.setValueAtTime(0.0001, now);
+    tg.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+    tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    const src = ac.createBufferSource(); src.buffer = getNoiseBuf(ac);
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+    const ng = ac.createGain();
+    ng.gain.setValueAtTime(0.0001, now);
+    ng.gain.exponentialRampToValueAtTime(0.11, now + 0.015);
+    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    th.connect(tg).connect(ac.destination);
+    src.connect(lp).connect(ng).connect(ac.destination);
+    th.start(now); th.stop(now + 0.24);
+    src.start(now); src.stop(now + 0.14);
   } catch (e) { /* audio must never break gameplay */ }
 }
 
@@ -1097,13 +1126,13 @@ function updateCompanions(dt) {
 // bulwark (two husks fused mid-wave) · skeleton (claws out of husk graves)
 
 // boss claw slash (v2.8): wind-up is the dodge window
-const CLAW_WINDUP = 0.7, CLAW_RANGE = 150, CLAW_CD = 5, CLAW_DMG_MUL = 1.5, CLAW_KB = 820;
+const CLAW_WINDUP = 0.7, CLAW_RANGE = 165, CLAW_CD = 5, CLAW_DMG_MUL = 1.5, CLAW_KB = 820;
 const ETYPES = {
   husk:     { r: 14, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
   sprinter: { r: 11, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
   shaman:   { r: 13, hp: 44,  spd: 55,  dmg: 8,  core: 2,  xp: 12,  ranged: true  },
   ravager:  { r: 24, hp: 160, spd: 46,  dmg: 22, core: 3,  xp: 18,  ranged: false },
-  warlord:  { r: 40, hp: 950, spd: 40,  dmg: 34, core: 25, xp: 120, ranged: true, boss: true, armor: 300 },
+  warlord:  { r: 54, hp: 950, spd: 38,  dmg: 34, core: 25, xp: 120, ranged: true, boss: true, armor: 300 },
   bulwark:  { r: 20, hp: 90,  spd: 45,  dmg: 16, core: 3,  xp: 16,  ranged: false, kbPlayer: 260 }, // 2.5x husk hp, slow, heavy
   skeleton: { r: 10, hp: 14,  spd: 170, dmg: 6,  core: 1,  xp: 5,   ranged: false },
 };
@@ -1876,6 +1905,15 @@ function spawnRing(x, y, R) { particles.push({ x, y, ring: true, r: 10, targetR:
 function emberBurst(x, y) { spawnParticles(x, y, 8, '#ff9d2e', 3); spawnParticles(x, y, 4, '#ffd54a', 2); }
 function addFloater(x, y, text, color, big) { floaters.push({ x, y, text, color, life: 1.1, big }); }
 function zap(x1, y1, x2, y2) { zaps.push({ x1, y1, x2, y2, life: 0.12 }); }
+// Gharok stomp juice: synth thump + vibro + light shake + dust (tasteful).
+function warlordStomp(e, heavy) {
+  playStomp();
+  buzz(heavy ? [35, 40, 45] : 28);
+  camera.shake = Math.max(camera.shake, heavy ? 5.5 : 2.4);
+  const side = (e._stompSide = -(e._stompSide || 1));
+  spawnParticles(e.x + side * (e.r * 0.35), e.y + 4, heavy ? 8 : 4, '#8a7a58', heavy ? 2.4 : 1.6);
+  spawnParticles(e.x + side * (e.r * 0.28), e.y + 2, heavy ? 4 : 2, '#6b5a40', heavy ? 1.8 : 1.2);
+}
 let bannerT = 0;
 function banner(main, sub) {
   const el = $('wavebanner');
@@ -2051,11 +2089,12 @@ function update(dt) {
       if (e.clawWind > 0) {
         e.clawWind -= dt;
         e.vx *= 0.8; e.vy *= 0.8; // plants its feet for the swing
-        if (Math.random() < dt * 26) spawnParticles(e.x + e.facing * 34, e.y - 74, 1, '#ff6a4d', 3);
+        if (Math.random() < dt * 26) spawnParticles(e.x + e.facing * 44, e.y - 96, 1, '#ff6a4d', 3);
         if (e.clawWind <= 0) {
           camera.shake = Math.max(camera.shake, 10);
           spawnRing(e.x, e.y - 20, CLAW_RANGE);
           spawnParticles(e.x, e.y - 40, 18, '#ff6a4d', 5);
+          warlordStomp(e, true);
           buzz(60);
           const pdx = player.x - e.x, pdy = player.y - e.y;
           const pd = Math.hypot(pdx, pdy) || 1;
@@ -2064,13 +2103,13 @@ function update(dt) {
             player.vx = pdx / pd * CLAW_KB;
             player.vy = pdy / pd * CLAW_KB;
             player.dashT = Math.max(player.dashT, 0.26); // sent flying
-            addFloater(player.x, player.y - 44, 'CLAW SLAM!', '#ff4d5e', true);
+            addFloater(player.x, player.y - 44, 'CLEAVER SLAM!', '#ff4d5e', true);
           }
           e.clawCd = CLAW_CD;
         }
       } else if (e.clawCd <= 0 && dist2(e.x, e.y, player.x, player.y) < (CLAW_RANGE * 0.9) ** 2) {
         e.clawWind = CLAW_WINDUP;
-        addFloater(e.x, e.y - e.r * 2.4, '⚠ CLAW WIND-UP', '#ff8a93', true);
+        addFloater(e.x, e.y - e.r * 2.4, '⚠ CLEAVER WIND-UP', '#ff8a93', true);
         buzz(20);
       }
     }
@@ -2090,6 +2129,16 @@ function update(dt) {
     collideBarricades(e, dt);
     e.walk += dt * (Math.hypot(e.vx, e.vy) * 0.075);
     e.facing = e.vx >= 0 ? 1 : -1;
+    // Gharok footfalls — stomp on each plant while lumbering
+    if (e.boss) {
+      const foot = Math.sin(e.walk);
+      if (e._lastFoot === undefined) e._lastFoot = foot;
+      const moving = Math.hypot(e.vx, e.vy) > 14;
+      if (moving && ((e._lastFoot > 0.2 && foot <= 0.2) || (e._lastFoot < -0.2 && foot >= -0.2))) {
+        warlordStomp(e, false);
+      }
+      e._lastFoot = foot;
+    }
     // melee swipes hit whatever is in reach: the player or a companion
     const pd2c = dist2(e.x, e.y, player.x, player.y);
     if (pd2c < (e.r + player.r + 6) ** 2 && player.hurtT <= 0) {
@@ -2795,8 +2844,8 @@ function enemyFigure(e) {
       legs: '#31264a', hunch: 0.3, weapon: 'staff', glowEyes: '#d24dff' };
     case 'ravager': return { ...base, s: 1.7, bulk: 1.35, headScale: 1.1, skin: '#5f8f3a', cloth: '#4c3a26',
       pauldron: '#6b7686', legs: '#3a3026', tusks: true, ears: true, weapon: 'club', glowEyes: '#ffd54a' };
-    case 'warlord': return { ...base, s: 2.7, bulk: 1.5, headScale: 1.15, skin: '#4f7a30', cloth: '#3c2f22',
-      pauldron: '#59636f', legs: '#332a20', tusks: true, ears: true, horns: true, helmet: '#3a3f4c',
+    case 'warlord': return { ...base, s: 3.2, bulk: 1.55, headScale: 1.15, skin: '#4ecf3a', cloth: '#5a2f78',
+      pauldron: '#9aa8bc', legs: '#2f9a28', tusks: true, ears: true, horns: true, helmet: '#3a3f4c',
       weapon: 'club', glowEyes: '#ff2d55', aura: '#b04dff' };
     // scaled-up husk rig with a heavier, darker tint — two shamblers in one skin
     case 'bulwark': return { ...base, s: 1.45, bulk: 1.6, headScale: 1.05, skin: '#5f7a44', cloth: '#3f4a33',
@@ -2838,12 +2887,12 @@ function npcFigure(n) {
   }
 }
 
-// ============ GHAROK — CLEAN TWIN-BRUTE (v2.8.2) ==================
-// Procedural canvas only (no Meiker PNGs). Top-down readable silhouette:
+// ============ GHAROK — v2.8.2 CLEAN GEOMETRIC TEMPLATE ============
+// PRESERVED for restore/reuse. Active boss draw is drawWarlord() below (v2.8.3).
+// Procedural canvas only (no Meiker/Hero Forge PNGs). Top-down readable silhouette:
 // chunky shapes, dark outlines, HIGH contrast, LARGE separated twin heads,
 // one club arm + one claw arm (red telegraph). Armor plates chip via armorCrack.
-// Dropped jewelry / toe rings / thin arcs that smear at boss scale.
-function drawWarlord(e, alpha) {
+function drawWarlord_v282_template(e, alpha) {
   const s = 2.55;
   const t = e.walk, swing = Math.sin(t) * 0.45, bob = Math.abs(Math.sin(t)) * 2.2;
   const flash = e.flash > 0;
@@ -3075,6 +3124,370 @@ function drawWarlord(e, alpha) {
     ctx.moveTo(ox - 2 * s, headY + 3.4 * s);
     ctx.quadraticCurveTo(ox, headY + 2.2 * s, ox + 2 * s, headY + 3.4 * s);
     ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ============ GHAROK — IMAGE-1 TWIN WAR-BRUTE (v2.8.3) ============
+// Original procedural redraw of twin-headed green boss concept (Hero Forge
+// silhouette reference only — no meshes/exports). Bigger boss footprint.
+// Mace = heavy arm; oversized cleaver = claw-slash telegraph (red wind-up).
+// armorCrack plates still chip. See docs/gharok-art-plan.md for next passes.
+function drawWarlord(e, alpha) {
+  const s = 3.2;
+  const t = e.walk, swing = Math.sin(t) * 0.4, bob = Math.abs(Math.sin(t)) * 2.6;
+  const flash = e.flash > 0;
+  const skin = flash ? '#fff' : '#4ecf3a';
+  const skinDark = flash ? '#fff' : '#2f9a28';
+  const skinDeep = flash ? '#fff' : '#1f6e1c';
+  const outline = flash ? '#fff' : '#0c180e';
+  const steel = flash ? '#fff' : '#9aa8bc';
+  const steelBlue = flash ? '#fff' : '#7a8fa8';
+  const steelEdge = flash ? '#fff' : '#3a4456';
+  const wood = flash ? '#fff' : '#6b3e1a';
+  const woodEdge = flash ? '#fff' : '#2a1608';
+  const tunic = flash ? '#fff' : '#5a2f78';
+  const tunicDark = flash ? '#fff' : '#3a1c52';
+  const belt = flash ? '#fff' : '#1a1210';
+  const bone = flash ? '#fff' : '#e8e0c8';
+  const blade = flash ? '#fff' : '#6a727c';
+  const bladeEdge = flash ? '#fff' : '#d8dee8';
+  const OL = 2.5;
+
+  const strokeFill = (drawPath) => { drawPath(); ctx.fill(); ctx.stroke(); };
+
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,0.46)';
+  ctx.beginPath(); ctx.ellipse(0, 2, 46, 16, 0, 0, TAU); ctx.fill();
+  ctx.scale(e.facing || 1, 1);
+  ctx.translate(0, -bob);
+
+  const hipY = -13 * s, shY = -29 * s, headY = -45 * s;
+  const ar = 40 * s * 0.52 + Math.sin(performance.now() / 70) * 2.5;
+  const ag = ctx.createRadialGradient(0, hipY, 4, 0, hipY, ar);
+  ag.addColorStop(0, '#b04dff48'); ag.addColorStop(1, '#b04dff00');
+  ctx.fillStyle = ag;
+  ctx.beginPath(); ctx.ellipse(0, hipY, ar * 0.78, ar, 0, 0, TAU); ctx.fill();
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // ---- BARE THICK LEGS + FEET (top-down readable) ----
+  const legL = -6.2 * s + Math.sin(t) * 4.5 * s;
+  const legR = 6.2 * s - Math.sin(t) * 4.5 * s;
+  ctx.strokeStyle = outline; ctx.lineWidth = 8.4 * s;
+  ctx.beginPath();
+  ctx.moveTo(-4.5 * s, hipY); ctx.lineTo(legL, 2);
+  ctx.moveTo(4.5 * s, hipY); ctx.lineTo(legR, 2);
+  ctx.stroke();
+  ctx.strokeStyle = skinDark; ctx.lineWidth = 6.0 * s;
+  ctx.beginPath();
+  ctx.moveTo(-4.5 * s, hipY); ctx.lineTo(legL, 2);
+  ctx.moveTo(4.5 * s, hipY); ctx.lineTo(legR, 2);
+  ctx.stroke();
+  // chunky bare feet (toes readable)
+  for (const [fx, dir] of [[legL, -1], [legR, 1]]) {
+    ctx.fillStyle = skin; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+    strokeFill(() => {
+      ctx.beginPath();
+      ctx.ellipse(fx + dir * 1.2 * s, 3.2, 4.2 * s, 2.4 * s, 0, 0, TAU);
+    });
+    ctx.fillStyle = skinDeep;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.ellipse(fx + dir * (0.2 + i * 1.35) * s, 4.6, 0.85 * s, 1.1 * s, 0, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  // ---- TATTERED PURPLE TUNIC + BELT ----
+  ctx.fillStyle = tunic; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+  strokeFill(() => {
+    ctx.beginPath();
+    ctx.moveTo(-9.5 * s, hipY - 3 * s);
+    ctx.lineTo(9.5 * s, hipY - 3 * s);
+    ctx.lineTo(8.2 * s, hipY + 7.5 * s);
+    ctx.lineTo(4 * s, hipY + 5.5 * s);
+    ctx.lineTo(1 * s, hipY + 8.2 * s);
+    ctx.lineTo(-2.5 * s, hipY + 5.8 * s);
+    ctx.lineTo(-5.5 * s, hipY + 8 * s);
+    ctx.lineTo(-8.2 * s, hipY + 7.2 * s);
+    ctx.closePath();
+  });
+  // tattered flaps
+  ctx.fillStyle = tunicDark;
+  ctx.beginPath();
+  ctx.moveTo(-7 * s, hipY + 4 * s); ctx.lineTo(-5.5 * s, hipY + 9.5 * s); ctx.lineTo(-3.5 * s, hipY + 5 * s);
+  ctx.moveTo(3 * s, hipY + 4.5 * s); ctx.lineTo(5.2 * s, hipY + 9.2 * s); ctx.lineTo(6.5 * s, hipY + 5 * s);
+  ctx.fill();
+  // belt + buckle
+  ctx.fillStyle = belt; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+  ctx.fillRect(-8.5 * s, hipY + 0.5 * s, 17 * s, 2.6 * s);
+  ctx.strokeRect(-8.5 * s, hipY + 0.5 * s, 17 * s, 2.6 * s);
+  ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
+  strokeFill(() => {
+    ctx.beginPath(); ctx.arc(0, hipY + 1.8 * s, 2.4 * s, 0, TAU);
+  });
+
+  // ---- SPIKED MACE ARM (back / left) — heavy hit weapon ----
+  ctx.save();
+  ctx.translate(-13.5 * s, shY + 5 * s);
+  ctx.rotate(2.32 - swing * 0.12);
+  ctx.strokeStyle = outline; ctx.lineWidth = 8.2 * s;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(12 * s, 0); ctx.stroke();
+  ctx.strokeStyle = skin; ctx.lineWidth = 5.8 * s;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(12 * s, 0); ctx.stroke();
+  // leather wrap on haft
+  ctx.fillStyle = woodEdge; ctx.fillRect(4 * s, -1.6 * s, 5 * s, 3.2 * s);
+  ctx.fillStyle = wood; ctx.strokeStyle = woodEdge; ctx.lineWidth = OL;
+  ctx.fillRect(8.5 * s, -1.4 * s, 5 * s, 2.8 * s);
+  // blocky spiked mace head
+  ctx.fillStyle = steelEdge; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+  ctx.fillRect(12.5 * s, -4.4 * s, 11 * s, 8.8 * s);
+  ctx.strokeRect(12.5 * s, -4.4 * s, 11 * s, 8.8 * s);
+  ctx.fillStyle = steel;
+  ctx.fillRect(13.2 * s, -3.6 * s, 9.6 * s, 7.2 * s);
+  // pyramid spikes on mace head
+  ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
+  const maceSpikes = [
+    [14.2, -4.4, 0, -1], [18.8, -4.4, 0, -1], [23.5, 0, 1, 0],
+    [14.2, 4.4, 0, 1], [18.8, 4.4, 0, 1],
+  ];
+  for (const [mx, my, dx, dy] of maceSpikes) {
+    strokeFill(() => {
+      ctx.beginPath();
+      if (dx === 0) {
+        ctx.moveTo(mx * s, my * s);
+        ctx.lineTo((mx + 1.8) * s, my * s + dy * 4.2 * s);
+        ctx.lineTo((mx + 3.6) * s, my * s);
+      } else {
+        ctx.moveTo(mx * s, my * s - 2.2 * s);
+        ctx.lineTo(mx * s + dx * 4.5 * s, my * s);
+        ctx.lineTo(mx * s, my * s + 2.2 * s);
+      }
+      ctx.closePath();
+    });
+  }
+  ctx.restore();
+
+  // ---- MUSCULAR TORSO ----
+  ctx.fillStyle = skin; ctx.strokeStyle = outline; ctx.lineWidth = OL + 0.5;
+  strokeFill(() => {
+    ctx.beginPath();
+    ctx.ellipse(0, (shY + hipY) * 0.48 + 1 * s, 11.2 * s, 12.8 * s, 0, 0, TAU);
+  });
+  // pec / ab hint (minimal — readable, not clutter)
+  ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(-5 * s, shY + 8 * s); ctx.quadraticCurveTo(0, shY + 10 * s, 5 * s, shY + 8 * s);
+  ctx.moveTo(0, shY + 10 * s); ctx.lineTo(0, hipY - 2 * s);
+  ctx.stroke();
+  // shoulder mass
+  ctx.fillStyle = skinDark; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+  strokeFill(() => { ctx.beginPath(); ctx.ellipse(-11.5 * s, shY + 4 * s, 5.2 * s, 4.4 * s, 0, 0, TAU); });
+  strokeFill(() => { ctx.beginPath(); ctx.ellipse(11.5 * s, shY + 4 * s, 5.2 * s, 4.4 * s, 0, 0, TAU); });
+
+  // ---- PAULDRONS: horned skull (left) + metal (right) ----
+  // skull pauldron
+  ctx.fillStyle = bone; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+  strokeFill(() => {
+    ctx.beginPath(); ctx.ellipse(-12.5 * s, shY + 1.5 * s, 5.8 * s, 4.6 * s, -0.25, 0, TAU);
+  });
+  // eye sockets
+  ctx.fillStyle = '#2a2218';
+  ctx.beginPath();
+  ctx.ellipse(-14.2 * s, shY + 0.8 * s, 1.4 * s, 1.6 * s, 0, 0, TAU);
+  ctx.ellipse(-11 * s, shY + 0.6 * s, 1.3 * s, 1.5 * s, 0, 0, TAU);
+  ctx.fill();
+  // curved horns
+  ctx.strokeStyle = bone; ctx.lineWidth = 2.8 * s;
+  ctx.beginPath();
+  ctx.moveTo(-16.5 * s, shY - 0.5 * s);
+  ctx.quadraticCurveTo(-19 * s, shY - 6 * s, -16 * s, shY - 9 * s);
+  ctx.moveTo(-9 * s, shY - 1 * s);
+  ctx.quadraticCurveTo(-7 * s, shY - 7 * s, -9.5 * s, shY - 10 * s);
+  ctx.stroke();
+  ctx.strokeStyle = outline; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(-16.5 * s, shY - 0.5 * s);
+  ctx.quadraticCurveTo(-19 * s, shY - 6 * s, -16 * s, shY - 9 * s);
+  ctx.moveTo(-9 * s, shY - 1 * s);
+  ctx.quadraticCurveTo(-7 * s, shY - 7 * s, -9.5 * s, shY - 10 * s);
+  ctx.stroke();
+  // metal pauldron
+  ctx.fillStyle = steelBlue; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
+  strokeFill(() => {
+    ctx.beginPath();
+    ctx.moveTo(7.5 * s, shY - 1 * s);
+    ctx.lineTo(17 * s, shY - 2.5 * s);
+    ctx.lineTo(18.5 * s, shY + 5 * s);
+    ctx.lineTo(9 * s, shY + 7 * s);
+    ctx.closePath();
+  });
+  ctx.fillStyle = flash ? '#fff' : '#c8d4e4';
+  ctx.fillRect(10 * s, shY + 0.5 * s, 6 * s, 1.6);
+
+  // ---- ARMOR PLATES — chip with armorCrack ----
+  if (e.maxArmor) {
+    const plates = e.armor > 0 ? e.armorCrack : 0;
+    const spots = [
+      [-8.5, -25, 7, 5.2],
+      [1.8, -25, 7, 5.2],
+      [-7, -18.2, 14, 4.8],
+      [-5.5, -12, 11, 4.2],
+    ];
+    for (let i = 0; i < 4; i++) {
+      const [px, py, pw, ph] = spots[i];
+      const x = px * s, y = py * s, w = pw * s, h = ph * s;
+      if (i < plates) {
+        ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = flash ? '#fff' : '#c8d2e0';
+        ctx.fillRect(x + 2, y + 2, w - 4, 1.8);
+        if (i === plates - 1 && e.armor < e.maxArmor) {
+          ctx.strokeStyle = outline; ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(x + 2, y + 2);
+          ctx.lineTo(x + w * 0.55, y + h * 0.6);
+          ctx.lineTo(x + w * 0.35, y + h - 2);
+          ctx.stroke();
+        }
+      } else {
+        ctx.strokeStyle = skinDeep; ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(x + 2, y + 2); ctx.lineTo(x + w - 2, y + h - 2);
+        ctx.moveTo(x + w - 2, y + 2); ctx.lineTo(x + 2, y + h - 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ---- CLEAVER ARM (front / right) — red telegraph on wind-up ----
+  const wind = e.clawWind > 0 ? clamp(e.clawWind / CLAW_WINDUP, 0, 1) : 0;
+  ctx.save();
+  ctx.translate(13 * s, shY + 5 * s);
+  ctx.rotate(wind > 0 ? -1.5 + (1 - wind) * 0.35 : -0.35 + Math.sin(t * 0.7) * 0.08);
+  ctx.strokeStyle = outline; ctx.lineWidth = 8.2 * s;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(11 * s, 0); ctx.stroke();
+  ctx.strokeStyle = skin; ctx.lineWidth = 5.8 * s;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(11 * s, 0); ctx.stroke();
+  // grip
+  ctx.fillStyle = wood; ctx.strokeStyle = woodEdge; ctx.lineWidth = OL;
+  ctx.fillRect(8 * s, -1.8 * s, 5 * s, 3.6 * s);
+  ctx.strokeRect(8 * s, -1.8 * s, 5 * s, 3.6 * s);
+  // oversized cleaver blade
+  if (wind > 0) { ctx.shadowColor = '#ff3a28'; ctx.shadowBlur = 16; }
+  ctx.fillStyle = wind > 0 ? '#ff4a38' : blade;
+  ctx.strokeStyle = wind > 0 ? '#ff1e14' : outline;
+  ctx.lineWidth = OL + (wind > 0 ? 0.6 : 0);
+  strokeFill(() => {
+    ctx.beginPath();
+    ctx.moveTo(12 * s, -5.5 * s);
+    ctx.lineTo(28 * s, -4.2 * s);
+    ctx.lineTo(30 * s, -1.2 * s);
+    ctx.lineTo(28.5 * s, 5.8 * s);
+    ctx.lineTo(12 * s, 4.2 * s);
+    ctx.closePath();
+  });
+  // cutting edge highlight
+  ctx.strokeStyle = wind > 0 ? '#ffc9c4' : bladeEdge;
+  ctx.lineWidth = 2.2 * s;
+  ctx.beginPath();
+  ctx.moveTo(13 * s, 3.6 * s);
+  ctx.lineTo(28 * s, 5.2 * s);
+  ctx.stroke();
+  // jagged spine
+  ctx.strokeStyle = outline; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(13 * s, -4.8 * s);
+  ctx.lineTo(16 * s, -6.2 * s);
+  ctx.lineTo(19 * s, -4.5 * s);
+  ctx.lineTo(23 * s, -5.8 * s);
+  ctx.lineTo(27 * s, -3.8 * s);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // ---- TWIN NECKS + SNARLING HEADS ----
+  ctx.fillStyle = skinDark; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+  strokeFill(() => { ctx.beginPath(); ctx.ellipse(-5 * s, headY + 9 * s, 4.4 * s, 3.6 * s, 0, 0, TAU); });
+  strokeFill(() => { ctx.beginPath(); ctx.ellipse(5 * s, headY + 9 * s, 4.4 * s, 3.6 * s, 0, 0, TAU); });
+
+  const pulse = 0.85 + Math.sin(performance.now() / 160) * 0.15;
+  for (const off of [-8.6, 8.6]) {
+    const ox = off * s;
+    const earDir = off < 0 ? -1 : 1;
+    const hr = 5.8 * s;
+
+    // pointed ear
+    ctx.fillStyle = skin; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+    strokeFill(() => {
+      ctx.beginPath();
+      ctx.moveTo(ox + earDir * hr * 0.4, headY - 1 * s);
+      ctx.lineTo(ox + earDir * (hr + 6.5 * s), headY - 4.5 * s);
+      ctx.lineTo(ox + earDir * (hr + 0.6 * s), headY + 3.5 * s);
+      ctx.closePath();
+    });
+
+    // head
+    ctx.fillStyle = skin; ctx.strokeStyle = outline; ctx.lineWidth = OL + 0.4;
+    strokeFill(() => {
+      ctx.beginPath(); ctx.ellipse(ox, headY, hr, hr * 1.1, 0, 0, TAU);
+    });
+
+    // brow ridge
+    ctx.fillStyle = skinDark;
+    ctx.beginPath();
+    ctx.ellipse(ox + earDir * 0.6 * s, headY - 2.2 * s, hr * 0.7, hr * 0.28, earDir * 0.15, 0, TAU);
+    ctx.fill();
+
+    // glowing red eye
+    const ex = ox + earDir * 0.9 * s, ey = headY - 0.3 * s;
+    const er = 2.5 * s * pulse;
+    ctx.fillStyle = '#ff1e14';
+    ctx.shadowColor = '#ff2a1f'; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffc9c4';
+    ctx.beginPath(); ctx.arc(ex - 0.5 * s, ey - 0.5 * s, er * 0.3, 0, TAU); ctx.fill();
+    ctx.strokeStyle = outline; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.stroke();
+
+    // snarling open mouth
+    ctx.fillStyle = '#1a0e0c'; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+    strokeFill(() => {
+      ctx.beginPath();
+      ctx.moveTo(ox - 3.2 * s, headY + 2.8 * s);
+      ctx.lineTo(ox + 3.2 * s, headY + 2.8 * s);
+      ctx.lineTo(ox + 2.4 * s, headY + 5.8 * s);
+      ctx.lineTo(ox - 2.4 * s, headY + 5.8 * s);
+      ctx.closePath();
+    });
+    // teeth row
+    ctx.fillStyle = '#f0ead8';
+    for (let i = 0; i < 4; i++) {
+      const tx = ox - 2.2 * s + i * 1.4 * s;
+      ctx.beginPath();
+      ctx.moveTo(tx, headY + 2.9 * s);
+      ctx.lineTo(tx + 0.55 * s, headY + 4.4 * s);
+      ctx.lineTo(tx + 1.1 * s, headY + 2.9 * s);
+      ctx.fill();
+    }
+    // lower tusks
+    ctx.fillStyle = bone; ctx.strokeStyle = outline; ctx.lineWidth = 1.5;
+    for (const tdx of [-1.6, 1.0]) {
+      strokeFill(() => {
+        ctx.beginPath();
+        ctx.moveTo(ox + tdx * s, headY + 5.2 * s);
+        ctx.lineTo(ox + (tdx + 0.55) * s, headY + 8.2 * s);
+        ctx.lineTo(ox + (tdx + 1.1) * s, headY + 5.2 * s);
+        ctx.closePath();
+      });
+    }
   }
 
   ctx.restore();
@@ -3387,7 +3800,7 @@ function render() {
         ctx.beginPath(); ctx.arc(e.x, e.y, 18 * (1 - emerge) + 6, 0, TAU); ctx.stroke();
       }
       if (e.type === 'warlord') {
-        drawWarlord(e, emerge); // v2.8.2 clean twin-brute silhouette
+        drawWarlord(e, emerge); // v2.8.3 Image-1 twin war-brute (template: drawWarlord_v282_template)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

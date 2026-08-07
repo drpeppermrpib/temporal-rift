@@ -9,9 +9,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GAME_URL = 'http://127.0.0.1:8322/index.html';
 const DBG_PORT = 9341;
-const OUT = join(__dirname, 'rollouts', 'gharok-2.8.1-preview.png'); // overwrite requested preview slot
+const OUT = join(__dirname, 'rollouts', 'gharok-2.8.3-preview.png');
 const OUT_CLEAN = join(__dirname, 'rollouts', 'gharok-clean-preview.png');
-const OUT_ROOT = join(__dirname, 'gharok-2.8.2-preview.png');
+const OUT_ROOT = join(__dirname, 'gharok-2.8.3-preview.png');
 
 const EDGE_PATHS = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
@@ -98,7 +98,7 @@ try {
   await navigate(GAME_URL);
   const ver = await evaluate('APP_VERSION');
   console.log('APP_VERSION:', ver);
-  if (ver !== '2.8.2') console.warn('WARNING: expected APP_VERSION 2.8.2, got', ver);
+  if (ver !== '2.8.3') console.warn('WARNING: expected APP_VERSION 2.8.3, got', ver);
 
   await evaluate(`document.getElementById('startBtn').click(); state`);
   // freeze waves, clear arena, spawn Gharok armor-intact + claw wind-up, no banner clutter

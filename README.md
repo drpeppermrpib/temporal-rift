@@ -60,6 +60,33 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.8.3 (Gharok Image-1 twin war-brute)
+
+- **Boss look** — Gharok switches to an original procedural redraw of the twin-headed
+  green war-brute concept: purple tattered tunic + belt, skull pauldron + metal
+  pauldron, spiked mace + oversized cleaver (red wind-up telegraph), bare thick
+  feet, larger boss radius/scale. v2.8.2 clean geometric draw kept as
+  `drawWarlord_v282_template`.
+- **Foot stomp juice** — synth thump + vibro + light shake/dust on walk plants and
+  cleaver slam. Art roadmap: `docs/gharok-art-plan.md`.
+
+### New in Release 2.8.3 (Gharok twin war-brute)
+
+- **Boss look** — Gharok redrawn as a bigger original twin-headed green war-brute
+  (procedural canvas): purple tunic, black skull-buckle belt, skull+horn pauldron vs
+  spiked silver pauldron, spiked mace + oversized cleaver (red wind-up telegraph).
+  `armorCrack` now chips chest straps then pauldrons. Cleaver slam floaters updated.
+  Foot-stomp juice is **deferred** (`GHAROK_STOMP_JUICE = false`) until the look is
+  signed off. v2.8.2 clean silhouette kept as `drawWarlord_v282_template` +
+  `gharok-template-2.8.2.png`. Concept: `gharok-twinorc-concept.png`.
+- **Backlog (not in this build):** skill-tree polish, better sound engine, stomp juice.
+
+### New in Release 2.8.2 (Gharok clean twin-brute)
+
+- **Boss readability pass** — replaced the muddy 2.8.1 twin-goblin with a cleaner
+  geometric twin-brute silhouette (chunky shapes, dark outlines, separated heads,
+  club + claw). Kept as template for 2.8.3+.
+
 ### New in Release 2.8.1 (Gharok green twin-goblin)
 
 - **Boss look pass** — Gharok’s procedural sprite shifts toward a muscular

@@ -479,9 +479,11 @@ function playCracklePop() {
   } catch (e) { /* audio must never break gameplay */ }
 }
 
-// Gharok foot-stomp thump (v2.8.3): deep sine drop + low-passed dirt slap.
-// Synthesized only — matches whoosh/zap/crackle patterns above.
+// Gharok foot-stomp juice — DEFERRED until look is approved (v2.8.3+).
+// Flip GHAROK_STOMP_JUICE on to re-enable synth thump + vibro + dust.
+const GHAROK_STOMP_JUICE = false;
 function playStomp() {
+  if (!GHAROK_STOMP_JUICE) return;
   try {
     const ac = getAudio();
     if (!ac || ac.state !== 'running') return;
@@ -1905,8 +1907,9 @@ function spawnRing(x, y, R) { particles.push({ x, y, ring: true, r: 10, targetR:
 function emberBurst(x, y) { spawnParticles(x, y, 8, '#ff9d2e', 3); spawnParticles(x, y, 4, '#ffd54a', 2); }
 function addFloater(x, y, text, color, big) { floaters.push({ x, y, text, color, life: 1.1, big }); }
 function zap(x1, y1, x2, y2) { zaps.push({ x1, y1, x2, y2, life: 0.12 }); }
-// Gharok stomp juice: synth thump + vibro + light shake + dust (tasteful).
+// Gharok stomp juice (deferred — gated by GHAROK_STOMP_JUICE).
 function warlordStomp(e, heavy) {
+  if (!GHAROK_STOMP_JUICE) return;
   playStomp();
   buzz(heavy ? [35, 40, 45] : 28);
   camera.shake = Math.max(camera.shake, heavy ? 5.5 : 2.4);
@@ -3203,35 +3206,6 @@ function drawWarlord(e, alpha) {
     }
   }
 
-  // ---- TATTERED PURPLE TUNIC + BELT ----
-  ctx.fillStyle = tunic; ctx.strokeStyle = outline; ctx.lineWidth = OL;
-  strokeFill(() => {
-    ctx.beginPath();
-    ctx.moveTo(-9.5 * s, hipY - 3 * s);
-    ctx.lineTo(9.5 * s, hipY - 3 * s);
-    ctx.lineTo(8.2 * s, hipY + 7.5 * s);
-    ctx.lineTo(4 * s, hipY + 5.5 * s);
-    ctx.lineTo(1 * s, hipY + 8.2 * s);
-    ctx.lineTo(-2.5 * s, hipY + 5.8 * s);
-    ctx.lineTo(-5.5 * s, hipY + 8 * s);
-    ctx.lineTo(-8.2 * s, hipY + 7.2 * s);
-    ctx.closePath();
-  });
-  // tattered flaps
-  ctx.fillStyle = tunicDark;
-  ctx.beginPath();
-  ctx.moveTo(-7 * s, hipY + 4 * s); ctx.lineTo(-5.5 * s, hipY + 9.5 * s); ctx.lineTo(-3.5 * s, hipY + 5 * s);
-  ctx.moveTo(3 * s, hipY + 4.5 * s); ctx.lineTo(5.2 * s, hipY + 9.2 * s); ctx.lineTo(6.5 * s, hipY + 5 * s);
-  ctx.fill();
-  // belt + buckle
-  ctx.fillStyle = belt; ctx.strokeStyle = outline; ctx.lineWidth = OL;
-  ctx.fillRect(-8.5 * s, hipY + 0.5 * s, 17 * s, 2.6 * s);
-  ctx.strokeRect(-8.5 * s, hipY + 0.5 * s, 17 * s, 2.6 * s);
-  ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
-  strokeFill(() => {
-    ctx.beginPath(); ctx.arc(0, hipY + 1.8 * s, 2.4 * s, 0, TAU);
-  });
-
   // ---- SPIKED MACE ARM (back / left) — heavy hit weapon ----
   ctx.save();
   ctx.translate(-13.5 * s, shY + 5 * s);
@@ -3290,77 +3264,145 @@ function drawWarlord(e, alpha) {
   strokeFill(() => { ctx.beginPath(); ctx.ellipse(-11.5 * s, shY + 4 * s, 5.2 * s, 4.4 * s, 0, 0, TAU); });
   strokeFill(() => { ctx.beginPath(); ctx.ellipse(11.5 * s, shY + 4 * s, 5.2 * s, 4.4 * s, 0, 0, TAU); });
 
-  // ---- PAULDRONS: horned skull (left) + metal (right) ----
-  // skull pauldron
-  ctx.fillStyle = bone; ctx.strokeStyle = outline; ctx.lineWidth = OL;
-  strokeFill(() => {
-    ctx.beginPath(); ctx.ellipse(-12.5 * s, shY + 1.5 * s, 5.8 * s, 4.6 * s, -0.25, 0, TAU);
-  });
-  // eye sockets
-  ctx.fillStyle = '#2a2218';
-  ctx.beginPath();
-  ctx.ellipse(-14.2 * s, shY + 0.8 * s, 1.4 * s, 1.6 * s, 0, 0, TAU);
-  ctx.ellipse(-11 * s, shY + 0.6 * s, 1.3 * s, 1.5 * s, 0, 0, TAU);
-  ctx.fill();
-  // curved horns
-  ctx.strokeStyle = bone; ctx.lineWidth = 2.8 * s;
-  ctx.beginPath();
-  ctx.moveTo(-16.5 * s, shY - 0.5 * s);
-  ctx.quadraticCurveTo(-19 * s, shY - 6 * s, -16 * s, shY - 9 * s);
-  ctx.moveTo(-9 * s, shY - 1 * s);
-  ctx.quadraticCurveTo(-7 * s, shY - 7 * s, -9.5 * s, shY - 10 * s);
-  ctx.stroke();
-  ctx.strokeStyle = outline; ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(-16.5 * s, shY - 0.5 * s);
-  ctx.quadraticCurveTo(-19 * s, shY - 6 * s, -16 * s, shY - 9 * s);
-  ctx.moveTo(-9 * s, shY - 1 * s);
-  ctx.quadraticCurveTo(-7 * s, shY - 7 * s, -9.5 * s, shY - 10 * s);
-  ctx.stroke();
-  // metal pauldron
-  ctx.fillStyle = steelBlue; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
+  // ---- PURPLE TUNIC OVER TORSO + BELT / SKULL BUCKLE ----
+  ctx.fillStyle = tunic; ctx.strokeStyle = outline; ctx.lineWidth = OL;
   strokeFill(() => {
     ctx.beginPath();
-    ctx.moveTo(7.5 * s, shY - 1 * s);
-    ctx.lineTo(17 * s, shY - 2.5 * s);
-    ctx.lineTo(18.5 * s, shY + 5 * s);
-    ctx.lineTo(9 * s, shY + 7 * s);
+    ctx.moveTo(-10 * s, shY + 10 * s);
+    ctx.lineTo(10 * s, shY + 10 * s);
+    ctx.lineTo(9.2 * s, hipY + 7.5 * s);
+    ctx.lineTo(4.2 * s, hipY + 5.4 * s);
+    ctx.lineTo(1.2 * s, hipY + 8.2 * s);
+    ctx.lineTo(-2.8 * s, hipY + 5.6 * s);
+    ctx.lineTo(-5.8 * s, hipY + 8 * s);
+    ctx.lineTo(-9.2 * s, hipY + 7.2 * s);
     ctx.closePath();
   });
-  ctx.fillStyle = flash ? '#fff' : '#c8d4e4';
-  ctx.fillRect(10 * s, shY + 0.5 * s, 6 * s, 1.6);
+  ctx.fillStyle = tunicDark;
+  ctx.beginPath();
+  ctx.moveTo(-7 * s, hipY + 4 * s); ctx.lineTo(-5.5 * s, hipY + 9.5 * s); ctx.lineTo(-3.5 * s, hipY + 5 * s);
+  ctx.moveTo(3 * s, hipY + 4.5 * s); ctx.lineTo(5.2 * s, hipY + 9.2 * s); ctx.lineTo(6.5 * s, hipY + 5 * s);
+  ctx.fill();
+  ctx.fillStyle = belt; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+  ctx.fillRect(-8.8 * s, hipY + 0.2 * s, 17.6 * s, 2.8 * s);
+  ctx.strokeRect(-8.8 * s, hipY + 0.2 * s, 17.6 * s, 2.8 * s);
+  // circular skull buckle (detail cue from portrait ref — original shapes)
+  ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
+  strokeFill(() => { ctx.beginPath(); ctx.arc(0, hipY + 1.6 * s, 2.6 * s, 0, TAU); });
+  ctx.fillStyle = bone;
+  ctx.beginPath(); ctx.ellipse(0, hipY + 1.35 * s, 1.45 * s, 1.55 * s, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#2a2218';
+  ctx.beginPath();
+  ctx.ellipse(-0.55 * s, hipY + 1.15 * s, 0.35 * s, 0.45 * s, 0, 0, TAU);
+  ctx.ellipse(0.55 * s, hipY + 1.15 * s, 0.35 * s, 0.45 * s, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = bone;
+  ctx.fillRect(-0.9 * s, hipY + 2.35 * s, 0.55 * s, 0.85 * s);
+  ctx.fillRect(0.35 * s, hipY + 2.35 * s, 0.55 * s, 0.85 * s);
 
-  // ---- ARMOR PLATES — chip with armorCrack ----
+  // ---- PAULDRONS: horned skull (left) + spiked metal (right) ----
+  // armorCrack maps: 4 = both pauldrons + 2 chest straps; chips peel straps then pauldrons
+  const plates = e.maxArmor ? (e.armor > 0 ? e.armorCrack : 0) : 4;
+  // skull / horn trophy pauldron (chips when plates < 2)
+  if (plates >= 2) {
+    ctx.fillStyle = bone; ctx.strokeStyle = outline; ctx.lineWidth = OL;
+    strokeFill(() => {
+      ctx.beginPath(); ctx.ellipse(-12.5 * s, shY + 1.5 * s, 5.8 * s, 4.6 * s, -0.25, 0, TAU);
+    });
+    ctx.fillStyle = '#2a2218';
+    ctx.beginPath();
+    ctx.ellipse(-14.2 * s, shY + 0.8 * s, 1.4 * s, 1.6 * s, 0, 0, TAU);
+    ctx.ellipse(-11 * s, shY + 0.6 * s, 1.3 * s, 1.5 * s, 0, 0, TAU);
+    ctx.fill();
+    // one bold spiral horn (Image-1 cue)
+    ctx.strokeStyle = bone; ctx.lineWidth = 3.2 * s;
+    ctx.beginPath();
+    ctx.moveTo(-15.5 * s, shY - 1 * s);
+    ctx.quadraticCurveTo(-20 * s, shY - 5 * s, -18.5 * s, shY - 11 * s);
+    ctx.stroke();
+    ctx.strokeStyle = outline; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-15.5 * s, shY - 1 * s);
+    ctx.quadraticCurveTo(-20 * s, shY - 5 * s, -18.5 * s, shY - 11 * s);
+    ctx.stroke();
+    if (plates === 2 && e.armor < e.maxArmor) {
+      ctx.strokeStyle = outline; ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-15 * s, shY - 1 * s); ctx.lineTo(-10 * s, shY + 4 * s);
+      ctx.stroke();
+    }
+  } else {
+    ctx.strokeStyle = skinDeep; ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-15 * s, shY); ctx.lineTo(-10 * s, shY + 5 * s);
+    ctx.moveTo(-10 * s, shY); ctx.lineTo(-15 * s, shY + 5 * s);
+    ctx.stroke();
+  }
+  // spiked silver pauldron (chips when plates < 1)
+  if (plates >= 1) {
+    ctx.fillStyle = steelBlue; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
+    strokeFill(() => {
+      ctx.beginPath();
+      ctx.moveTo(7.5 * s, shY - 1 * s);
+      ctx.lineTo(17 * s, shY - 2.5 * s);
+      ctx.lineTo(18.5 * s, shY + 5 * s);
+      ctx.lineTo(9 * s, shY + 7 * s);
+      ctx.closePath();
+    });
+    ctx.fillStyle = flash ? '#fff' : '#c8d4e4';
+    ctx.fillRect(10 * s, shY + 0.5 * s, 6 * s, 1.6);
+    // 3 bold spikes on metal pauldron (grit cue)
+    ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
+    for (const [px, py] of [[11.5, -2.2], [14.5, -3.2], [17.2, -1.5]]) {
+      strokeFill(() => {
+        ctx.beginPath();
+        ctx.moveTo(px * s, shY + py * s);
+        ctx.lineTo((px + 1.1) * s, shY + (py - 4.2) * s);
+        ctx.lineTo((px + 2.2) * s, shY + py * s);
+        ctx.closePath();
+      });
+    }
+    if (plates === 1 && e.armor < e.maxArmor) {
+      ctx.strokeStyle = outline; ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(9 * s, shY); ctx.lineTo(16 * s, shY + 5 * s);
+      ctx.stroke();
+    }
+  } else {
+    ctx.strokeStyle = skinDeep; ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(9 * s, shY); ctx.lineTo(16 * s, shY + 5 * s);
+    ctx.moveTo(16 * s, shY); ctx.lineTo(9 * s, shY + 5 * s);
+    ctx.stroke();
+  }
+
+  // ---- CHEST STRAPS (armorCrack plates 3–4) ----
   if (e.maxArmor) {
-    const plates = e.armor > 0 ? e.armorCrack : 0;
     const spots = [
-      [-8.5, -25, 7, 5.2],
-      [1.8, -25, 7, 5.2],
-      [-7, -18.2, 14, 4.8],
-      [-5.5, -12, 11, 4.2],
+      [-7.5, -22, 6.5, 3.6],
+      [1.2, -22, 6.5, 3.6],
     ];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 2; i++) {
+      const need = i + 3; // plate thresholds 3 and 4
       const [px, py, pw, ph] = spots[i];
       const x = px * s, y = py * s, w = pw * s, h = ph * s;
-      if (i < plates) {
+      if (plates >= need) {
         ctx.fillStyle = steel; ctx.strokeStyle = steelEdge; ctx.lineWidth = OL;
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
         ctx.fillStyle = flash ? '#fff' : '#c8d2e0';
-        ctx.fillRect(x + 2, y + 2, w - 4, 1.8);
-        if (i === plates - 1 && e.armor < e.maxArmor) {
+        ctx.fillRect(x + 2, y + 1.5, w - 4, 1.5);
+        if (plates === need && e.armor < e.maxArmor) {
           ctx.strokeStyle = outline; ctx.lineWidth = 1.6;
           ctx.beginPath();
-          ctx.moveTo(x + 2, y + 2);
-          ctx.lineTo(x + w * 0.55, y + h * 0.6);
-          ctx.lineTo(x + w * 0.35, y + h - 2);
+          ctx.moveTo(x + 2, y + 1); ctx.lineTo(x + w * 0.6, y + h - 1);
           ctx.stroke();
         }
       } else {
-        ctx.strokeStyle = skinDeep; ctx.lineWidth = 2.2;
+        ctx.strokeStyle = skinDeep; ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(x + 2, y + 2); ctx.lineTo(x + w - 2, y + h - 2);
-        ctx.moveTo(x + w - 2, y + 2); ctx.lineTo(x + 2, y + h - 2);
+        ctx.moveTo(x + 1, y + 1); ctx.lineTo(x + w - 1, y + h - 1);
+        ctx.moveTo(x + w - 1, y + 1); ctx.lineTo(x + 1, y + h - 1);
         ctx.stroke();
       }
     }
@@ -3445,15 +3487,26 @@ function drawWarlord(e, alpha) {
     ctx.ellipse(ox + earDir * 0.6 * s, headY - 2.2 * s, hr * 0.7, hr * 0.28, earDir * 0.15, 0, TAU);
     ctx.fill();
 
-    // glowing red eye
+    // scar on left head only (grit cue)
+    if (off < 0) {
+      ctx.strokeStyle = skinDeep; ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(ox - 1.2 * s, headY - 4.5 * s);
+      ctx.lineTo(ox + 0.8 * s, headY + 1.2 * s);
+      ctx.stroke();
+    }
+
+    // amber/yellow glowing eyes (portrait detail cue — original orbs)
     const ex = ox + earDir * 0.9 * s, ey = headY - 0.3 * s;
     const er = 2.5 * s * pulse;
-    ctx.fillStyle = '#ff1e14';
-    ctx.shadowColor = '#ff2a1f'; ctx.shadowBlur = 12;
+    ctx.fillStyle = '#ffd428';
+    ctx.shadowColor = '#ffb000'; ctx.shadowBlur = 12;
     ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#ffc9c4';
+    ctx.fillStyle = '#fff6c8';
     ctx.beginPath(); ctx.arc(ex - 0.5 * s, ey - 0.5 * s, er * 0.3, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#2a1808';
+    ctx.beginPath(); ctx.arc(ex + 0.15 * s, ey + 0.15 * s, er * 0.28, 0, TAU); ctx.fill();
     ctx.strokeStyle = outline; ctx.lineWidth = 1.8;
     ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.stroke();
 

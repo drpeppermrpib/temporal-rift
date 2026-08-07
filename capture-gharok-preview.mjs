@@ -10,7 +10,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const GAME_URL = 'http://127.0.0.1:8322/index.html';
 const DBG_PORT = 9341;
 const OUT = join(__dirname, 'rollouts', 'gharok-2.8.3-preview.png');
-const OUT_CLEAN = join(__dirname, 'rollouts', 'gharok-clean-preview.png');
 const OUT_ROOT = join(__dirname, 'gharok-2.8.3-preview.png');
 
 const EDGE_PATHS = [
@@ -149,7 +148,6 @@ try {
   })()`);
 
   await screenshot(OUT);
-  await screenshot(OUT_CLEAN);
   await screenshot(OUT_ROOT);
   console.log('done');
   process.exitCode = 0;

@@ -411,9 +411,38 @@
 <div id="vendor" class="overlay hidden">
   <div class="panel" style="background:var(--panel);border:1px solid rgba(255,213,74,.45);border-radius:16px;padding:20px 24px;max-width:640px;width:94vw;max-height:92vh;overflow-y:auto;touch-action:pan-y">
     <h2 style="color:var(--gold);letter-spacing:2px;font-size:21px;margin-bottom:3px">🜚 MERCHANT VEX — Northreach trading post</h2>
-    <p class="cores" style="color:var(--cyan);margin-bottom:14px;font-size:14px">Energy cores: <b id="vendorCores"></b> · <em id="vexQuip" style="color:#9fb2c9;font-style:italic"></em></p>
+    <p class="cores" style="color:var(--cyan);margin-bottom:14px;font-size:14px">Energy cores: <b id="vendorCores"></b> · Aether: <b id="vendorAether"></b> · <em id="vexQuip" style="color:#9fb2c9;font-style:italic"></em></p>
     <div class="shopgrid" id="vendorGrid"></div>
     <button class="big" id="closeVendorBtn">LEAVE</button>
+  </div>
+</div>
+
+<div id="infirmary" class="overlay hidden">
+  <div class="panel" style="background:var(--panel);border:1px solid rgba(77,225,255,.45);border-radius:16px;padding:20px 24px;max-width:640px;width:94vw;max-height:92vh;overflow-y:auto;touch-action:pan-y">
+    <h2 style="color:var(--cyan);letter-spacing:2px;font-size:21px;margin-bottom:3px">✧ AETHER INFIRMARY — Emberfall Camp</h2>
+    <p class="cores" style="color:var(--cyan);margin-bottom:14px;font-size:14px">Spend current aether: <b id="infAether"></b> ◈ · mid-run mend &amp; squad revive</p>
+    <div class="shopgrid" id="infirmaryGrid"></div>
+    <button class="big" id="closeInfirmaryBtn">LEAVE</button>
+  </div>
+</div>
+
+<div id="riftNet" class="overlay hidden">
+  <div class="panel" style="background:var(--panel);border:1px solid rgba(77,225,255,.5);border-radius:16px;padding:20px 24px;max-width:560px;width:94vw;max-height:92vh;overflow-y:auto;touch-action:pan-y">
+    <h2 style="color:var(--cyan);letter-spacing:2px;font-size:20px;margin-bottom:6px">◎ RIFTWARDEN KAEL — Co-op link</h2>
+    <p id="riftNetStatus" style="color:#9fb2c9;font-size:13px;line-height:1.45;margin-bottom:12px;text-align:left">…</p>
+    <label style="display:block;text-align:left;font-size:12px;color:#8fa3bd;margin-bottom:4px">Passkey</label>
+    <input id="riftNetKey" maxlength="6" autocomplete="off" spellcheck="false"
+      style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(77,225,255,.35);background:#0a1220;color:#e8f2ff;font-size:18px;letter-spacing:4px;text-align:center;text-transform:uppercase;margin-bottom:12px;touch-action:manipulation" />
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:10px">
+      <button class="big" id="riftNetCreateBtn" style="font-size:15px;padding:10px 18px">CREATE ROOM</button>
+      <button class="big" id="riftNetJoinBtn" style="font-size:15px;padding:10px 18px;border-color:var(--green)">JOIN ROOM</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:10px">
+      <button class="big" id="riftNetReviveBtn" style="font-size:14px;padding:9px 14px;border-color:#ffd54a">PING REVIVE</button>
+      <button class="big" id="riftNetDisconnectBtn" style="font-size:14px;padding:9px 14px;border-color:#ff8a93">DISCONNECT</button>
+    </div>
+    <p style="font-size:11px;color:#6f8199;line-height:1.4;margin-bottom:12px;text-align:left">Foundation: PeerJS P2P syncs ally avatar position/HP/wave + revive pings. Full combat sync deferred — enemies stay local. Needs network; offline shows a clear message (no crash).</p>
+    <button class="big" id="riftNetCloseBtn">LEAVE</button>
   </div>
 </div>
 
@@ -429,7 +458,7 @@
 <div id="shop" class="overlay hidden">
   <div class="panel">
     <h2>⬡ VANGUARD FIELD LAB — Wave <span id="shopWave"></span> cleared</h2>
-    <p class="cores">Energy cores: <b id="shopCores"></b> · Rift reopens in <b id="shopTimer"></b>s
+    <p class="cores">Energy cores: <b id="shopCores"></b> · Aether: <b id="shopAether"></b> ◈ · Rift reopens in <b id="shopTimer"></b>s
       &nbsp;·&nbsp; <a href="#" id="openTreeLink" style="color:#ff6bd8">open skill tree ✦</a></p>
     <div class="shopgrid" id="shopGrid"></div>
     <button class="big" id="nextWaveBtn">NEXT WAVE ➤</button>
@@ -452,6 +481,7 @@
      build swaps this to 'play' at build time (build-all.ps1) so the Play app
      never offers out-of-store updates (Play policy). -->
 <script>window.TR_CHANNEL='github';</script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

@@ -60,6 +60,33 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.9.0 (Aether recovery, fortify links, Riftnet co-op)
+
+- **Aether Infirmary** — spend **current aether** (not cores) for mid-run recovery:
+  **Aether Mend** restores a HP chunk with cost scaling to missing HP
+  (`max(10, ceil(missing×0.30))` aether → ~38% max-HP heal), and **Revive**
+  pulls a downed companion back at 65% HP (Rover 20 / Scout 24 / Warden 28
+  aether). Available in the field lab, Merchant Vex, and Bramm’s camp
+  infirmary when you’re hurt or a squadmate is down. Wave-end auto-revive
+  still free. Nothing weird is persisted — just spend current aether.
+- **Companion durability** — Rover **185** HP (was 90), Scout **165**, Warden
+  **300**; near-player damage reduction (~42% within 115px); Rover plating;
+  lower melee splash on non-Wardens; **only Warden** body-blocks enemy fire.
+- **Barricade fortify links** — place posts adjacent (gap ≥52, link ≤86) to
+  **double radius** and gain **1.8× / 2.2× HP** with cyan link beams +
+  `LINK×N` label. Smash damage reduced when linked. **Fence Grid** now
+  **5 tiers** (shield membrane → fortress pulse); **Sentry** **4 tiers**
+  (overcharge chips armor).
+- **Gharok knockback mass** — light rifle ticks barely shove him; heavy hits
+  / accumulated damage still push. Extra velocity drag on the warlord.
+- **Endless** — wave 15 victory still offers CONTINUE; no hard ending added.
+- **Texture polish** — tent weave/guy-lines/banners, campfire moss, player
+  harness stitches, husk scar flecks (procedural, cheap).
+- **Riftwarden Kael (co-op foundation)** — camp NPC opens **Create/Join room**
+  with a 4-char passkey via **PeerJS**. Syncs ally avatar position/HP/wave +
+  revive pings. Enemies stay local (full combat sync deferred). Offline /
+  missing PeerJS shows a clear message — no Capacitor crash.
+
 ### New in Release 2.8.7 (Sound engine + world sprites)
 
 - **Sound engine** — shared lazy `AudioContext` with Master / SFX / Music buses,
@@ -350,8 +377,9 @@ Here is the tightened, buildable version:
 > Android; procedural art only (no licensed assets); 60 fps target on mid-range phones;
 > landscape layout; all UI reachable by thumbs.
 >
-> **v2 scope cuts.** Vehicles, co-op, procedural rift dungeons, cosmetics — only after
-> the loop proves fun.
+> **v2 scope cuts.** Vehicles, full combat co-op sync, procedural rift dungeons,
+> cosmetics — only after the loop proves fun. (v2.9 ships Riftnet lobby + avatar sync.)
+
 
 Key fixes vs. the original prompt: original IP replaces copyrighted names (required to
 ship), "reinforcement learning" became a concrete resistance formula, Skyrim's

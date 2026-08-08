@@ -275,7 +275,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.8.7';
+const APP_VERSION = '2.9.0';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -978,27 +978,30 @@ let shopTimer = 0, victoryShown = false;
 let waveCatsUsed = new Set(); // for the "Adaptive Doctrine" quest
 let chest = null;             // end-of-wave supply cache {x,y,t}
 let graceT = 0;               // looting window between wave end and shop
-let barricades = [];          // player-built energy fences {x,y,r,hp,maxHp}
+let barricades = [];          // player-built energy fences {x,y,r,hp,maxHp,baseHp,neighbors}
 let pulseCd = 0;              // cooldown for the barricade exit-blast
 const BARRICADE_MAX = 8, BARRICADE_COST = 3, BARRICADE_HP = 160;
-// fence grid tier (upgrades every barricade): 1 = stock energy fence,
-// 2 = reinforced posts + slows enemies grinding on the boundary,
-// 3 = electrified: small zap damage-over-time to enemies in contact
+const BARRICADE_BASE_R = 34;
+const BARRICADE_LINK_DIST = 86; // centers within this count as adjacent (linked)
+const BARRICADE_MIN_GAP = 52;   // allow closer placement so posts can touch/link
+// fence grid tier (upgrades every barricade): 1 = stock · 2 = slow · 3 = zap ·
+// 4 = shield membrane (less smash damage) · 5 = fortress pulse (stronger zap)
 let fenceTier = 1;
-const FENCE_MAX_TIER = 3, FENCE_COSTS = [150, 400]; // cores to reach tier 2 / 3
+const FENCE_MAX_TIER = 5, FENCE_COSTS = [120, 280, 450, 700]; // cores → tiers 2..5
 const FENCE_SLOW = 0.55;                            // speed mult while touching (tier 2+)
-const fenceZapDps = () => 6 + wave * 0.5;           // tier 3 contact damage/sec
+const fenceZapDps = () => (6 + wave * 0.5) * (fenceTier >= 5 ? 1.65 : 1);
 
-// ---------- sentry turrets (v2.8) ----------
+// ---------- sentry turrets (v2.8 / expanded v2.9) ----------
 // The Sentry Uplink mounts an auto-targeting gun on EVERY barricade you build
 // (fence-post mounting was chosen over free placement: barricades already give
 // the player positioning control, enemy aggro and rendering — no new UI).
-// Tier 1: single barrel · Tier 2: +fire rate +range +antenna · Tier 3: dual barrels.
+// Tier 1: single barrel · Tier 2: +fire rate +range +antenna · Tier 3: dual barrels
+// · Tier 4: overcharged bolts (+dmg, light armor chip).
 let sentryTier = 0, sbolts = [];
-const SENTRY_MAX_TIER = 3, SENTRY_COSTS = [200, 350, 550];
+const SENTRY_MAX_TIER = 4, SENTRY_COSTS = [180, 320, 500, 750];
 const sentryRange    = () => sentryTier >= 2 ? 340 : 260;
-const sentryInterval = () => sentryTier >= 2 ? 0.55 : 0.85;
-const sentryDamage   = () => 7 + wave * 0.5;
+const sentryInterval = () => sentryTier >= 4 ? 0.42 : sentryTier >= 2 ? 0.55 : 0.85;
+const sentryDamage   = () => (7 + wave * 0.5) * (sentryTier >= 4 ? 1.45 : 1);
 
 // =========================== PLAYER ===============================
 const player = {};
@@ -1137,6 +1140,23 @@ function chipArmor(e, hit) {
   return 0.5;
 }
 
+// knockback with boss mass resistance (v2.9): light rifle ticks barely skate
+// Gharok; heavy hits / accumulated damage still shove. Non-bosses unchanged.
+function applyKnock(e, kbx, kby, kb, hitDmg) {
+  if (!kb || (!kbx && !kby)) return;
+  if (!e.boss) { e.vx += kbx * kb; e.vy += kby * kb; return; }
+  e.kbPool = (e.kbPool || 0) + hitDmg;
+  const mass = 16;
+  let force = kb / mass;
+  if (hitDmg < 18) force *= 0.12;       // pulse-rifle ticks
+  else if (hitDmg < 35) force *= 0.32;  // medium hits
+  else force *= 0.55;                   // nova / grenade / gusher
+  if (e.kbPool < 90 && hitDmg < 40) force *= 0.22; // need a shove threshold
+  if (e.kbPool >= 90) e.kbPool = 0;
+  e.vx += kbx * force;
+  e.vy += kby * force;
+}
+
 function dealDamage(e, dmg, cat, kbx, kby, kb) {
   if (e.invulnT > 0) return; // emerging skeletons can't be hit yet
   const res = resistance(cat);
@@ -1146,7 +1166,7 @@ function dealDamage(e, dmg, cat, kbx, kby, kb) {
   final *= chipArmor(e, final);
   e.hp -= final;
   e.flash = 0.12;
-  if (kb) { e.vx += kbx * kb; e.vy += kby * kb; }
+  applyKnock(e, kbx, kby, kb, final);
   if (settings.dmgText)
     addFloater(e.x, e.y - e.r * 2.4, Math.round(final), res > 0.3 ? '#ff8a93' : '#fff', res > 0.3);
   player.ki = clamp(player.ki + final * 0.045, 0, maxKi());
@@ -1161,7 +1181,7 @@ function directDamage(e, dmg, kbx, kby, kb) {
   let final = dmg * chipArmor(e, dmg);
   e.hp -= final;
   e.flash = 0.12;
-  if (kb) { e.vx += kbx * kb; e.vy += kby * kb; }
+  applyKnock(e, kbx, kby, kb, final);
   if (e.hp <= 0 && !e.dead) killEnemy(e);
 }
 
@@ -1174,9 +1194,9 @@ function directDamage(e, dmg, kbx, kby, kb) {
 // can be downed and revive automatically at wave end. Combined DPS is
 // tuned to ~40-45% of the player's at equal progression.
 const COMP_TYPES = {
-  rover:  { name: 'Rover',  desc: 'Robot dog: plasma-bite melee, fetches loose cores back to you',            cost: 300, hp: 90,  spd: 305, range: 480, dmg: 10, atk: 0.9 },
-  warden: { name: 'Warden', desc: 'Combat android: arm pulse-cannon, tanky, nearby enemies attack it first',  cost: 500, hp: 240, spd: 205, range: 430, dmg: 9,  atk: 1.15 },
-  scout:  { name: 'Scout',  desc: 'Ranger: piercing tech-crossbow bolts, periodically drops med/energy packs', cost: 800, hp: 120, spd: 255, range: 540, dmg: 8,  atk: 1.35 },
+  rover:  { name: 'Rover',  desc: 'Robot dog: plasma-bite melee, fetches loose cores back to you',            cost: 300, hp: 185, spd: 305, range: 480, dmg: 10, atk: 0.9 },
+  warden: { name: 'Warden', desc: 'Combat android: arm pulse-cannon, tanky, nearby enemies attack it first',  cost: 500, hp: 300, spd: 205, range: 430, dmg: 9,  atk: 1.15 },
+  scout:  { name: 'Scout',  desc: 'Ranger: piercing tech-crossbow bolts, periodically drops med/energy packs', cost: 800, hp: 165, spd: 255, range: 540, dmg: 8,  atk: 1.35 },
 };
 // mini skill trees — ranks live in skillRanks, so they ride the existing
 // skill-point economy AND the existing save snapshot for free
@@ -1239,8 +1259,11 @@ function buyCompanion(k) {
 }
 function hurtCompanion(c, dmg) {
   if (c.downed || c.hurtT > 0) return;
+  // near-player DR (v2.9): stick close to the Vanguard for a shield aura
+  if (dist2(c.x, c.y, player.x, player.y) < 115 * 115) dmg *= 0.58;
+  if (c.type === 'rover') dmg *= 0.82; // dog plating buff
   c.hp -= dmg;
-  c.hurtT = 0.5;
+  c.hurtT = 0.72;
   spawnParticles(c.x, c.y - 10, 6, '#ff8a93', 3);
   if (c.hp <= 0) {
     c.hp = 0;
@@ -1549,7 +1572,9 @@ function gainXp(n) {
 const NPC  = { x: CAMP.x + 80, y: CAMP.y - 30, r: 14, name: 'Quartermaster Bramm', role: 'quest' };
 const VEX  = { x: FORT.x + FORT.w / 2, y: FORT.y + FORT.h / 2, r: 14, name: 'Merchant Vex', role: 'vendor' };
 const MIRA = { x: ASH.x + ASH.w / 2, y: ASH.y + ASH.h / 2, r: 14, name: 'Scout Mira', role: 'lore' };
-const NPCS = [NPC, VEX, MIRA];
+// Riftwarden Kael — original camp NPC who opens co-op rift rooms (v2.9)
+const RIFTWARDEN = { x: CAMP.x - 95, y: CAMP.y + 45, r: 14, name: 'Riftwarden Kael', role: 'riftnet' };
+const NPCS = [NPC, VEX, MIRA, RIFTWARDEN];
 function nearestNpc() {
   let best = null, bd = 110 * 110;
   for (const n of NPCS) {
@@ -1656,11 +1681,17 @@ function questEvent(kind, data) {
 }
 
 function tryTalk() {
-  if (state !== 'playing' || dialogOpen || vendorOpen || settingsOpen) return;
+  if (state !== 'playing' || dialogOpen || vendorOpen || settingsOpen || riftNetOpen) return;
   const npc = nearestNpc();
   if (!npc) return;
   if (npc.role === 'vendor') { openVendor(); return; }
   if (npc.role === 'lore') { talkMira(); return; }
+  if (npc.role === 'riftnet') { openRiftNet(); return; }
+  // Bramm: if wounded / squad downed, offer aether infirmary first (mid-run recovery)
+  if (npc.role === 'quest' && (player.hp < maxHp() * 0.92 || companions.some(c => c.downed))) {
+    openInfirmary();
+    return;
+  }
   if (questIdx >= QUESTS.length) {
     openDialog(NPC.name, ['The rift is sealed and still you patrol… Rest, legend. Emberfall owes you everything.']);
     return;
@@ -1685,6 +1716,7 @@ function tryTalk() {
       "Still breathing? Keep it that way. " + q.hud + '.',
       "The engine is watching you, Vanguard. " + q.hud + '.',
       "Emberfall holds — barely. " + q.hud + '.',
+      "Need a mend? Spend aether at my infirmary anytime you're hurt or a squadmate is down.",
     ])]);
   }
 }
@@ -1725,6 +1757,128 @@ const VEX_QUIPS = [
   '"Riftsteel! Barely used. Previous owner has no further need of it."',
   '"You break it, you bought it. The zombies broke everything."',
 ];
+
+// ---------- Aether Infirmary (v2.9): spend CURRENT aether for heal / revive ----------
+// Mid-run recovery is possible but not free — cost scales with missing HP / per ally.
+function aetherHealAmount() {
+  const miss = Math.max(0, Math.ceil(maxHp() - player.hp));
+  if (miss <= 0) return 0;
+  return Math.min(miss, Math.max(28, Math.ceil(maxHp() * 0.38)));
+}
+function aetherHealCost() {
+  const miss = Math.max(0, Math.ceil(maxHp() - player.hp));
+  if (miss <= 0) return 10;
+  return Math.max(10, Math.ceil(miss * 0.30));
+}
+function aetherReviveCost(type) {
+  if (type === 'rover') return 20;
+  if (type === 'warden') return 28;
+  return 24; // scout
+}
+function buyAetherHeal() {
+  if (player.hp >= maxHp()) return false;
+  const cost = aetherHealCost(), amt = aetherHealAmount();
+  if (player.ki < cost) return false;
+  player.ki -= cost;
+  player.hp = Math.min(maxHp(), player.hp + amt);
+  spawnParticles(player.x, player.y, 16, '#7CFC00', 3);
+  addFloater(player.x, player.y - 42, `+${amt} HP (−${cost} aether)`, '#7CFC00', true);
+  sfx.play('click');
+  return true;
+}
+function buyAetherRevive(type) {
+  const c = companions.find(x => x.type === type && x.downed);
+  if (!c) return false;
+  const cost = aetherReviveCost(type);
+  if (player.ki < cost) return false;
+  player.ki -= cost;
+  c.downed = false;
+  c.hp = Math.ceil(c.maxHp * 0.65);
+  c.hurtT = 0.8;
+  spawnParticles(c.x, c.y, 18, '#4de1ff', 4);
+  addFloater(c.x, c.y - 34, COMP_TYPES[type].name.toUpperCase() + ' REVIVED', '#4de1ff', true);
+  sfx.play('click');
+  return true;
+}
+function appendAetherShopItems(grid, coresEl) {
+  // Heal chunk — spend aether (ki), not cores
+  const miss = maxHp() - player.hp;
+  const hCost = aetherHealCost(), hAmt = aetherHealAmount();
+  const hOk = miss >= 1 && player.ki >= hCost;
+  const hDiv = document.createElement('div');
+  hDiv.className = 'shopitem' + (hOk ? '' : ' maxed');
+  hDiv.innerHTML = `<h4>✧ Aether Mend<span class="lvl" style="color:var(--cyan)">AETHER</span></h4>
+    <small>Restore ${Math.round(hAmt)} HP (scales with wounds). Mid-run recovery — not free.</small>
+    <div class="price" style="color:var(--cyan)">◈ ${hCost} aether${miss < 1 ? ' · full' : player.ki < hCost ? ' · need more' : ''}</div>`;
+  if (hOk) hDiv.onclick = () => { if (!buyAetherHeal()) flashNeed(coresEl); else { if (typeof renderShop === 'function' && state === 'shop') renderShop(); if (vendorOpen) renderVendor(); if (infirmaryOpen) renderInfirmary(); } };
+  grid.appendChild(hDiv);
+  // Per-companion revive
+  for (const c of companions.filter(x => x.downed)) {
+    const cost = aetherReviveCost(c.type);
+    const ok = player.ki >= cost;
+    const div = document.createElement('div');
+    div.className = 'shopitem' + (ok ? '' : ' maxed');
+    div.innerHTML = `<h4>✧ Revive ${COMP_TYPES[c.type].name}<span class="lvl" style="color:var(--cyan)">AETHER</span></h4>
+      <small>Pull ${COMP_TYPES[c.type].name} back up at 65% HP. Auto-revive still free at wave end.</small>
+      <div class="price" style="color:var(--cyan)">◈ ${cost} aether${ok ? '' : ' · need more'}</div>`;
+    if (ok) div.onclick = () => {
+      if (!buyAetherRevive(c.type)) flashNeed(coresEl);
+      else { if (state === 'shop') renderShop(); if (vendorOpen) renderVendor(); if (infirmaryOpen) renderInfirmary(); }
+    };
+    grid.appendChild(div);
+  }
+}
+function flashNeed(el) {
+  if (!el) return;
+  el.style.color = '#ff4d5e';
+  setTimeout(() => { el.style.color = ''; }, 300);
+}
+
+let infirmaryOpen = false;
+function openInfirmary() {
+  infirmaryOpen = true;
+  $('infirmary').classList.remove('hidden');
+  renderInfirmary();
+}
+function renderInfirmary() {
+  $('infAether').textContent = Math.floor(player.ki);
+  const grid = $('infirmaryGrid');
+  grid.innerHTML = '';
+  appendAetherShopItems(grid, $('infAether'));
+  const talk = document.createElement('div');
+  talk.className = 'shopitem';
+  talk.innerHTML = `<h4>Speak with Bramm</h4><small>Quest briefings and turn-ins.</small><div class="price">tap</div>`;
+  talk.onclick = () => {
+    closeInfirmary();
+    const q = QUESTS[questIdx];
+    if (questIdx >= QUESTS.length) {
+      openDialog(NPC.name, ['The rift is sealed and still you patrol… Rest, legend. Emberfall owes you everything.']);
+    } else if (questStage === 'offer') {
+      openDialog(NPC.name, q.intro, () => {
+        questStage = 'active'; questProgress = 0;
+        if (q.type === 'wave') questProgress = wave;
+        showChapter(q.chapter, q.chapterName);
+        updateQuestHud();
+      });
+    } else if (questStage === 'turnin') {
+      openDialog(NPC.name, q.done, () => {
+        if (q.reward.cores) { cores += q.reward.cores; totalCores += q.reward.cores; addFloater(player.x, player.y - 40, `+${q.reward.cores} ⬡`, '#4de1ff', true); }
+        if (q.reward.sp) { player.sp += q.reward.sp; addFloater(player.x, player.y - 40, `+${q.reward.sp} SKILL POINT ✦`, '#ff6bd8', true); }
+        questIdx++; questStage = 'offer'; questProgress = 0;
+        updateQuestHud();
+      });
+    } else {
+      openDialog(NPC.name, [randFrom([
+        "Still breathing? Keep it that way. " + q.hud + '.',
+        "The engine is watching you, Vanguard. " + q.hud + '.',
+        "Emberfall holds — barely. " + q.hud + '.',
+      ])]);
+    }
+  };
+  grid.appendChild(talk);
+}
+function closeInfirmary() { infirmaryOpen = false; $('infirmary').classList.add('hidden'); }
+
 function vendorItems() {
   const armor = gear.find(u => u.id === 'armor');
   return [
@@ -1742,15 +1896,17 @@ function openVendor() {
 }
 function renderVendor() {
   $('vendorCores').textContent = cores;
+  if ($('vendorAether')) $('vendorAether').textContent = Math.floor(player.ki);
   const grid = $('vendorGrid');
   grid.innerHTML = '';
+  appendAetherShopItems(grid, $('vendorAether') || $('vendorCores'));
   for (const it of vendorItems()) {
     const usable = it.can();
     const div = document.createElement('div');
     div.className = 'shopitem' + (usable ? '' : ' maxed');
     div.innerHTML = `<h4>${it.name}</h4><small>${it.desc}</small><div class="price">⬡ ${it.cost}</div>`;
     if (usable) div.onclick = () => {
-      if (cores < it.cost) { $('vendorCores').style.color = '#ff4d5e'; setTimeout(() => $('vendorCores').style.color = '', 300); return; }
+      if (cores < it.cost) { flashNeed($('vendorCores')); return; }
       cores -= it.cost;
       it.buy();
       spawnParticles(player.x, player.y, 14, '#ffd54a', 3);
@@ -1760,6 +1916,166 @@ function renderVendor() {
   }
 }
 $('closeVendorBtn').onclick = () => { vendorOpen = false; $('vendor').classList.add('hidden'); };
+if ($('closeInfirmaryBtn')) $('closeInfirmaryBtn').onclick = () => closeInfirmary();
+
+// =================== RIFTNET CO-OP (v2.9 PeerJS foundation) ===================
+// Working lobby: Create/Join with short passkey, sync peer avatars (pos/HP) +
+// shared wave number, revive requests. Host-authoritative enemies deferred.
+// Offline / missing PeerJS: graceful message, no crash (Capacitor-safe).
+let riftNetOpen = false;
+const riftNet = {
+  role: null,       // 'host' | 'guest' | null
+  passkey: '',
+  peer: null,
+  conn: null,
+  status: 'idle',
+  remotes: {},      // peerId -> {x,y,hp,maxHp,name,wave,t}
+  lastSend: 0,
+};
+function makePasskey() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 4; i++) s += alphabet[(Math.random() * alphabet.length) | 0];
+  return s;
+}
+function peerIdFromKey(key) { return 'tr29-' + String(key || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); }
+function riftNetOnline() {
+  try { return typeof navigator === 'undefined' || navigator.onLine !== false; } catch (e) { return true; }
+}
+function riftNetPeerOk() { return typeof Peer !== 'undefined'; }
+function setRiftNetStatus(msg, ok) {
+  const el = $('riftNetStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok === false ? '#ff8a93' : ok === true ? '#7CFC00' : '#9fb2c9';
+}
+function openRiftNet() {
+  riftNetOpen = true;
+  $('riftNet').classList.remove('hidden');
+  $('riftNetKey').value = riftNet.passkey || '';
+  if (!riftNetOnline()) setRiftNetStatus('No network — co-op needs an internet connection.', false);
+  else if (!riftNetPeerOk()) setRiftNetStatus('PeerJS failed to load. Check network / CDN, then reopen.', false);
+  else if (riftNet.status === 'connected') setRiftNetStatus(`Connected as ${riftNet.role} · room ${riftNet.passkey}`, true);
+  else setRiftNetStatus('Create a room (host) or join with a passkey. Syncs positions, HP, wave & revive pings — combat stays local/host-side for now.', null);
+}
+function closeRiftNet() { riftNetOpen = false; $('riftNet').classList.add('hidden'); }
+function destroyRiftNet() {
+  try { if (riftNet.conn) riftNet.conn.close(); } catch (e) {}
+  try { if (riftNet.peer) riftNet.peer.destroy(); } catch (e) {}
+  riftNet.peer = null; riftNet.conn = null; riftNet.role = null;
+  riftNet.status = 'idle'; riftNet.remotes = {};
+}
+function wireRiftConn(conn) {
+  riftNet.conn = conn;
+  conn.on('open', () => {
+    riftNet.status = 'connected';
+    setRiftNetStatus(`Linked! Room ${riftNet.passkey} · you are ${riftNet.role}`, true);
+    addFloater(player.x, player.y - 50, 'RIFT LINK ONLINE', '#4de1ff', true);
+  });
+  conn.on('data', (data) => {
+    if (!data || typeof data !== 'object') return;
+    if (data.t === 'state') {
+      riftNet.remotes[data.id || conn.peer] = {
+        x: data.x, y: data.y, hp: data.hp, maxHp: data.maxHp,
+        name: data.name || 'Vanguard', wave: data.wave, t: performance.now(),
+      };
+    } else if (data.t === 'reviveReq') {
+      addFloater(player.x, player.y - 48, 'ALLY NEEDS REVIVE!', '#ffd54a', true);
+      banner('RIFT PING', 'Ally requested revive support');
+      // host can spend aether to send a remote heal pulse
+      if (riftNet.role === 'host' && player.ki >= 18) {
+        player.ki -= 18;
+        try { conn.send({ t: 'reviveAck', heal: 40 }); } catch (e) {}
+        addFloater(player.x, player.y - 60, 'SENT REVIVE PULSE (−18 aether)', '#7CFC00', true);
+      }
+    } else if (data.t === 'reviveAck') {
+      player.hp = Math.min(maxHp(), player.hp + (data.heal || 35));
+      spawnParticles(player.x, player.y, 20, '#7CFC00', 4);
+      addFloater(player.x, player.y - 44, 'ALLY REVIVE PULSE', '#7CFC00', true);
+    } else if (data.t === 'wave') {
+      // presence only — do not force wave changes on guest
+    }
+  });
+  conn.on('close', () => {
+    riftNet.status = 'idle';
+    setRiftNetStatus('Link closed.', false);
+    riftNet.conn = null;
+  });
+  conn.on('error', (err) => setRiftNetStatus('Link error: ' + (err && err.type || 'unknown'), false));
+}
+function riftNetCreate() {
+  if (!riftNetOnline()) { setRiftNetStatus('Need network to host a rift room.', false); return; }
+  if (!riftNetPeerOk()) { setRiftNetStatus('PeerJS unavailable offline / CDN blocked.', false); return; }
+  destroyRiftNet();
+  const key = makePasskey();
+  riftNet.passkey = key;
+  riftNet.role = 'host';
+  $('riftNetKey').value = key;
+  setRiftNetStatus('Opening host peer…', null);
+  try {
+    const peer = new Peer(peerIdFromKey(key), { debug: 0 });
+    riftNet.peer = peer;
+    peer.on('open', () => setRiftNetStatus(`Room ${key} live — share this passkey. Waiting for ally…`, true));
+    peer.on('connection', (conn) => wireRiftConn(conn));
+    peer.on('error', (err) => {
+      setRiftNetStatus('Host error: ' + (err && err.type || 'failed') + (err.type === 'unavailable-id' ? ' — try Create again' : ''), false);
+    });
+  } catch (e) {
+    setRiftNetStatus('Could not create room (network?).', false);
+  }
+}
+function riftNetJoin() {
+  if (!riftNetOnline()) { setRiftNetStatus('Need network to join a rift room.', false); return; }
+  if (!riftNetPeerOk()) { setRiftNetStatus('PeerJS unavailable offline / CDN blocked.', false); return; }
+  const key = ($('riftNetKey').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  if (key.length < 4) { setRiftNetStatus('Enter the 4-character passkey.', false); return; }
+  destroyRiftNet();
+  riftNet.passkey = key;
+  riftNet.role = 'guest';
+  setRiftNetStatus('Connecting to host…', null);
+  try {
+    const peer = new Peer({ debug: 0 });
+    riftNet.peer = peer;
+    peer.on('open', () => {
+      const conn = peer.connect(peerIdFromKey(key), { reliable: true });
+      wireRiftConn(conn);
+    });
+    peer.on('error', (err) => setRiftNetStatus('Join error: ' + (err && err.type || 'failed'), false));
+  } catch (e) {
+    setRiftNetStatus('Could not join (network?).', false);
+  }
+}
+function riftNetRequestRevive() {
+  if (!riftNet.conn || riftNet.status !== 'connected') {
+    addFloater(player.x, player.y - 40, 'NO RIFT LINK', '#ff8a93', false);
+    return;
+  }
+  try { riftNet.conn.send({ t: 'reviveReq' }); } catch (e) {}
+  addFloater(player.x, player.y - 40, 'REVIVE REQUEST SENT', '#ffd54a', false);
+}
+function updateRiftNet(dt) {
+  // prune stale remotes
+  const now = performance.now();
+  for (const id of Object.keys(riftNet.remotes)) {
+    if (now - (riftNet.remotes[id].t || 0) > 4000) delete riftNet.remotes[id];
+  }
+  if (!riftNet.conn || riftNet.status !== 'connected') return;
+  riftNet.lastSend -= dt;
+  if (riftNet.lastSend > 0) return;
+  riftNet.lastSend = 0.12;
+  try {
+    riftNet.conn.send({
+      t: 'state', id: riftNet.peer && riftNet.peer.id,
+      x: player.x, y: player.y, hp: player.hp, maxHp: maxHp(),
+      name: 'Vanguard', wave, ki: player.ki,
+    });
+  } catch (e) {}
+}
+if ($('riftNetCreateBtn')) $('riftNetCreateBtn').onclick = () => riftNetCreate();
+if ($('riftNetJoinBtn')) $('riftNetJoinBtn').onclick = () => riftNetJoin();
+if ($('riftNetCloseBtn')) $('riftNetCloseBtn').onclick = () => closeRiftNet();
+if ($('riftNetDisconnectBtn')) $('riftNetDisconnectBtn').onclick = () => { destroyRiftNet(); setRiftNetStatus('Disconnected.', null); };
+if ($('riftNetReviveBtn')) $('riftNetReviveBtn').onclick = () => riftNetRequestRevive();
 
 function updateQuestHud() {
   const box = $('questbox');
@@ -2033,19 +2349,47 @@ function explodeGrenade(g) {
 }
 
 function tryBuild() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || riftNetOpen) return;
   if (barricades.length >= BARRICADE_MAX) { addFloater(player.x, player.y - 40, `MAX ${BARRICADE_MAX} BARRICADES`, '#ff8a93', false); return; }
   if (cores < BARRICADE_COST) { addFloater(player.x, player.y - 40, `NEED ${BARRICADE_COST} ⬡`, '#4de1ff', false); return; }
   const bx = clamp(player.x + Math.cos(player.aim) * 62, 40, WORLD.w - 40);
   const by = clamp(player.y + Math.sin(player.aim) * 62, 40, WORLD.h - 40);
   if (obstacles.some(o => dist2(bx, by, o.x, o.y) < (o.r + 40) ** 2) ||
-      barricades.some(b => dist2(bx, by, b.x, b.y) < 70 * 70)) {
+      barricades.some(b => dist2(bx, by, b.x, b.y) < BARRICADE_MIN_GAP * BARRICADE_MIN_GAP)) {
     addFloater(player.x, player.y - 40, 'NO ROOM HERE', '#ff8a93', false); return;
   }
   cores -= BARRICADE_COST;
-  barricades.push({ x: bx, y: by, r: 34, hp: BARRICADE_HP + wave * 8, maxHp: BARRICADE_HP + wave * 8 });
-  spawnParticles(bx, by, 18, '#7CFC00', 4);
+  const baseHp = BARRICADE_HP + wave * 8;
+  barricades.push({ x: bx, y: by, r: BARRICADE_BASE_R, hp: baseHp, maxHp: baseHp, baseHp, neighbors: 0 });
+  refreshBarricadeLinks();
+  const linked = barricades.find(b => Math.hypot(b.x - bx, b.y - by) < 1);
+  if (linked && linked.neighbors > 0) {
+    addFloater(bx, by - 36, 'LINKED FORTIFY ×' + (1 + linked.neighbors), '#9ef0ff', true);
+    spawnParticles(bx, by, 22, '#9ef0ff', 4);
+  } else {
+    spawnParticles(bx, by, 18, '#7CFC00', 4);
+  }
   spawnRing(bx, by, 40);
+}
+
+// adjacent barricades merge in effective size + HP (v2.9)
+function refreshBarricadeLinks() {
+  for (const b of barricades) {
+    let n = 0;
+    for (const o of barricades) {
+      if (o === b) continue;
+      if (dist2(b.x, b.y, o.x, o.y) <= BARRICADE_LINK_DIST * BARRICADE_LINK_DIST) n++;
+    }
+    b.neighbors = n;
+    if (!b.baseHp) b.baseHp = b.maxHp || (BARRICADE_HP + wave * 8);
+    const sizeMul = n >= 1 ? 2 : 1;                 // double radius when touching a neighbor
+    const hpMul = n >= 2 ? 2.2 : n === 1 ? 1.8 : 1; // stronger when braced
+    const newMax = Math.round(b.baseHp * hpMul);
+    const ratio = b.maxHp > 0 ? clamp(b.hp / b.maxHp, 0, 1) : 1;
+    b.r = BARRICADE_BASE_R * sizeMul;
+    b.maxHp = newMax;
+    b.hp = Math.max(1, Math.round(newMax * ratio));
+  }
 }
 
 // sentry turrets mounted on barricades: auto-target the nearest enemy in
@@ -2080,9 +2424,11 @@ function updateSentries(dt) {
     for (const e of enemies) {
       if (e.dead || e.spawnT > 0.4) continue;
       if (dist2(s.x, s.y + 22, e.x, e.y) < (e.r + 6) ** 2) {
-        directDamage(e, sentryDamage(), s.vx / 760, s.vy / 760, 40);
+        let dmg = sentryDamage();
+        if (sentryTier >= 4 && e.armor > 0) chipArmor(e, dmg * 0.35); // overcharge chips plates
+        directDamage(e, dmg, s.vx / 760, s.vy / 760, 40);
         s.life = 0;
-        spawnParticles(s.x, s.y, 3, '#ffb02e', 2);
+        spawnParticles(s.x, s.y, 3, sentryTier >= 4 ? '#9ef0ff' : '#ffb02e', 2);
         break;
       }
     }
@@ -2098,10 +2444,14 @@ function collideBarricades(e, dt) {
       const d = Math.sqrt(d2);
       e.x = b.x + (e.x - b.x) / d * minD;
       e.y = b.y + (e.y - b.y) / d * minD;
-      b.hp -= e.dmg * dt * (e.boss ? 6 : 2.2);
-      if (Math.random() < dt * 8) spawnParticles(b.x + (e.x - b.x) / d * b.r, b.y + (e.y - b.y) / d * b.r, 3, '#7CFC00', 2);
-      // fence grid upgrades: tier 2 drags attackers, tier 3 electrocutes them
-      if (fenceTier >= 2) e.slowT = 0.3;
+      // linked posts + shield membrane soak smash damage
+      let smash = (e.boss ? 6 : 2.2);
+      if ((b.neighbors || 0) >= 1) smash *= 0.62;
+      if (fenceTier >= 4) smash *= 0.55;
+      b.hp -= e.dmg * dt * smash;
+      if (Math.random() < dt * 8) spawnParticles(b.x + (e.x - b.x) / d * b.r, b.y + (e.y - b.y) / d * b.r, 3, (b.neighbors || 0) ? '#9ef0ff' : '#7CFC00', 2);
+      // fence grid upgrades: tier 2+ drag, tier 3+ electrocute
+      if (fenceTier >= 2) e.slowT = fenceTier >= 5 ? 0.45 : 0.3;
       if (fenceTier >= 3) {
         e.hp -= fenceZapDps() * dt;
         e.flash = Math.max(e.flash, 0.05);
@@ -2118,7 +2468,9 @@ function collideBarricades(e, dt) {
       }
     }
   }
+  const before = barricades.length;
   barricades = barricades.filter(b => b.hp > 0);
+  if (barricades.length !== before) refreshBarricadeLinks();
 }
 
 function tryTransform() {
@@ -2193,6 +2545,7 @@ function update(dt) {
   player.x = clamp(player.x + player.vx * dt, player.r, WORLD.w - player.r);
   player.y = clamp(player.y + player.vy * dt, player.r, WORLD.h - player.r);
   collideObstacles(player);
+  updateRiftNet(dt);
 
   // ---- aim ----
   if (IS_TOUCH) autoAim();
@@ -2367,6 +2720,8 @@ function update(dt) {
     }
     e.vx = lerp(e.vx, ex / d * e.spd * spdMul * dir, dt * 4);
     e.vy = lerp(e.vy, ey / d * e.spd * spdMul * dir, dt * 4);
+    // warlord mass drag — knockback bleeds off fast so rifle ticks don't skate him
+    if (e.boss) { e.vx *= Math.pow(0.08, dt); e.vy *= Math.pow(0.08, dt); }
     for (const o of enemies) {
       if (o === e || o.dead) continue;
       const d2 = dist2(e.x, e.y, o.x, o.y), minD = e.r + o.r;
@@ -2404,7 +2759,9 @@ function update(dt) {
     }
     for (const c of companions) {
       if (c.downed) continue;
-      if (dist2(e.x, e.y, c.x, c.y) < (e.r + c.r + 4) ** 2) hurtCompanion(c, e.dmg * 0.7);
+      // non-Warden companions take less melee splash; Warden still tanks
+      const mul = c.type === 'warden' ? 0.55 : 0.38;
+      if (dist2(e.x, e.y, c.x, c.y) < (e.r + c.r + 4) ** 2) hurtCompanion(c, e.dmg * mul);
     }
     if (e.ranged) {
       e.atkCd -= dt;
@@ -2468,8 +2825,8 @@ function update(dt) {
     }
     const wall = barricades.find(w => dist2(b.x, b.y, w.x, w.y) < w.r * w.r);
     if (wall) { wall.hp -= b.dmg * 0.6; b.life = 0; spawnParticles(b.x, b.y, 4, '#7CFC00', 2); if (b.fire) emberBurst(b.x, b.y); continue; }
-    // companions can body-block enemy fire (the Warden tanks for the squad)
-    const ch = companions.find(c => !c.downed && dist2(b.x, b.y, c.x, c.y - 10) < (c.r + b.r + 4) ** 2);
+    // only the Warden body-blocks enemy fire (Rover/Scout no longer eat every bolt)
+    const ch = companions.find(c => !c.downed && c.type === 'warden' && dist2(b.x, b.y, c.x, c.y - 10) < (c.r + b.r + 4) ** 2);
     if (ch) {
       b.life = 0;
       if (b.fire) emberBurst(b.x, b.y);
@@ -2658,8 +3015,11 @@ function openShop() {
 }
 function renderShop() {
   $('shopCores').textContent = cores;
+  if ($('shopAether')) $('shopAether').textContent = Math.floor(player.ki);
   const grid = $('shopGrid');
   grid.innerHTML = '';
+  // v2.9 aether recovery first — spend current aether, nothing persisted weirdly
+  appendAetherShopItems(grid, $('shopAether') || $('shopCores'));
   for (const u of gear) {
     const maxed = u.lvl >= u.max;
     const div = document.createElement('div');
@@ -2670,11 +3030,13 @@ function renderShop() {
     if (!maxed) div.onclick = () => buyGear(u);
     grid.appendChild(div);
   }
-  // perimeter fence grid (upgrades every barricade you build) — flat tier costs
+  // perimeter fence grid — 5 tiers toward shield/fortress (v2.9)
   const fMax = fenceTier >= FENCE_MAX_TIER;
   const fDesc = fenceTier === 1 ? 'Tier 2: reinforced posts — enemies grinding on a fence are slowed 45%'
     : fenceTier === 2 ? 'Tier 3: electrified — fences also zap enemies in contact'
-    : 'Reinforced + electrified: fences slow AND zap attackers';
+    : fenceTier === 3 ? 'Tier 4: shield membrane — fences take far less smash damage'
+    : fenceTier === 4 ? 'Tier 5: fortress pulse — stronger zap + longer slow'
+    : 'Fortress grid: slow, zap, and shield membrane on every post';
   const fDiv = document.createElement('div');
   fDiv.className = 'shopitem' + (fMax ? ' maxed' : '');
   fDiv.innerHTML = `<h4>Fence Grid Uplink<span class="lvl">${fMax ? 'MAX' : 'Tier ' + fenceTier + '/' + FENCE_MAX_TIER}</span></h4>
@@ -2682,12 +3044,13 @@ function renderShop() {
     <div class="price">${fMax ? '—' : '⬡ ' + FENCE_COSTS[fenceTier - 1]}</div>`;
   if (!fMax) fDiv.onclick = () => buyFence();
   grid.appendChild(fDiv);
-  // sentry uplink (v2.8) — same tiered pattern as the fence grid
+  // sentry uplink — 4 tiers
   const sMax = sentryTier >= SENTRY_MAX_TIER;
   const sDesc = sentryTier === 0 ? 'Tier 1: mount an auto-targeting sentry gun on every barricade you build'
     : sentryTier === 1 ? 'Tier 2: +fire rate, +range, targeting antenna'
     : sentryTier === 2 ? 'Tier 3: dual barrels — every volley fires two bolts'
-    : 'Dual-barrel long-range sentries on every fence post';
+    : sentryTier === 3 ? 'Tier 4: overcharged bolts — +damage and chips armor plates'
+    : 'Overcharged dual-barrel long-range sentries on every fence post';
   const sDiv = document.createElement('div');
   sDiv.className = 'shopitem' + (sMax ? ' maxed' : '');
   sDiv.innerHTML = `<h4>Sentry Uplink<span class="lvl">${sMax ? 'MAX' : 'Tier ' + sentryTier + '/' + SENTRY_MAX_TIER}</span></h4>
@@ -2716,7 +3079,7 @@ function renderShop() {
       div.innerHTML = `<h4>☍ ${t.name}<span class="lvl">SQUAD</span></h4>
         <small>${t.desc}</small><div class="price">⬡ ${t.cost}</div>`;
       div.onclick = () => {
-        if (!buyCompanion(k)) { $('shopCores').style.color = '#ff4d5e'; setTimeout(() => $('shopCores').style.color = '', 300); return; }
+        if (!buyCompanion(k)) { flashNeed($('shopCores')); return; }
         renderShop();
       };
     } else {
@@ -2898,6 +3261,15 @@ function drawFigure(x, y, o) {
   // ---- torso ----
   ctx.strokeStyle = cloth; ctx.lineWidth = 7.5 * s * (o.bulk || 1);
   ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(lean, shY); ctx.stroke();
+  // v2.9 harness / vest trim stitch (player + some NPCs)
+  if (o.vestTrim) {
+    ctx.strokeStyle = flash ? '#fff' : 'rgba(255,255,255,0.28)';
+    ctx.lineWidth = 1.2 * s;
+    ctx.beginPath();
+    ctx.moveTo(-2.2 * s, hipY + 2 * s); ctx.lineTo(lean - 1.5 * s, shY + 4 * s);
+    ctx.moveTo(2.2 * s, hipY + 2 * s); ctx.lineTo(lean + 1.5 * s, shY + 4 * s);
+    ctx.stroke();
+  }
   // pauldron / armor plate
   if (o.pauldron) {
     ctx.fillStyle = flash ? '#fff' : o.pauldron;
@@ -3070,6 +3442,14 @@ function drawFigure(x, y, o) {
   ctx.arc(hx + headR * 0.05, headY - 0.5 * s, 1.2 * s, 0, TAU);
   ctx.fill();
   ctx.shadowBlur = 0;
+  // v2.9 husk scar flecks
+  if (o.scarDots) {
+    ctx.fillStyle = flash ? '#fff' : 'rgba(40,50,30,0.55)';
+    ctx.beginPath();
+    ctx.arc(hx + headR * 0.2, headY + headR * 0.35, 0.7 * s, 0, TAU);
+    ctx.arc(hx + headR * 0.55, headY + headR * 0.15, 0.55 * s, 0, TAU);
+    ctx.fill();
+  }
   // tusks
   if (o.tusks) {
     ctx.fillStyle = flash ? '#fff' : '#e8e0c4';
@@ -3090,7 +3470,7 @@ function enemyFigure(e) {
   const base = { walk: e.walk, facing: e.facing, flash: e.flash, moving: true };
   switch (e.type) {
     case 'husk': return { ...base, s: 1, skin: '#8aa06a', cloth: '#55503f', rags: '#3f3a2c',
-      legs: '#33302a', hunch: 0.7, armsForward: true, glowEyes: '#ff4d5e' };
+      legs: '#33302a', hunch: 0.7, armsForward: true, glowEyes: '#ff4d5e', scarDots: true };
     case 'sprinter': return { ...base, s: 0.85, skin: '#9db07a', cloth: '#4a4438', rags: '#37321f',
       legs: '#2c2a20', hunch: 0.9, armsForward: true, glowEyes: '#ffb02e' };
     case 'shaman': return { ...base, s: 1, skin: '#7a8f5a', cloth: '#4a2f63', hood: '#3a2350',
@@ -3125,6 +3505,7 @@ function playerFigure() {
     aura: player.form === 2 ? '#fff2a8' : player.form === 1 ? '#ffd54a' : null,
     flash: 0,
     alpha: player.hurtT > 0 && Math.sin(performance.now() / 40) > 0 ? 0.4 : 1,
+    vestTrim: true, // v2.9: harness stitch detail
   };
 }
 function npcFigure(n) {
@@ -3135,6 +3516,9 @@ function npcFigure(n) {
     case 'lore': return { ...base, skin: '#e0b088', cloth: '#3e5a48', pauldron: '#5f7a68',
       legs: '#2e4038', hairSpikes: true, hairColor: '#7a4a2e', weapon: 'rifle',
       gunAngle: base.facing === 1 ? 0.6 : Math.PI - 0.6 }; // ranger with a slung rifle
+    case 'riftnet': return { ...base, skin: '#c8d0e0', cloth: '#2a4a6a', pauldron: '#4de1ff',
+      legs: '#1a2838', hood: '#1e3348', aura: '#4de1ff',
+      weapon: 'staff' }; // Riftwarden Kael — frost-steel cloak, cyan clasp
     default: return { ...base, skin: '#d9a878', cloth: '#7a5a34', pauldron: '#9b7648',
       legs: '#3a3226', weapon: 'staff' };
   }
@@ -4178,6 +4562,7 @@ function render() {
         mark = questStage === 'turnin' ? '?' : '!';
         mcolor = questStage === 'turnin' ? '#7CFC00' : '#ffd54a';
       } else if (n.role === 'vendor') { mark = '⬡'; mcolor = '#ffd54a'; }
+      else if (n.role === 'riftnet') { mark = '◎'; mcolor = '#4de1ff'; }
       else if (n.role === 'lore' && miraIdx < MIRA_LORE.length) { mark = '◆'; mcolor = '#4de1ff'; }
       if (mark) {
         const by = n.y - 58 + Math.sin(performance.now() / 300) * 4;
@@ -4198,20 +4583,39 @@ function render() {
   for (const b of barricades) {
     draws.push({ y: b.y, f: () => {
       const pulse = 0.75 + Math.sin(performance.now() / 220 + b.x) * 0.25;
-      // energy dome wall
-      ctx.strokeStyle = `rgba(124,252,0,${0.5 * pulse})`;
-      ctx.lineWidth = 3;
+      const linked = (b.neighbors || 0) >= 1;
+      const col = linked ? '158,240,255' : '124,252,0';
+      // adjacency link beams (visual hint for fortified merge)
+      if (linked) {
+        for (const o of barricades) {
+          if (o === b || o.x < b.x || o.y < b.y - 0.01) continue; // draw each link once
+          if (dist2(b.x, b.y, o.x, o.y) > BARRICADE_LINK_DIST * BARRICADE_LINK_DIST) continue;
+          ctx.strokeStyle = `rgba(158,240,255,${0.35 + pulse * 0.25})`;
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([6, 5]);
+          ctx.beginPath(); ctx.moveTo(b.x, b.y - 8); ctx.lineTo(o.x, o.y - 8); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+      // energy dome wall (doubled radius when linked)
+      ctx.strokeStyle = `rgba(${col},${0.5 * pulse})`;
+      ctx.lineWidth = linked ? 4.5 : 3;
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.stroke();
-      ctx.fillStyle = `rgba(124,252,0,${0.08 * pulse})`;
+      ctx.fillStyle = `rgba(${col},${(linked ? 0.12 : 0.08) * pulse})`;
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+      if (linked) {
+        ctx.strokeStyle = `rgba(255,255,255,${0.2 * pulse})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.72, 0, TAU); ctx.stroke();
+      }
       // emitter pylon
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.beginPath(); ctx.ellipse(b.x, b.y + 2, 8, 3.5, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#2c3a2c'; ctx.strokeStyle = '#4a6a4a'; ctx.lineWidth = 2;
+      ctx.fillStyle = '#2c3a2c'; ctx.strokeStyle = linked ? '#6a9aaa' : '#4a6a4a'; ctx.lineWidth = 2;
       ctx.fillRect(b.x - 4, b.y - 20, 8, 20); ctx.strokeRect(b.x - 4, b.y - 20, 8, 20);
-      ctx.fillStyle = `rgba(124,252,0,${pulse})`;
-      ctx.shadowColor = '#7CFC00'; ctx.shadowBlur = 10;
-      ctx.beginPath(); ctx.arc(b.x, b.y - 24, 4, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(${col},${pulse})`;
+      ctx.shadowColor = linked ? '#9ef0ff' : '#7CFC00'; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(b.x, b.y - 24, linked ? 5 : 4, 0, TAU); ctx.fill();
       ctx.shadowBlur = 0;
       // v2.8 sentry: scrappy box turret bolted onto the pylon top
       if (sentryTier >= 1) {
@@ -4226,7 +4630,7 @@ function render() {
         ctx.fillStyle = '#454f66';
         for (const off of (sentryTier >= 3 ? [-2.6, 2.6] : [0])) ctx.fillRect(6, off - 1.2, 11, 2.4);
         if (b.gunFlash > 0) { // muzzle flash
-          ctx.fillStyle = '#ffd54a';
+          ctx.fillStyle = sentryTier >= 4 ? '#9ef0ff' : '#ffd54a';
           ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 8;
           ctx.beginPath(); ctx.arc(18, 0, 3, 0, TAU); ctx.fill();
           ctx.shadowBlur = 0;
@@ -4235,15 +4639,15 @@ function render() {
         if (sentryTier >= 2) { // targeting antenna + status LED
           ctx.strokeStyle = '#8d99ae'; ctx.lineWidth = 1.4;
           ctx.beginPath(); ctx.moveTo(b.x + 5, b.y - 36); ctx.lineTo(b.x + 9, b.y - 46); ctx.stroke();
-          ctx.fillStyle = '#ff4d5e';
+          ctx.fillStyle = sentryTier >= 4 ? '#9ef0ff' : '#ff4d5e';
           ctx.beginPath(); ctx.arc(b.x + 9, b.y - 47, 1.6, 0, TAU); ctx.fill();
         }
       }
       // tier 2+: reinforced steel posts around the ring
       if (fenceTier >= 2) {
-        ctx.fillStyle = '#8d99ae'; ctx.strokeStyle = '#5a6478'; ctx.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-          const a = i / 4 * TAU + Math.PI / 4;
+        ctx.fillStyle = fenceTier >= 4 ? '#a8c8d8' : '#8d99ae'; ctx.strokeStyle = '#5a6478'; ctx.lineWidth = 1;
+        for (let i = 0; i < (fenceTier >= 5 ? 6 : 4); i++) {
+          const a = i / (fenceTier >= 5 ? 6 : 4) * TAU + Math.PI / 4;
           const px = b.x + Math.cos(a) * b.r, py = b.y + Math.sin(a) * b.r;
           ctx.fillRect(px - 2, py - 12, 4, 12);
           ctx.strokeRect(px - 2, py - 12, 4, 12);
@@ -4266,8 +4670,13 @@ function render() {
       if (b.hp < b.maxHp) {
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(b.x - 18, b.y - 36, 36, 4);
-        ctx.fillStyle = '#7CFC00';
+        ctx.fillStyle = linked ? '#9ef0ff' : '#7CFC00';
         ctx.fillRect(b.x - 18, b.y - 36, 36 * clamp(b.hp / b.maxHp, 0, 1), 4);
+      }
+      if (linked) {
+        ctx.font = 'bold 9px Segoe UI'; ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(158,240,255,0.9)';
+        ctx.fillText('LINK×' + b.neighbors, b.x, b.y + b.r + 12);
       }
     }});
   }
@@ -4358,6 +4767,23 @@ function render() {
   }
   for (const c of companions) draws.push({ y: c.y, f: () => drawCompanion(c) });
   draws.push({ y: player.y, f: () => drawFigure(player.x, player.y, playerFigure()) });
+  // co-op remote avatars (presence sync)
+  for (const id of Object.keys(riftNet.remotes)) {
+    const r = riftNet.remotes[id];
+    draws.push({ y: r.y, f: () => {
+      const fig = playerFigure();
+      fig.cloth = '#3aa0c8'; fig.pauldron = '#9ef0ff'; fig.aura = '#4de1ff';
+      fig.alpha = 0.85; fig.vestTrim = true;
+      drawFigure(r.x, r.y, fig);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(r.x - 16, r.y - 52, 32, 4);
+      ctx.fillStyle = '#7CFC00';
+      ctx.fillRect(r.x - 16, r.y - 52, 32 * clamp(r.hp / (r.maxHp || 1), 0, 1), 4);
+      ctx.font = '9px Segoe UI'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#9ef0ff';
+      ctx.fillText((r.name || 'Ally') + (r.wave != null ? ' · W' + r.wave : ''), r.x, r.y + 14);
+    }});
+  }
   draws.sort((a, b) => a.y - b.y);
   for (const d of draws) d.f();
 
@@ -4809,15 +5235,21 @@ function drawCampProps(draws) {
     ctx.save(); ctx.translate(CAMP.x, CAMP.y);
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(0, 2, 20, 8, 0, 0, TAU); ctx.fill();
-    // stones
-    ctx.fillStyle = '#4a5060';
+    // stones with moss accents
     for (let i = 0; i < 7; i++) {
       const a = i / 7 * TAU;
+      ctx.fillStyle = i % 2 ? '#4a5060' : '#3a4840';
       ctx.beginPath(); ctx.arc(Math.cos(a) * 15, Math.sin(a) * 7, 3.4, 0, TAU); ctx.fill();
+      if (i % 3 === 0) {
+        ctx.fillStyle = 'rgba(70,110,60,0.55)';
+        ctx.beginPath(); ctx.arc(Math.cos(a) * 15 + 1, Math.sin(a) * 7 - 1, 1.4, 0, TAU); ctx.fill();
+      }
     }
-    // logs
+    // logs with bark notches
     ctx.strokeStyle = '#4a3826'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(-8, -2); ctx.lineTo(8, -5); ctx.moveTo(-7, -5); ctx.lineTo(9, -1); ctx.stroke();
+    ctx.strokeStyle = '#2e2214'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-4, -3); ctx.lineTo(2, -4.5); ctx.stroke();
     // flame
     const fl = 1 + Math.sin(performance.now() / 90) * 0.2;
     const fg = ctx.createRadialGradient(0, -10, 2, 0, -10, 26 * fl);
@@ -4828,18 +5260,42 @@ function drawCampProps(draws) {
     ctx.beginPath(); ctx.ellipse(0, -12, 12 * fl, 18 * fl, 0, 0, TAU); ctx.fill();
     ctx.restore();
   }});
-  // two tents
+  // two tents — canvas weave + guy-lines + pegs (v2.9 polish)
   for (const [txo, tyo, flip] of [[-95, -40, 1], [70, 55, -1]]) {
     draws.push({ y: CAMP.y + tyo, f: () => {
       ctx.save(); ctx.translate(CAMP.x + txo, CAMP.y + tyo); ctx.scale(flip, 1);
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.beginPath(); ctx.ellipse(0, 2, 34, 10, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#5a4a30';
+      // main canvas
+      const tent = ctx.createLinearGradient(-32, -34, 32, 0);
+      tent.addColorStop(0, '#6a5638'); tent.addColorStop(0.5, '#5a4a30'); tent.addColorStop(1, '#493b25');
+      ctx.fillStyle = tent;
       ctx.beginPath(); ctx.moveTo(-32, 0); ctx.lineTo(0, -34); ctx.lineTo(32, 0); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#493b25';
+      // seam / shade flap
+      ctx.fillStyle = '#3f3220';
       ctx.beginPath(); ctx.moveTo(0, -34); ctx.lineTo(32, 0); ctx.lineTo(12, 0); ctx.lineTo(0, -26); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#241c10';
+      // weave stitches
+      ctx.strokeStyle = 'rgba(90,70,40,0.55)'; ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        const t = (i + 1) / 5;
+        ctx.beginPath();
+        ctx.moveTo(-32 * (1 - t), -34 * t);
+        ctx.lineTo(32 * (1 - t), -34 * t);
+        ctx.stroke();
+      }
+      // door
+      ctx.fillStyle = '#1a140c';
       ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(0, -14); ctx.lineTo(6, 0); ctx.closePath(); ctx.fill();
+      // pole tip + banner scrap
+      ctx.strokeStyle = '#2a2014'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -34); ctx.lineTo(0, -42); ctx.stroke();
+      ctx.fillStyle = '#2e6fff';
+      ctx.beginPath(); ctx.moveTo(0, -40); ctx.lineTo(10, -37); ctx.lineTo(0, -34); ctx.closePath(); ctx.fill();
+      // guy-lines + pegs
+      ctx.strokeStyle = 'rgba(180,160,120,0.55)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-28, -4); ctx.lineTo(-40, 6); ctx.moveTo(28, -4); ctx.lineTo(40, 6); ctx.stroke();
+      ctx.fillStyle = '#6a6048';
+      ctx.fillRect(-42, 5, 4, 2); ctx.fillRect(38, 5, 4, 2);
       ctx.restore();
     }});
   }
@@ -4850,7 +5306,7 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  if (state === 'playing' && !paused && !dialogOpen && !treeOpen && !vendorOpen && !settingsOpen) update(dt);
+  if (state === 'playing' && !paused && !dialogOpen && !treeOpen && !vendorOpen && !settingsOpen && !infirmaryOpen && !riftNetOpen) update(dt);
   if (state === 'shop' && !treeOpen && !settingsOpen) {
     shopTimer -= dt;
     $('shopTimer').textContent = Math.max(0, Math.ceil(shopTimer));
@@ -4881,8 +5337,11 @@ function newGame() {
   wave = 0; cores = 0; kills = 0; totalCores = 0; runTime = 0; victoryShown = false;
   enemies = []; bolts = []; ebolts = []; grenades = []; pickups = []; particles = []; floaters = []; zaps = [];
   beam = null; beamCharge = 0; charging = false; paused = false; treeOpen = false;
-  dialogOpen = false; vendorOpen = false;
+  dialogOpen = false; vendorOpen = false; infirmaryOpen = false; riftNetOpen = false;
+  destroyRiftNet();
   $('dialog').classList.add('hidden'); $('skilltree').classList.add('hidden'); $('vendor').classList.add('hidden');
+  if ($('infirmary')) $('infirmary').classList.add('hidden');
+  if ($('riftNet')) $('riftNet').classList.add('hidden');
   tally = { rifle: 0, beam: 0, melee: 0, grenade: 0 };
   gear.forEach(u => u.lvl = 0);
   Object.keys(skillRanks).forEach(k => delete skillRanks[k]);

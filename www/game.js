@@ -194,6 +194,7 @@ $('touchNote').textContent = IS_TOUCH
 const keys = {};
 let mouse = { x: 0, y: 0, down: false, rdown: false };
 const touch = { fire: false, beamHeld: false, joy: { x: 0, y: 0, active: false } };
+let talkHeld = false;
 
 addEventListener('keydown', e => {
   keys[e.code] = true;
@@ -207,10 +208,17 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyQ') tryNova();
   if (e.code === 'KeyE') tryGrenade();
   if (e.code === 'KeyK') toggleTree();
-  if (e.code === 'KeyT') tryTalk();
+  if (e.code === 'KeyT') {
+    talkHeld = true;
+    // tap Talk for NPCs; hold Talk near a downed squadmate / co-op ally to channel revive
+    if (!nearestDownedCompanion() && !nearestDownedAlly()) tryTalk();
+  }
   if (e.code === 'KeyB') tryBuild();
 });
-addEventListener('keyup', e => keys[e.code] = false);
+addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'KeyT') talkHeld = false;
+});
 canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
 canvas.addEventListener('mousedown', e => {
   if (dialogOpen) { advanceDialog(); return; }
@@ -271,11 +279,14 @@ bindHold('btnGren', () => tryGrenade());
 bindHold('btnDash', () => tryDash(true));
 bindHold('btnForm', () => tryTransform());
 bindHold('btnBuild', () => tryBuild());
-$('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); tryTalk(); });
+bindHold('btnTalk', () => {
+  talkHeld = true;
+  if (!nearestDownedCompanion() && !nearestDownedAlly()) tryTalk();
+}, () => { talkHeld = false; });
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.9.1';
+const APP_VERSION = '2.9.2';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -1045,6 +1056,8 @@ function resetPlayer() {
     form: 0,             // 0 base · 1 Ascended · 2 Storm Ascendant
     xp: 0, level: 1, xpNext: 60, sp: 0,
     hurtT: 0,
+    downed: false,       // co-op bleedout (v2.9.2) — solo still game-overs
+    downedT: 0,
   });
 }
 
@@ -1713,7 +1726,9 @@ function questEvent(kind, data) {
 }
 
 function tryTalk() {
-  if (state !== 'playing' || dialogOpen || vendorOpen || settingsOpen || riftNetOpen) return;
+  if (state !== 'playing' || dialogOpen || vendorOpen || settingsOpen || riftNetOpen || player.downed) return;
+  // Prefer field revive prompt if standing on a downed squadmate (tap still opens nothing — hold channels)
+  if (nearestDownedCompanion() || nearestDownedAlly()) return;
   const npc = nearestNpc();
   if (!npc) return;
   if (npc.role === 'vendor') { openVendor(); return; }
@@ -1824,14 +1839,134 @@ function buyAetherRevive(type) {
   const cost = aetherReviveCost(type);
   if (player.ki < cost) return false;
   player.ki -= cost;
+  finishCompanionRevive(c);
+  return true;
+}
+function finishCompanionRevive(c) {
   c.downed = false;
   c.hp = Math.ceil(c.maxHp * 0.65);
   c.hurtT = 0.8;
   spawnParticles(c.x, c.y, 18, '#4de1ff', 4);
-  addFloater(c.x, c.y - 34, COMP_TYPES[type].name.toUpperCase() + ' REVIVED', '#4de1ff', true);
+  addFloater(c.x, c.y - 34, COMP_TYPES[c.type].name.toUpperCase() + ' REVIVED', '#4de1ff', true);
   sfx.play('click');
-  return true;
 }
+
+// ---------- Field revive channel (v2.9.2): hold Talk near downed squad / co-op ally ----------
+// Menu infirmary/shop revive still works; mid-wave you can also channel on the body.
+const REVIVE_HOLD_SEC = 1.55;
+const REVIVE_RANGE = 74;
+const ALLY_REVIVE_COST = 22; // aether — matches mid-tier companion revive
+const ALLY_BLEEDOUT_SEC = 42;
+let reviveChan = { kind: null, id: null, t: 0, cost: 0 };
+
+function riftNetLinked() {
+  return !!(riftNet.conn && riftNet.status === 'connected');
+}
+function nearestDownedCompanion() {
+  let best = null, bd = REVIVE_RANGE * REVIVE_RANGE;
+  for (const c of companions) {
+    if (!c.downed) continue;
+    const d2 = dist2(c.x, c.y, player.x, player.y);
+    if (d2 < bd) { bd = d2; best = c; }
+  }
+  return best;
+}
+function nearestDownedAlly() {
+  if (!riftNetLinked()) return null;
+  let best = null, bestId = null, bd = REVIVE_RANGE * REVIVE_RANGE;
+  for (const id of Object.keys(riftNet.remotes)) {
+    const r = riftNet.remotes[id];
+    if (!r || !r.downed) continue;
+    const d2 = dist2(r.x || 0, r.y || 0, player.x, player.y);
+    if (d2 < bd) { bd = d2; best = r; bestId = id; }
+  }
+  return best ? { remote: best, id: bestId } : null;
+}
+function applyAllyReviveLocal(frac) {
+  const f = frac == null ? 0.65 : frac;
+  player.downed = false;
+  player.downedT = 0;
+  player.hp = Math.max(1, Math.ceil(maxHp() * f));
+  player.hurtT = 1.1;
+  spawnParticles(player.x, player.y, 22, '#7CFC00', 4);
+  addFloater(player.x, player.y - 44, 'REVIVED BY ALLY', '#7CFC00', true);
+  banner('BACK UP', 'ally aether pulse');
+  buzz([30, 40, 50]);
+  sfx.play('click');
+}
+function completeFieldRevive(kind, target, cost) {
+  if (player.ki < cost) return false;
+  player.ki -= cost;
+  if (kind === 'comp') {
+    finishCompanionRevive(target);
+    addFloater(player.x, player.y - 52, `−${cost} aether`, '#4de1ff', false);
+    return true;
+  }
+  if (kind === 'ally') {
+    try {
+      riftNet.conn.send({ t: 'reviveDone', hpFrac: 0.65, from: riftNet.role, cost });
+    } catch (e) {}
+    spawnParticles(target.remote.x, target.remote.y, 20, '#7CFC00', 4);
+    addFloater(target.remote.x, target.remote.y - 40, 'ALLY REVIVED', '#7CFC00', true);
+    addFloater(player.x, player.y - 52, `−${cost} aether`, '#4de1ff', false);
+    // optimistic local clear so both clients agree until next state packet
+    target.remote.downed = false;
+    target.remote.hp = Math.max(1, Math.ceil((target.remote.maxHp || 100) * 0.65));
+    sfx.play('click');
+    return true;
+  }
+  return false;
+}
+function updateReviveChannel(dt) {
+  if (player.downed) {
+    reviveChan = { kind: null, id: null, t: 0, cost: 0 };
+    player.downedT = (player.downedT || 0) + dt;
+    if (player.downedT >= ALLY_BLEEDOUT_SEC) {
+      player.downed = false;
+      gameOver();
+    }
+    return;
+  }
+  const ally = nearestDownedAlly();
+  const comp = nearestDownedCompanion();
+  let kind = null, target = null, cost = 0, id = null;
+  if (ally) { kind = 'ally'; target = ally; cost = ALLY_REVIVE_COST; id = ally.id; }
+  else if (comp) { kind = 'comp'; target = comp; cost = aetherReviveCost(comp.type); id = comp.type; }
+
+  const holding = talkHeld || !!keys.KeyT;
+  if (!holding || !kind) {
+    reviveChan = { kind: null, id: null, t: 0, cost: 0 };
+    return;
+  }
+  if (player.ki < cost) {
+    if (reviveChan.t < 0.05) addFloater(player.x, player.y - 40, `NEED ${cost} AETHER`, '#ff8a93', false);
+    reviveChan = { kind: null, id: null, t: 0, cost: 0 };
+    return;
+  }
+  if (reviveChan.kind !== kind || reviveChan.id !== id) {
+    reviveChan = { kind, id, t: 0, cost };
+  }
+  reviveChan.t += dt;
+  if (reviveChan.t >= REVIVE_HOLD_SEC) {
+    completeFieldRevive(kind, target, cost);
+    reviveChan = { kind: null, id: null, t: 0, cost: 0 };
+    talkHeld = false;
+  }
+}
+function drawReviveProgress(x, y, prog) {
+  const r = 18;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(x, y - 48, r, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = '#4de1ff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(x, y - 48, r, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(prog, 0, 1));
+  ctx.stroke();
+  ctx.restore();
+}
+
 function appendAetherShopItems(grid, coresEl) {
   // Heal chunk — spend aether (ki), not cores
   const miss = maxHp() - player.hp;
@@ -1851,7 +1986,7 @@ function appendAetherShopItems(grid, coresEl) {
     const div = document.createElement('div');
     div.className = 'shopitem' + (ok ? '' : ' maxed');
     div.innerHTML = `<h4>✧ Revive ${COMP_TYPES[c.type].name}<span class="lvl" style="color:var(--cyan)">AETHER</span></h4>
-      <small>Pull ${COMP_TYPES[c.type].name} back up at 65% HP. Auto-revive still free at wave end.</small>
+      <small>Pull ${COMP_TYPES[c.type].name} back up at 65% HP. Or hold Talk near them in the field. Auto-revive free at wave end.</small>
       <div class="price" style="color:var(--cyan)">◈ ${cost} aether${ok ? '' : ' · need more'}</div>`;
     if (ok) div.onclick = () => {
       if (!buyAetherRevive(c.type)) flashNeed(coresEl);
@@ -1988,7 +2123,7 @@ function openRiftNet() {
   if (!riftNetOnline()) setRiftNetStatus('No network — co-op needs an internet connection.', false);
   else if (!riftNetPeerOk()) setRiftNetStatus('PeerJS failed to load. Check network / CDN, then reopen.', false);
   else if (riftNet.status === 'connected') setRiftNetStatus(`Connected as ${riftNet.role} · room ${riftNet.passkey}`, true);
-  else setRiftNetStatus('Create a room (host) or join with a passkey. Syncs positions, HP, wave & revive pings — combat stays local/host-side for now.', null);
+  else setRiftNetStatus('Create a room (host) or join with a passkey. Syncs positions, HP, wave & hold-to-revive. Combat sync still deferred.', null);
 }
 function closeRiftNet() { riftNetOpen = false; $('riftNet').classList.add('hidden'); }
 function destroyRiftNet() {
@@ -1996,6 +2131,8 @@ function destroyRiftNet() {
   try { if (riftNet.peer) riftNet.peer.destroy(); } catch (e) {}
   riftNet.peer = null; riftNet.conn = null; riftNet.role = null;
   riftNet.status = 'idle'; riftNet.remotes = {};
+  // solo death rules return if a co-op downed state was active
+  if (player.downed) { player.downed = false; if (player.hp <= 0) gameOver(); }
 }
 function wireRiftConn(conn) {
   riftNet.conn = conn;
@@ -2009,21 +2146,21 @@ function wireRiftConn(conn) {
     if (data.t === 'state') {
       riftNet.remotes[data.id || conn.peer] = {
         x: data.x, y: data.y, hp: data.hp, maxHp: data.maxHp,
-        name: data.name || 'Vanguard', wave: data.wave, t: performance.now(),
+        name: data.name || 'Vanguard', wave: data.wave, downed: !!data.downed,
+        t: performance.now(),
       };
     } else if (data.t === 'reviveReq') {
+      // ping only — stand near the downed ally and hold Talk to channel revive
       addFloater(player.x, player.y - 48, 'ALLY NEEDS REVIVE!', '#ffd54a', true);
-      banner('RIFT PING', 'Ally requested revive support');
-      // host can spend aether to send a remote heal pulse
-      if (riftNet.role === 'host' && player.ki >= 18) {
-        player.ki -= 18;
-        try { conn.send({ t: 'reviveAck', heal: 40 }); } catch (e) {}
-        addFloater(player.x, player.y - 60, 'SENT REVIVE PULSE (−18 aether)', '#7CFC00', true);
+      banner('RIFT PING', 'Hold Talk near your downed ally · ✈ ' + ALLY_REVIVE_COST + ' aether');
+    } else if (data.t === 'reviveDone') {
+      // peer finished channeling on you — apply revived state
+      if (player.downed || player.hp <= 0) applyAllyReviveLocal(data.hpFrac);
+      else {
+        player.hp = Math.min(maxHp(), Math.max(player.hp, Math.ceil(maxHp() * (data.hpFrac || 0.65))));
+        spawnParticles(player.x, player.y, 16, '#7CFC00', 3);
+        addFloater(player.x, player.y - 44, 'ALLY AETHER PULSE', '#7CFC00', true);
       }
-    } else if (data.t === 'reviveAck') {
-      player.hp = Math.min(maxHp(), player.hp + (data.heal || 35));
-      spawnParticles(player.x, player.y, 20, '#7CFC00', 4);
-      addFloater(player.x, player.y - 44, 'ALLY REVIVE PULSE', '#7CFC00', true);
     } else if (data.t === 'wave') {
       // presence only — do not force wave changes on guest
     }
@@ -2032,6 +2169,7 @@ function wireRiftConn(conn) {
     riftNet.status = 'idle';
     setRiftNetStatus('Link closed.', false);
     riftNet.conn = null;
+    if (player.downed) { player.downed = false; if (player.hp <= 0) gameOver(); }
   });
   conn.on('error', (err) => setRiftNetStatus('Link error: ' + (err && err.type || 'unknown'), false));
 }
@@ -2078,12 +2216,17 @@ function riftNetJoin() {
   }
 }
 function riftNetRequestRevive() {
-  if (!riftNet.conn || riftNet.status !== 'connected') {
+  if (!riftNetLinked()) {
     addFloater(player.x, player.y - 40, 'NO RIFT LINK', '#ff8a93', false);
+    return;
+  }
+  if (!player.downed && player.hp > maxHp() * 0.35) {
+    addFloater(player.x, player.y - 40, 'NOT DOWNED', '#9fb2c9', false);
     return;
   }
   try { riftNet.conn.send({ t: 'reviveReq' }); } catch (e) {}
   addFloater(player.x, player.y - 40, 'REVIVE REQUEST SENT', '#ffd54a', false);
+  banner('PING SENT', 'Ally: hold Talk near you to revive');
 }
 function updateRiftNet(dt) {
   // prune stale remotes
@@ -2099,7 +2242,7 @@ function updateRiftNet(dt) {
     riftNet.conn.send({
       t: 'state', id: riftNet.peer && riftNet.peer.id,
       x: player.x, y: player.y, hp: player.hp, maxHp: maxHp(),
-      name: 'Vanguard', wave, ki: player.ki,
+      name: 'Vanguard', wave, ki: player.ki, downed: !!player.downed,
     });
   } catch (e) {}
 }
@@ -2190,6 +2333,13 @@ function endWave() {
     c.hp = c.maxHp;
     spawnParticles(c.x, c.y, 16, '#7CFC00', 3);
     addFloater(c.x, c.y - 28, COMP_TYPES[c.type].name.toUpperCase() + ' BACK UP!', '#7CFC00', false);
+  }
+  // co-op: free wave-break stand-up if you were bleeding out
+  if (player.downed) {
+    player.downed = false;
+    player.downedT = 0;
+    player.hp = Math.max(1, Math.ceil(maxHp() * 0.65));
+    addFloater(player.x, player.y - 40, 'WAVE BREAK — REVIVED', '#7CFC00', true);
   }
   cores += 4 + wave; totalCores += 4 + wave;
   questEvent('waveEnd');
@@ -2336,7 +2486,7 @@ function releaseBeam() {
 }
 
 function tryNova() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || player.downed) return;
   if (player.novaCd > 0) return;
   if (player.ki < 12) { addFloater(player.x, player.y - 40, 'NOT ENOUGH AETHER', '#4de1ff', false); return; }
   player.ki -= 12; player.novaCd = novaCooldown();
@@ -2356,7 +2506,7 @@ function tryNova() {
 }
 
 function tryGrenade() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || player.downed) return;
   if (player.grenCd > 0 || player.grenades <= 0) return;
   if (IS_TOUCH) autoAim();
   player.grenades--; player.grenCd = 0.8;
@@ -2381,7 +2531,7 @@ function explodeGrenade(g) {
 }
 
 function tryBuild() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || riftNetOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || riftNetOpen || player.downed) return;
   if (barricades.length >= BARRICADE_MAX) { addFloater(player.x, player.y - 40, `MAX ${BARRICADE_MAX} BARRICADES`, '#ff8a93', false); return; }
   if (cores < BARRICADE_COST) { addFloater(player.x, player.y - 40, `NEED ${BARRICADE_COST} ⬡`, '#4de1ff', false); return; }
   const bx = clamp(player.x + Math.cos(player.aim) * 62, 40, WORLD.w - 40);
@@ -2506,7 +2656,7 @@ function collideBarricades(e, dt) {
 }
 
 function tryTransform() {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || player.downed) return;
   if (player.form) { player.form = 0; return; }
   if (player.ki < maxKi() * 0.92) { addFloater(player.x, player.y - 40, 'AETHER NOT FULL', '#4de1ff', false); return; }
   player.form = sk('a4') ? 2 : 1;
@@ -2516,7 +2666,7 @@ function tryTransform() {
 }
 
 function tryDash(fromButton) {
-  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen) return;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || player.downed) return;
   if (player.dashCd > 0) return;
   let dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x;
   let dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y;
@@ -2560,19 +2710,28 @@ function banner(main, sub) {
 let regionCheckT = 0, regionFlashT = 0;
 function update(dt) {
   runTime += dt;
+  updateReviveChannel(dt);
+
   // ---- movement ----
-  let dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x;
-  let dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y;
+  let dx = 0, dy = 0;
+  if (!player.downed) {
+    dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x;
+    dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y;
+    if (keys.ShiftLeft || keys.ShiftRight) tryDash();
+  }
   const m = Math.hypot(dx, dy);
-  if (keys.ShiftLeft || keys.ShiftRight) tryDash();
-  if (player.dashT > 0) {
+  if (player.downed) {
+    player.vx *= 0.7; player.vy *= 0.7;
+    player.moving = false;
+    player.form = 0;
+  } else if (player.dashT > 0) {
     player.dashT -= dt;
   } else if (m > 0.08) {
     const cap = Math.min(1, m);
     player.vx = dx / m * moveSpeed() * cap;
     player.vy = dy / m * moveSpeed() * cap;
   } else { player.vx *= 0.8; player.vy *= 0.8; }
-  player.moving = Math.hypot(player.vx, player.vy) > 30;
+  player.moving = !player.downed && Math.hypot(player.vx, player.vy) > 30;
   if (player.moving) player.walk += dt * 11;
   player.x = clamp(player.x + player.vx * dt, player.r, WORLD.w - player.r);
   player.y = clamp(player.y + player.vy * dt, player.r, WORLD.h - player.r);
@@ -2595,7 +2754,7 @@ function update(dt) {
   player.hurtT = Math.max(0, player.hurtT - dt);
   player.ki = clamp(player.ki + kiRegen() * dt, 0, maxKi());
   // campfire rest: slow heal near the fire (only between spawned enemies nearby)
-  if (dist2(player.x, player.y, CAMP.x, CAMP.y) < 150 * 150)
+  if (!player.downed && dist2(player.x, player.y, CAMP.x, CAMP.y) < 150 * 150)
     player.hp = Math.min(maxHp(), player.hp + 2.5 * dt);
 
   // ---- supply cache looting window ----
@@ -2648,8 +2807,8 @@ function update(dt) {
   }
 
   // ---- weapons ----
-  fireWeapons(dt);
-  const wantCharge = mouse.rdown || touch.beamHeld;
+  if (!player.downed) fireWeapons(dt);
+  const wantCharge = !player.downed && (mouse.rdown || touch.beamHeld);
   if (wantCharge && !beam) {
     charging = true;
     beamCharge = clamp(beamCharge + dt * 0.9, 0, 1);
@@ -2943,11 +3102,22 @@ function update(dt) {
   if (chapterT > 0) { chapterT -= dt; if (chapterT <= 0) $('chapterbanner').style.opacity = 0; }
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('wavebanner').style.opacity = 0; }
 
-  // talk button visibility (any NPC in range)
+  // talk / revive button visibility
   const npcNear = nearestNpc();
+  const downComp = nearestDownedCompanion();
+  const downAlly = nearestDownedAlly();
   const talkBtn = $('btnTalk');
-  talkBtn.classList.toggle('hidden', !(npcNear && state === 'playing' && !dialogOpen && !vendorOpen));
-  if (npcNear) talkBtn.textContent = npcNear.role === 'vendor' ? '🜚 TRADE' : '💬 TALK';
+  const showTalk = state === 'playing' && !dialogOpen && !vendorOpen && !infirmaryOpen && !riftNetOpen &&
+    (npcNear || downComp || downAlly || player.downed);
+  talkBtn.classList.toggle('hidden', !showTalk);
+  if (player.downed) talkBtn.textContent = '✚ PING';
+  else if (downAlly || downComp) talkBtn.textContent = '✚ HOLD REVIVE';
+  else if (npcNear) talkBtn.textContent = npcNear.role === 'vendor' ? '🜚 TRADE' : '💬 TALK';
+  // when downed, tap Talk = revive ping
+  if (player.downed && talkHeld && !reviveChan.kind) {
+    talkHeld = false;
+    riftNetRequestRevive();
+  }
 
   updateHud();
 }
@@ -2964,13 +3134,29 @@ function collideObstacles(ent) {
 }
 
 function hurtPlayer(dmg) {
+  if (player.downed) return;
   player.hp -= dmg * (1 - armorReduce());
   player.hurtT = 0.45;
   camera.shake = 9;
   sfx.play('hurt');
   buzz(dmg >= 25 ? 60 : 30); // heavy hits (boss slams) rumble harder
   spawnParticles(player.x, player.y - 14, 10, '#ff4d5e', 3);
-  if (player.hp <= 0) gameOver();
+  if (player.hp <= 0) {
+    player.hp = 0;
+    if (riftNetLinked()) {
+      player.downed = true;
+      player.downedT = 0;
+      player.form = 0;
+      player.vx = player.vy = 0;
+      beam = null; charging = false; beamCharge = 0;
+      banner('DOWNED', 'Ally: hold Talk near you · or PING REVIVE');
+      addFloater(player.x, player.y - 40, '✚ DOWN — AWAIT REVIVE', '#ff8a93', true);
+      try { if (riftNet.conn) riftNet.conn.send({ t: 'reviveReq' }); } catch (e) {}
+      buzz([50, 40, 80]);
+    } else {
+      gameOver();
+    }
+  }
 }
 
 // ========================= SKILL TREE =============================
@@ -4566,6 +4752,8 @@ function drawCompanion(c) {
     ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
     ctx.strokeText('✚ DOWN', c.x, c.y - 34);
     ctx.fillText('✚ DOWN', c.x, c.y - 34);
+    if (reviveChan.kind === 'comp' && reviveChan.id === c.type)
+      drawReviveProgress(c.x, c.y, reviveChan.t / REVIVE_HOLD_SEC);
   } else if (c.hp < c.maxHp) {
     const w = 26;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -4864,22 +5052,46 @@ function render() {
     }});
   }
   for (const c of companions) draws.push({ y: c.y, f: () => drawCompanion(c) });
-  draws.push({ y: player.y, f: () => drawFigure(player.x, player.y, playerFigure()) });
+  draws.push({ y: player.y, f: () => {
+    const fig = playerFigure();
+    if (player.downed) { fig.alpha = 0.45; fig.aura = null; }
+    drawFigure(player.x, player.y, fig);
+    if (player.downed) {
+      ctx.fillStyle = '#ff8a93';
+      ctx.font = 'bold 13px Segoe UI'; ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+      ctx.strokeText('✚ DOWN', player.x, player.y - 40);
+      ctx.fillText('✚ DOWN', player.x, player.y - 40);
+      const left = Math.max(0, ALLY_BLEEDOUT_SEC - (player.downedT || 0));
+      ctx.font = '10px Segoe UI';
+      ctx.fillStyle = '#ffd54a';
+      ctx.fillText(left.toFixed(0) + 's', player.x, player.y - 52);
+    }
+  }});
   // co-op remote avatars (presence sync)
   for (const id of Object.keys(riftNet.remotes)) {
     const r = riftNet.remotes[id];
     draws.push({ y: r.y, f: () => {
       const fig = playerFigure();
       fig.cloth = '#3aa0c8'; fig.pauldron = '#9ef0ff'; fig.aura = '#4de1ff';
-      fig.alpha = 0.85; fig.vestTrim = true;
+      fig.alpha = r.downed ? 0.45 : 0.85; fig.vestTrim = true;
       drawFigure(r.x, r.y, fig);
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(r.x - 16, r.y - 52, 32, 4);
-      ctx.fillStyle = '#7CFC00';
-      ctx.fillRect(r.x - 16, r.y - 52, 32 * clamp(r.hp / (r.maxHp || 1), 0, 1), 4);
+      ctx.fillStyle = r.downed ? '#ff8a93' : '#7CFC00';
+      ctx.fillRect(r.x - 16, r.y - 52, 32 * clamp((r.hp || 0) / (r.maxHp || 1), 0, 1), 4);
       ctx.font = '9px Segoe UI'; ctx.textAlign = 'center';
       ctx.fillStyle = '#9ef0ff';
       ctx.fillText((r.name || 'Ally') + (r.wave != null ? ' · W' + r.wave : ''), r.x, r.y + 14);
+      if (r.downed) {
+        ctx.fillStyle = '#ff8a93';
+        ctx.font = 'bold 12px Segoe UI';
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+        ctx.strokeText('✚ DOWN', r.x, r.y - 40);
+        ctx.fillText('✚ DOWN', r.x, r.y - 40);
+        if (reviveChan.kind === 'ally' && reviveChan.id === id)
+          drawReviveProgress(r.x, r.y, reviveChan.t / REVIVE_HOLD_SEC);
+      }
     }});
   }
   draws.sort((a, b) => a.y - b.y);

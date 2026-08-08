@@ -83,7 +83,7 @@ try {
   await send('Runtime.enable'); await send('Page.enable');
 
   await navigate(GAME_URL);
-  check('APP_VERSION is 2.9.0', await evaluate('APP_VERSION') === '2.9.0');
+  check('APP_VERSION is 2.9.2', await evaluate('APP_VERSION') === '2.9.2');
   check('Riftwarden NPC present', await evaluate(`NPCS.some(n => n.role === 'riftnet' && n.name.includes('Riftwarden'))`) === true);
   check('PeerJS soft-load (no throw if missing)', await evaluate(`typeof riftNetPeerOk === 'function' && (riftNetPeerOk() === true || riftNetPeerOk() === false)`) === true);
   check('fence max tier 5 / sentry 4', await evaluate('FENCE_MAX_TIER === 5 && SENTRY_MAX_TIER === 4') === true);
@@ -117,6 +117,30 @@ try {
   })()`);
   check('revive Rover costs 20 aether', rev.cost === 20 && rev.ok && !rev.downed && rev.ki === 30, JSON.stringify(rev));
   check('revived companion at ~65% HP', Math.abs(rev.hp - Math.ceil(rev.max * 0.65)) <= 1, JSON.stringify(rev));
+
+  // ---- field hold revive (v2.9.2) ----
+  const field = await evaluate(`(() => {
+    const c = companions.find(x => x.type === 'warden') || (() => { buyCompanion('warden'); return companions.find(x => x.type === 'warden'); })();
+    c.downed = true; c.hp = 0;
+    c.x = player.x + 20; c.y = player.y;
+    player.ki = 40;
+    talkHeld = true;
+    for (let i = 0; i < 20; i++) updateReviveChannel(0.1);
+    talkHeld = false;
+    return { downed: c.downed, hp: c.hp, ki: player.ki, near: !!nearestDownedCompanion() || !c.downed, cost: ALLY_REVIVE_COST };
+  })()`);
+  check('field hold revive Warden (28 aether)', !field.downed && field.ki === 12, JSON.stringify(field));
+
+  const coopDown = await evaluate(`(() => {
+    riftNet.status = 'connected'; riftNet.conn = { send() {} };
+    player.hp = 10; player.downed = false;
+    hurtPlayer(999);
+    const downed = player.downed === true && player.hp === 0 && state === 'playing';
+    applyAllyReviveLocal(0.65);
+    return { downed, revived: !player.downed && player.hp === Math.ceil(maxHp() * 0.65), allyCost: ALLY_REVIVE_COST };
+  })()`);
+  check('co-op lethal damage downs instead of game over', coopDown.downed, JSON.stringify(coopDown));
+  check('applyAllyReviveLocal restores 65% HP', coopDown.revived && coopDown.allyCost === 22, JSON.stringify(coopDown));
 
   // ---- companion HP buffs ----
   const hp = await evaluate(`({ rover: COMP_TYPES.rover.hp, warden: COMP_TYPES.warden.hp, scout: COMP_TYPES.scout.hp })`);

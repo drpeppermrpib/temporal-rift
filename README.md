@@ -60,6 +60,18 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.9.2 (Field revive + co-op revive)
+
+- **Field squad revive** — hold **Talk (T)** near a downed companion to channel
+  Aether Mend revive mid-wave (same costs: Rover 20 / Scout 24 / Warden 28,
+  ~1.55s hold, 65% HP). Infirmary / shop / Vex menu revive still available;
+  wave-end auto-revive still free.
+- **Co-op downed + revive** — on a Riftnet link, lethal damage downs you instead
+  of ending the run. Ally holds Talk near you (◈ 22 aether) to revive to 65% HP;
+  `reviveDone` + `downed` state sync over PeerJS. Ping asks for help (no remote
+  auto-heal). Bleedout ~42s → game over; wave break also stands you up.
+- Combat sync still deferred (enemies remain local).
+
 ### New in Release 2.9.0 (Aether recovery, fortify links, Riftnet co-op)
 
 - **Aether Infirmary** — spend **current aether** (not cores) for mid-run recovery:

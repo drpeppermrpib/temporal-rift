@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-08 — SHIPPED — v2.10.0 additive RTS build picker slice
+- Version / commit / APK: 2.10.0 (versionCode 40) / `854bab7` / BETA `TemporalRift-BETA-2.10.0.apk`
+- User intent: Free Tripo alternatives research + Warcraft-2-inspired additive RTS (build picker, wood/gold workers, upgradable buildings, more squads, megazord-like combiner) without gutting wave survival; copyright-safe names only
+- Agent action: BUILD opens picker (barricade / Timber Camp / Muster Hall / Aether Pit); wood+gold HUD; Ashen Laborers chop trees + mine gold veins; tap building to upgrade/train; Ashen Sentinel companion; Aether Colossus combiner (~Gharok r=54); kept wave loop / learning / barricades / mend / revive / BETA package
+- Notes: Buildable city pathway moved from deferred→started. discoverability_risk: Colossus needs 2 nearby allies + resources (button + Key C). No Play Console upload. Boss art skipped.
+
 ### 2026-08-08 — SHIPPED — v2.9.3 hide learning / one-tap mend / wall ghost
 - Version / commit / APK: 2.9.3 (versionCode 39) / `baa9f3f` / BETA `TemporalRift-BETA-2.9.3.apk`
 - User intent: Fix audit polish misses and apply to current version

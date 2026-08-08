@@ -36,16 +36,17 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 
 | Feature / version | Master (repo) | BETA APK | GitHub Release | Play Closed |
 |---|---|---|---|---|
-| **App version** | **2.9.3** (versionCode 39) | Through `TemporalRift-BETA-2.9.3.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
+| **App version** | **2.10.0** (versionCode 40) | Through `TemporalRift-BETA-2.10.0.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
 | Package | `com.drpep.temporalrift` (prod) | `com.drpep.temporalrift.beta` | Sideload / release assets | Store-signed prod |
 | Update banner → GitHub | GitHub channel only | Per build channel | Yes (github) | Must stay **off** (`UPDATE_CHANNEL !== 'github'`) |
-| Learning engine + adapt panel | Yes (+ settings hide toggle) | Yes (2.9.3) | No (stuck ~2.6) | No if still on 2.6 |
+| Learning engine + adapt panel | Yes (+ settings hide toggle) | Yes (2.9.3+) | No (stuck ~2.6) | No if still on 2.6 |
 | Dual-wield / companions / sentry | Yes (2.8+) | Yes | No (~2.6) | No if still on 2.6 |
 | Aether Infirmary + field revive | Yes (2.9.0–2.9.2) | Yes | No | No if still on 2.6 |
 | One-tap Aether Mend + wall ghost | Yes (2.9.3) | Yes | No | No if still on 2.6 |
+| RTS build picker / wood-gold / laborers | Yes (2.10.0) | Yes (2.10.0) | No | No if still on 2.6 |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | No | No if still on 2.6 |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
-| Buildable city / craft behind fences | **No** (not started) | **No** | **No** | **No** |
+| Buildable city / craft behind fences | **Started** (2.10.0 RTS slice) | **Started** | **No** | **No** |
 | Compact HUD + thinner beam (2.9.1) | Yes | Yes | No | No if still on 2.6 |
 
 **Channel lag note:** Play closed + GitHub “latest” were held around **2.6** while master/BETA raced to **2.9.x**. That is distribution lag, not a code regression.
@@ -83,6 +84,7 @@ Hard constraints. Agents must check before reintroducing UI or features.
 | Compact minimap + HP/aether cluster; map S/M/L; thinner beam ladder | 2.9.1 |
 | Field hold-Talk revive + PeerJS downed/revive | 2.9.2 |
 | BETA package `com.drpep.temporalrift.beta` | Side-by-side installs |
+| RTS build picker + wood/gold + Ashen Laborers + upgradable halls + Aether Colossus | 2.10.0 — additive city pathway started |
 
 ### Discoverability risk (not removed — easy to feel “gone”)
 
@@ -110,17 +112,20 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Priority | Item | Notes |
 |---|---|---|
 | High | Full **co-op combat sync** | PeerJS presence/HP/wave/revive shipped; enemies stay local — explicitly deferred |
-| High | **Buildable city** / Warcraft-style crafting behind fences | Roadmap Aug 6; not started (“post-launch”) |
 | Ops | Store / GitHub channel lag behind BETA | 2.7+ AABs on shelf; public channels last confirmed at 2.6 |
 | Backlog | Clan spot 2–5 players / robust rooms | Passkeys exist; not full lobby/matchmaking |
 | Backlog | Skill-tree polish | Called backlog in 2.8.3 notes |
 | Backlog | Music bus / full soundtrack | Largely stubbed |
+| Backlog | RTS AI polish / more buildings / Colossus merge FX | 2.10.0 shipped first slice; deepen later |
 
 ---
 
 ## Changelog by version (seed — brief)
 
 Append new versions at the top of this list when shipping.
+
+### 2.10.0
+- Additive RTS slice: BUILD picker (barricade / Timber Camp / Muster Hall / Aether Pit); wood+gold HUD; Ashen Laborers gather trees/gold veins; building select→upgrade + train; Ashen Sentinel squad unit; Aether Colossus (Rift Titan) combiner ~Gharok scale. Wave survival / companions / barricades / mend / revive kept.
 
 ### 2.9.3
 - Hide learning panel settings toggle; one-tap Aether Mend (H / MEND); linked-wall ghost preview before place (`baa9f3f`).

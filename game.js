@@ -275,7 +275,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.9.1';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -321,7 +321,7 @@ const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';
 let settingsOpen = false, soundMenuOpen = false;
 const settings = {
   shake: true, dmgText: true, vibro: IS_TOUCH, uiScale: 'normal', btnStyle: 'classic',
-  hudOffset: 0, camView: 'normal', layout: null,
+  hudOffset: 0, mapSize: 'medium', adaptCollapsed: false, camView: 'normal', layout: null,
   masterVol: 0.8, sfxVol: 0.9, musicVol: 0.5,
   muteMaster: false, muteSfx: false, muteMusic: false,
 };
@@ -353,6 +353,34 @@ function applyHudOffset() {
   document.documentElement.style.setProperty('--hudTop', (settings.hudOffset || 0) + 'px');
 }
 applyHudOffset();
+
+// mini-map size (v2.9.1) — Small / Medium / Large, persisted in tr_settings
+const MAP_SIZES = ['small', 'medium', 'large'];
+const MAP_SIZE_PX = { small: 96, medium: 128, large: 168 };
+function mapSizePx() {
+  return MAP_SIZE_PX[settings.mapSize] || MAP_SIZE_PX.medium;
+}
+function applyMapSize() {
+  if (!MAP_SIZES.includes(settings.mapSize)) settings.mapSize = 'medium';
+  document.body.classList.remove('map-small', 'map-medium', 'map-large');
+  document.body.classList.add('map-' + settings.mapSize);
+  const c = $('minimap');
+  if (c) {
+    const s = mapSizePx();
+    // match backing store to CSS size (1x is fine — map is symbolic, not photo)
+    if (c.width !== s) { c.width = s; c.height = s; }
+  }
+}
+applyMapSize();
+
+function applyAdaptCollapse() {
+  const box = $('adaptbox');
+  if (!box) return;
+  box.classList.toggle('collapsed', !!settings.adaptCollapsed);
+  const chev = $('adaptChev');
+  if (chev) chev.textContent = settings.adaptCollapsed ? '▸' : '▾';
+}
+applyAdaptCollapse();
 
 // camera peek (v2.8): shifts the camera center down by a FIXED % of the
 // viewport height (not aim-following), so the hero sits a little higher on
@@ -963,7 +991,9 @@ function refreshToggles() {
   $('uiSizeVal').textContent = settings.uiScale.toUpperCase();
   $('btnStyleVal').textContent = settings.btnStyle.toUpperCase();
   $('hudOffVal').textContent = '+' + (settings.hudOffset || 0) + ' PX';
+  $('mapSizeVal').textContent = (settings.mapSize || 'medium').toUpperCase();
   $('camViewVal').textContent = (CAM_VIEWS.find(v => v.id === settings.camView) || CAM_VIEWS[0]).label;
+  applyAdaptCollapse();
 }
 
 // ========================= GAME STATE =============================
@@ -1024,7 +1054,7 @@ const gear = [
   { id: 'rrate', name: 'Overclock Trigger',  desc: '+15% rifle fire rate',         base: 8,  lvl: 0, max: 5 },
   { id: 'hp',    name: 'Composite Plating',  desc: '+30 max health, full heal',    base: 10, lvl: 0, max: 6 },
   { id: 'ki',    name: 'Aether Cell',        desc: '+25 max aether, +regen',       base: 10, lvl: 0, max: 5 },
-  { id: 'beam',  name: 'Nova Focus Lens',    desc: '+28% beam damage & width',     base: 12, lvl: 0, max: 5 },
+  { id: 'beam',  name: 'Nova Focus Lens',    desc: '+30% beam damage & +14% width / lens (10 ranks)', base: 9, lvl: 0, max: 10 },
   { id: 'gren',  name: 'Grenade Bandolier',  desc: '+1 grenade capacity, +blast',  base: 9,  lvl: 0, max: 4 },
   { id: 'boots', name: 'Anti-Grav Boots',    desc: '+8% move speed, faster dash',  base: 7,  lvl: 0, max: 4 },
   { id: 'armor', name: 'Riftsteel Armor',    desc: '−7% damage taken per plate',   base: 11, lvl: 0, max: 5 },
@@ -1046,8 +1076,8 @@ const SKILLS = {
   aether:   { label: 'AETHER ARTS', cls: 'aether', nodes: [
     { id: 'a1', name: 'Deep Reserves',  desc: '+25 max aether / rank',                        max: 3 },
     { id: 'a2', name: 'Flow State',     desc: '+40% aether regeneration / rank',              max: 3 },
-    { id: 'a3', name: 'Focused Beam',   desc: '+25% Nova Beam damage & width / rank',         max: 3 },
-    { id: 'a4', name: 'STORM ASCENDANT', desc: 'Your Ascended form evolves: more power and a lightning aura that arcs to nearby foes', max: 1 },
+    { id: 'a3', name: 'Focused Beam',   desc: '+24% Nova Beam damage & +12% width / rank (5 ranks)', max: 5 },
+    { id: 'a4', name: 'Storm Ascendant', desc: 'Your Ascended form evolves: more power and a lightning aura that arcs to nearby foes', max: 1 },
   ]},
   survivor: { label: 'SURVIVOR', cls: 'survivor', nodes: [
     { id: 's1', name: 'Toughened',      desc: '+30 max health / rank',                        max: 3 },
@@ -1065,8 +1095,10 @@ function maxKi()         { return 100 + 25 * gearLvl('ki') + 25 * sk('a1'); }
 function formMul()       { return player.form === 2 ? 2.1 : player.form === 1 ? 1.5 : 1; }
 function rifleDamage()   { return 11 * (1 + .22 * gearLvl('rdmg')) * (1 + .2 * sk('w1')) * formMul(); }
 function rifleInterval() { return 0.19 / ((1 + .15 * gearLvl('rrate')) * (1 + .15 * sk('w2'))); }
-function beamDamage()    { return 30 * (1 + .28 * gearLvl('beam')) * (1 + .25 * sk('a3')) * formMul(); }
-function beamWidthMul()  { return (1 + .1 * gearLvl('beam')) * (1 + .1 * sk('a3')); }
+// Beam (v2.9.1): starts skinny/weak; 10 lens ranks + 5 Focused Beam ranks stretch
+// progression so early beam is a needle and fully upgraded still hits hard (~old max).
+function beamDamage()    { return 14 * (1 + .30 * gearLvl('beam')) * (1 + .24 * sk('a3')) * formMul(); }
+function beamWidthMul()  { return (1 + .14 * gearLvl('beam')) * (1 + .12 * sk('a3')); }
 function novaDamage()    { return 45 * (1 + .4 * sk('w4')) * formMul(); }
 function novaCooldown()  { return Math.max(0.5, 1.4 - .25 * sk('w4')); }
 function grenadeDamage() { return 80 * (1 + .18 * gearLvl('gren')) * (1 + .3 * sk('w3')); }
@@ -2297,7 +2329,7 @@ function releaseBeam() {
   if (player.ki < cost * 0.6) { addFloater(player.x, player.y - 40, 'NOT ENOUGH AETHER', '#4de1ff', false); beamCharge = 0; return; }
   player.ki = Math.max(0, player.ki - cost);
   beam = { a: player.aim, t: 0, dur: 0.65 + beamCharge * 0.4,
-    w: (16 + beamCharge * 34) * beamWidthMul(), power: beamCharge };
+    w: (4.5 + beamCharge * 16) * beamWidthMul(), power: beamCharge };
   camera.shake = 12 + beamCharge * 8;
   buzz(45);
   beamCharge = 0;
@@ -2478,7 +2510,7 @@ function tryTransform() {
   if (player.form) { player.form = 0; return; }
   if (player.ki < maxKi() * 0.92) { addFloater(player.x, player.y - 40, 'AETHER NOT FULL', '#4de1ff', false); return; }
   player.form = sk('a4') ? 2 : 1;
-  banner(player.form === 2 ? 'STORM ASCENDANT' : 'ASCENDED FORM', 'aether unleashed');
+  banner(player.form === 2 ? 'STORM ASCENDANT' : 'ASCENSION', 'aether unleashed');
   spawnParticles(player.x, player.y, 60, '#ffd54a', 6);
   camera.shake = 16;
 }
@@ -3064,7 +3096,7 @@ function renderShop() {
     const div = document.createElement('div');
     div.className = 'shopitem';
     div.innerHTML = `<h4>${slot === 'primary' ? '⌖ Primary Weapon' : '⌖ Twin Weapon'}<span class="lvl">tap to cycle</span></h4>
-      <small>${slot === 'primary' ? 'Your main trigger weapon' : 'Fires alongside the primary while ASCENDED (dual-wield)'}</small>
+      <small>${slot === 'primary' ? 'Your main trigger weapon' : 'Fires alongside the primary while Ascended (dual-wield)'}</small>
       <div class="price">${cur ? WEAPON_NAMES[cur] : '— none —'}</div>`;
     div.onclick = () => { cycleLoadout(slot); renderShop(); };
     grid.appendChild(div);
@@ -3185,7 +3217,7 @@ function updateHud() {
   $('xpfill').style.width = (100 * player.xp / player.xpNext) + '%';
   $('hptext').textContent = `${Math.max(0, Math.ceil(player.hp))} / ${maxHp()}`;
   $('kitext').textContent = `${Math.floor(player.ki)} / ${maxKi()}`;
-  $('ssjHint').textContent = player.form ? (player.form === 2 ? '⚡ STORM' : '★ ASCENDED') :
+  $('ascendHint').textContent = player.form ? (player.form === 2 ? '⚡ STORM' : '★ ASCENDED') :
     player.ki >= maxKi() * 0.92 ? '— ASCEND READY (F)!' : '';
   $('waveNum').textContent = wave;
   $('coreNum').textContent = cores;
@@ -3206,6 +3238,72 @@ function updateHud() {
     $('ad_' + c).style.width = (r / 0.6 * 100) + '%';
     $('adv_' + c).textContent = Math.round(r * 100) + '%';
   }
+  drawMinimap();
+}
+
+// Compact world radar — sits in the HUD cluster with HP/aether (v2.9.1)
+const MINIMAP_ZONE = { grass: '#1a2a1c', stone: '#2a3038', ash: '#2a221c', marsh: '#152826' };
+function drawMinimap() {
+  const c = $('minimap');
+  if (!c || (state !== 'playing' && state !== 'shop')) return;
+  const s = mapSizePx();
+  if (c.width !== s) { c.width = s; c.height = s; }
+  const g = c.getContext('2d');
+  const pad = 2;
+  const inner = s - pad * 2;
+  const sx = inner / WORLD.w, sy = inner / WORLD.h;
+  const toX = x => pad + x * sx;
+  const toY = y => pad + y * sy;
+  g.clearRect(0, 0, s, s);
+  g.fillStyle = '#0a1018';
+  g.fillRect(0, 0, s, s);
+  // zone blocks (coarse — cheap)
+  g.fillStyle = MINIMAP_ZONE.grass;
+  g.fillRect(pad, pad, inner, inner);
+  g.fillStyle = MINIMAP_ZONE.stone;
+  g.fillRect(toX(FORT.x), toY(FORT.y), FORT.w * sx, FORT.h * sy);
+  g.fillStyle = MINIMAP_ZONE.ash;
+  g.fillRect(toX(ASH.x), toY(ASH.y), ASH.w * sx, ASH.h * sy);
+  g.fillStyle = MINIMAP_ZONE.marsh;
+  g.fillRect(toX(MARSH.x), toY(MARSH.y), MARSH.w * sx, MARSH.h * sy);
+  // camp disc
+  g.fillStyle = 'rgba(77,225,255,0.18)';
+  g.beginPath(); g.arc(toX(CAMP.x), toY(CAMP.y), 300 * sx, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(77,225,255,0.45)'; g.lineWidth = 1;
+  g.beginPath(); g.arc(toX(CAMP.x), toY(CAMP.y), 300 * sx, 0, TAU); g.stroke();
+  // barricades
+  g.fillStyle = '#7CFC00';
+  for (const b of barricades) {
+    g.fillRect(toX(b.x) - 1, toY(b.y) - 1, 2, 2);
+  }
+  // NPCs
+  g.fillStyle = '#ffd54a';
+  for (const n of NPCS) {
+    g.beginPath(); g.arc(toX(n.x), toY(n.y), 1.6, 0, TAU); g.fill();
+  }
+  // enemies
+  for (const e of enemies) {
+    if (e.dead || e.spawnT > 0.5) continue;
+    g.fillStyle = e.boss ? '#ff2d55' : '#ff8a93';
+    const r = e.boss ? 2.4 : 1.3;
+    g.beginPath(); g.arc(toX(e.x), toY(e.y), r, 0, TAU); g.fill();
+  }
+  // camera viewport
+  g.strokeStyle = 'rgba(223,233,245,0.35)'; g.lineWidth = 1;
+  g.strokeRect(toX(camera.x), toY(camera.y), VW * sx, VH * sy);
+  // player (facing wedge)
+  const px = toX(player.x), py = toY(player.y);
+  g.save();
+  g.translate(px, py);
+  g.rotate(player.aim);
+  g.fillStyle = '#4de1ff';
+  g.beginPath();
+  g.moveTo(4.5, 0); g.lineTo(-2.5, 2.8); g.lineTo(-2.5, -2.8);
+  g.closePath(); g.fill();
+  g.restore();
+  // border
+  g.strokeStyle = 'rgba(77,225,255,0.4)'; g.lineWidth = 1;
+  g.strokeRect(0.5, 0.5, s - 1, s - 1);
 }
 
 // ================== HUMANOID SPRITE RENDERER ======================
@@ -4868,11 +4966,11 @@ function render() {
     ctx.shadowBlur = 0;
   }
   if (charging && beamCharge > 0.05) {
-    const r = 8 + beamCharge * 26;
+    const r = (3 + beamCharge * 14) * Math.sqrt(beamWidthMul());
     ctx.save();
     ctx.translate(player.x + Math.cos(player.aim) * 32, player.y - 14 + Math.sin(player.aim) * 32);
     ctx.fillStyle = `rgba(120,220,255,${0.5 + beamCharge * 0.5})`;
-    ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 30;
+    ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 18 + beamCharge * 16;
     ctx.beginPath(); ctx.arc(0, 0, r * (1 + Math.sin(performance.now() / 60) * 0.1), 0, TAU); ctx.fill();
     ctx.restore(); ctx.shadowBlur = 0;
   }
@@ -5418,6 +5516,15 @@ $('rowHudOff').onclick = () => {
   const i = HUD_OFFSETS.indexOf(settings.hudOffset || 0);
   settings.hudOffset = HUD_OFFSETS[(i + 1) % HUD_OFFSETS.length];
   applyHudOffset(); persistSettings(); refreshToggles();
+};
+$('rowMapSize').onclick = () => {
+  settings.mapSize = MAP_SIZES[(MAP_SIZES.indexOf(settings.mapSize || 'medium') + 1) % MAP_SIZES.length];
+  applyMapSize(); persistSettings(); refreshToggles();
+  if (state === 'playing' || state === 'shop') drawMinimap();
+};
+$('adaptbox').onclick = () => {
+  settings.adaptCollapsed = !settings.adaptCollapsed;
+  persistSettings(); applyAdaptCollapse();
 };
 $('rowCamView').onclick = () => {
   const i = CAM_VIEWS.findIndex(v => v.id === settings.camView);

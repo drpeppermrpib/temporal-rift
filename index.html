@@ -91,36 +91,53 @@
     cursor:pointer;padding:2px 6px;line-height:1}
   /* ---------- HUD ---------- */
   #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
-  .bars{position:fixed;left:14px;top:var(--safeTop);width:min(300px,44vw)}
-  .barwrap{margin-top:5px}
-  .barlabel{font-size:10px;letter-spacing:2px;color:#9fb2c9;margin-bottom:2px;display:flex;justify-content:space-between}
-  .bar{height:14px;border-radius:7px;background:rgba(10,16,30,.8);border:1px solid var(--border);overflow:hidden}
-  .bar>i{display:block;height:100%;border-radius:6px;transition:width .12s linear}
+  /* left column: mini-map + HP/aether as one compact cluster, then ammo/quest */
+  #hudLeft{position:fixed;left:max(10px,env(safe-area-inset-left));top:var(--safeTop);
+    display:flex;flex-direction:column;gap:5px;max-width:min(210px,46vw);z-index:11}
+  #hudCluster{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:5px 6px 6px;display:flex;flex-direction:column;gap:4px;width:fit-content;max-width:100%}
+  #minimap{display:block;border-radius:8px;border:1px solid rgba(77,225,255,.28);
+    background:rgba(6,10,18,.92);width:128px;height:128px;max-width:100%}
+  body.map-small #minimap{width:96px;height:96px}
+  body.map-medium #minimap{width:128px;height:128px}
+  body.map-large #minimap{width:168px;height:168px}
+  #hudCluster .bars{position:static;width:100%;min-width:0}
+  .barwrap{margin-top:2px}
+  .barwrap:first-child{margin-top:0}
+  .barlabel{font-size:9px;letter-spacing:1.5px;color:#9fb2c9;margin-bottom:1px;display:flex;justify-content:space-between;gap:6px}
+  .bar{height:11px;border-radius:6px;background:rgba(10,16,30,.8);border:1px solid var(--border);overflow:hidden}
+  .bar>i{display:block;height:100%;border-radius:5px;transition:width .12s linear}
   #hpfill{background:linear-gradient(90deg,#ff4d5e,#ff8a5e);width:100%}
   #kifill{background:linear-gradient(90deg,#2e9dff,var(--cyan));width:0%}
   #xpfill{background:linear-gradient(90deg,#b96bff,#ff6bd8);width:0%;height:100%}
-  .xpbar{height:5px;border-radius:3px;background:rgba(10,16,30,.8);border:1px solid rgba(185,107,255,.3);overflow:hidden;margin-top:5px}
-  #questbox{position:fixed;left:14px;top:calc(var(--safeTop) + 96px);max-width:290px;background:rgba(8,14,26,.82);
-    border-left:3px solid var(--gold);border-radius:6px;padding:8px 12px;font-size:12.5px;
+  .xpbar{height:4px;border-radius:2px;background:rgba(10,16,30,.8);border:1px solid rgba(185,107,255,.3);overflow:hidden;margin-top:3px}
+  #questbox{position:static;max-width:100%;background:rgba(8,14,26,.82);
+    border-left:3px solid var(--gold);border-radius:6px;padding:6px 10px;font-size:11.5px;
     box-shadow:0 2px 12px rgba(0,0,0,.4)}
-  #questbox h4{color:var(--gold);font-size:11px;letter-spacing:2px;margin-bottom:3px}
-  #questbox p{color:#c4d2e6;line-height:1.45}
+  #questbox h4{color:var(--gold);font-size:10px;letter-spacing:2px;margin-bottom:2px}
+  #questbox p{color:#c4d2e6;line-height:1.4}
   #questbox .qdone{color:var(--green)}
   /* +8px: sits a touch lower by default so a typical Android status bar clears it */
-  #topbar{position:fixed;top:calc(var(--safeTop) + 8px);left:50%;transform:translateX(-50%);display:flex;gap:18px;
-    background:var(--panel);border:1px solid var(--border);border-radius:12px;
-    padding:7px 20px;font-size:13px;align-items:center;white-space:nowrap}
-  #topbar b{color:var(--gold);font-size:15px}
+  #topbar{position:fixed;top:calc(var(--safeTop) + 8px);left:50%;transform:translateX(-50%);display:flex;gap:12px;
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:5px 14px;font-size:12px;align-items:center;white-space:nowrap;max-width:min(520px,70vw);
+    overflow:hidden}
+  #topbar b{color:var(--gold);font-size:13px}
   #topbar .cyan{color:var(--cyan)}
   #topbar .sp{color:#ff6bd8}
-  #adaptbox{position:fixed;right:14px;top:var(--safeTop);width:206px;background:var(--panel);
-    border:1px solid rgba(255,77,94,.4);border-radius:12px;padding:8px 12px;font-size:11px}
-  #adaptbox h3{font-size:10px;letter-spacing:1.5px;color:#ff8a93;margin-bottom:4px}
-  .adaptrow{display:flex;align-items:center;gap:7px;margin-top:3px}
-  .adaptrow span{width:60px;color:#9fb2c9}
-  .adaptrow .abar{flex:1;height:6px;border-radius:3px;background:rgba(10,16,30,.8);overflow:hidden}
+  #adaptbox{position:fixed;right:max(10px,env(safe-area-inset-right));top:var(--safeTop);width:178px;
+    background:var(--panel);border:1px solid rgba(255,77,94,.4);border-radius:10px;padding:6px 9px;font-size:10px;
+    pointer-events:auto;cursor:pointer}
+  #adaptbox h3{font-size:9px;letter-spacing:1.2px;color:#ff8a93;margin-bottom:3px;
+    display:flex;justify-content:space-between;align-items:center;gap:6px}
+  #adaptbox h3 .chev{color:#9fb2c9;font-size:10px;letter-spacing:0}
+  #adaptbox.collapsed .adaptbody{display:none}
+  #adaptbox.collapsed h3{margin-bottom:0}
+  .adaptrow{display:flex;align-items:center;gap:5px;margin-top:2px}
+  .adaptrow span{width:48px;color:#9fb2c9}
+  .adaptrow .abar{flex:1;height:5px;border-radius:3px;background:rgba(10,16,30,.8);overflow:hidden}
   .adaptrow .abar>i{display:block;height:100%;background:linear-gradient(90deg,#ff4d5e,#ff9d2e)}
-  .adaptrow em{width:30px;font-style:normal;color:#ffb0b7;text-align:right}
+  .adaptrow em{width:28px;font-style:normal;color:#ffb0b7;text-align:right}
   #wavebanner{position:fixed;top:22%;left:50%;transform:translateX(-50%);font-size:clamp(26px,5vw,44px);
     letter-spacing:5px;color:var(--gold);text-shadow:0 0 30px rgba(255,190,50,.6);
     opacity:0;transition:opacity .4s;pointer-events:none;text-align:center;white-space:nowrap}
@@ -129,7 +146,7 @@
     opacity:0;transition:opacity .6s;pointer-events:none}
   #chapterbanner h3{font-size:14px;color:var(--purple);letter-spacing:6px}
   #chapterbanner h2{font-size:30px;color:#e8f2ff;letter-spacing:3px;font-weight:600}
-  #grenadeHud{position:fixed;left:14px;top:calc(var(--safeTop) + 80px);font-size:12px;color:#9fb2c9}
+  #grenadeHud{position:static;font-size:11px;color:#9fb2c9;line-height:1.35;padding:0 2px}
   /* ---------- Touch controls ---------- */
   .touch-only{display:none}
   body.touch .touch-only{display:block}
@@ -192,7 +209,7 @@
   #btnTalk{position:fixed;left:50%;bottom:22vh;transform:translateX(-50%);width:auto;height:auto;
     border-radius:12px;padding:10px 22px;font-size:13px;background:rgba(255,213,74,.16);
     border:2px solid var(--gold);color:var(--gold);z-index:16;pointer-events:auto}
-  #btnMenu{position:fixed;right:14px;top:calc(var(--safeTop) + 142px);z-index:16;pointer-events:auto;
+  #btnMenu{position:fixed;right:max(10px,env(safe-area-inset-right));top:calc(var(--safeTop) + 118px);z-index:16;pointer-events:auto;
     width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
     background:rgba(14,24,44,.72);border:1px solid var(--border);color:#cfe2ff}
   /* ---------- Dialogue ---------- */
@@ -266,20 +283,27 @@
     touch-action:pan-x}
   .volrow b{font-size:12px;color:var(--cyan);letter-spacing:1px;min-width:42px;text-align:right}
   #saveNote{font-size:12px;color:#8fa3bd;margin-top:10px;line-height:1.4}
-  #btnSettings{position:fixed;right:14px;top:calc(var(--safeTop) + 104px);z-index:16;pointer-events:auto;
+  #btnSettings{position:fixed;right:max(10px,env(safe-area-inset-right));top:calc(var(--safeTop) + 84px);z-index:16;pointer-events:auto;
     width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
     background:rgba(14,24,44,.72);border:1px solid var(--border);color:#cfe2ff}
-  @media (max-width:1100px){
-    #btnSettings{top:calc(var(--safeTop) + 134px)} #btnMenu{top:calc(var(--safeTop) + 170px)} }
-  /* narrow screens: stack HUD instead of overlapping */
+  /* narrow / landscape: keep left stack + right engine compact; free the center view */
   @media (max-width: 1100px){
-    #topbar{top:calc(var(--safeTop) - 10px);gap:12px;padding:5px 12px;font-size:11px}
-    #topbar b{font-size:13px}
-    .bars{top:calc(var(--safeTop) + 28px);width:min(260px,52vw)}
-    #adaptbox{top:calc(var(--safeTop) + 28px);width:172px;font-size:10px;padding:6px 9px}
-    .adaptrow span{width:48px}
-    #questbox{top:calc(var(--safeTop) + 134px);max-width:230px;font-size:11px}
-    #grenadeHud{top:calc(var(--safeTop) + 118px)}
+    #topbar{top:calc(var(--safeTop) - 6px);gap:8px;padding:4px 10px;font-size:10px;max-width:min(420px,58vw)}
+    #topbar b{font-size:12px}
+    #hudLeft{max-width:min(180px,40vw)}
+    body.map-large #minimap{width:140px;height:140px}
+    #adaptbox{width:150px;font-size:9px;padding:5px 7px}
+    #btnSettings{top:calc(var(--safeTop) + 72px)}
+    #btnMenu{top:calc(var(--safeTop) + 106px)}
+  }
+  @media (max-height:430px) and (orientation:landscape){
+    #hudLeft{max-width:min(150px,32vw);gap:3px}
+    body.map-medium #minimap,body.map-large #minimap{width:96px;height:96px}
+    body.map-small #minimap{width:80px;height:80px}
+    #hudCluster{padding:3px 4px 4px}
+    .bar{height:8px}
+    #topbar{padding:3px 8px;font-size:9px;gap:6px}
+    #adaptbox{width:132px}
   }
 </style>
 </head>
@@ -295,21 +319,28 @@
     <span id="phaseLabel" class="cyan"></span>
   </div>
   <div id="adaptbox">
-    <h3>⚠ HORDE LEARNING ENGINE</h3>
-    <div class="adaptrow"><span>Rifle</span><div class="abar"><i id="ad_rifle"></i></div><em id="adv_rifle">0%</em></div>
-    <div class="adaptrow"><span>Beam</span><div class="abar"><i id="ad_beam"></i></div><em id="adv_beam">0%</em></div>
-    <div class="adaptrow"><span>Melee</span><div class="abar"><i id="ad_melee"></i></div><em id="adv_melee">0%</em></div>
-    <div class="adaptrow"><span>Grenade</span><div class="abar"><i id="ad_grenade"></i></div><em id="adv_grenade">0%</em></div>
+    <h3>⚠ LEARNING ENGINE <span class="chev" id="adaptChev">▾</span></h3>
+    <div class="adaptbody">
+      <div class="adaptrow"><span>Rifle</span><div class="abar"><i id="ad_rifle"></i></div><em id="adv_rifle">0%</em></div>
+      <div class="adaptrow"><span>Beam</span><div class="abar"><i id="ad_beam"></i></div><em id="adv_beam">0%</em></div>
+      <div class="adaptrow"><span>Melee</span><div class="abar"><i id="ad_melee"></i></div><em id="adv_melee">0%</em></div>
+      <div class="adaptrow"><span>Grenade</span><div class="abar"><i id="ad_grenade"></i></div><em id="adv_grenade">0%</em></div>
+    </div>
   </div>
-  <div class="bars">
-    <div class="barwrap"><div class="barlabel"><span>HEALTH</span><span id="hptext"></span></div>
-      <div class="bar"><i id="hpfill"></i></div></div>
-    <div class="barwrap"><div class="barlabel"><span>AETHER <span style="color:var(--gold)" id="ssjHint"></span></span><span id="kitext"></span></div>
-      <div class="bar"><i id="kifill"></i></div></div>
-    <div class="xpbar"><i id="xpfill"></i></div>
+  <div id="hudLeft">
+    <div id="hudCluster">
+      <canvas id="minimap" width="128" height="128" aria-label="Mini-map"></canvas>
+      <div class="bars">
+        <div class="barwrap"><div class="barlabel"><span>HEALTH</span><span id="hptext"></span></div>
+          <div class="bar"><i id="hpfill"></i></div></div>
+        <div class="barwrap"><div class="barlabel"><span>AETHER <span style="color:var(--gold)" id="ascendHint"></span></span><span id="kitext"></span></div>
+          <div class="bar"><i id="kifill"></i></div></div>
+        <div class="xpbar"><i id="xpfill"></i></div>
+      </div>
+    </div>
+    <div id="grenadeHud"></div>
+    <div id="questbox" class="hidden"><h4 id="questTitle"></h4><p id="questDesc"></p></div>
   </div>
-  <div id="grenadeHud"></div>
-  <div id="questbox" class="hidden"><h4 id="questTitle"></h4><p id="questDesc"></p></div>
   <div id="wavebanner"></div>
   <div id="chapterbanner"><h3 id="chapNum"></h3><h2 id="chapName"></h2></div>
 </div>
@@ -349,6 +380,7 @@
     <div class="togglerow" id="rowUiSize"><span>Controls layout size</span><b id="uiSizeVal" style="color:var(--cyan);letter-spacing:1px">NORMAL</b></div>
     <div class="togglerow" id="rowBtnStyle"><span>Button style</span><b id="btnStyleVal" style="color:var(--cyan);letter-spacing:1px">CLASSIC</b></div>
     <div class="togglerow" id="rowHudOff"><span>HUD top offset</span><b id="hudOffVal" style="color:var(--cyan);letter-spacing:1px">+0 PX</b></div>
+    <div class="togglerow" id="rowMapSize"><span>Mini-map size</span><b id="mapSizeVal" style="color:var(--cyan);letter-spacing:1px">MEDIUM</b></div>
     <div class="togglerow" id="rowCamView"><span>Camera view</span><b id="camViewVal" style="color:var(--cyan);letter-spacing:1px">NORMAL</b></div>
     <button class="setbtn" id="layoutBtn">✥ EDIT LAYOUT</button>
     <button class="setbtn danger" id="restartBtn">↻ RESTART RUN</button>

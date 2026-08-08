@@ -57,7 +57,8 @@
     /* two-column settings panel so it fits landscape phones without scrolling */
     #settings .panel{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;
       width:min(600px,94vw);align-items:center}
-    #settings h2,#settings #saveNote{grid-column:1/-1}
+    #settings h2,#settings #saveNote,#settings #soundMenu h2,#settings #soundBackBtn{grid-column:1/-1}
+    #settings #soundMenu .volrow,#settings #soundMenu .togglerow{grid-column:1/-1}
   }
   h1{font-size:clamp(26px,5vw,56px);letter-spacing:3px;
     background:linear-gradient(180deg,#fff3c4,var(--gold) 45%,#ff9d2e);
@@ -258,6 +259,12 @@
     border-radius:50%;background:#8fa3bd;transition:left .15s,background .15s}
   .togglerow.on .pill{background:rgba(124,252,0,.35)}
   .togglerow.on .pill::after{left:25px;background:var(--green)}
+  .volrow{display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 12px;
+    background:rgba(16,26,46,.7);border-radius:10px;pointer-events:auto}
+  .volrow span{font-size:14px;color:#c4d2e6;min-width:58px;text-align:left}
+  .volrow input[type=range]{flex:1;accent-color:var(--cyan);height:28px;cursor:pointer;
+    touch-action:pan-x}
+  .volrow b{font-size:12px;color:var(--cyan);letter-spacing:1px;min-width:42px;text-align:right}
   #saveNote{font-size:12px;color:#8fa3bd;margin-top:10px;line-height:1.4}
   #btnSettings{position:fixed;right:14px;top:calc(var(--safeTop) + 104px);z-index:16;pointer-events:auto;
     width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
@@ -331,10 +338,11 @@
 </div>
 
 <div id="settings" class="overlay hidden">
-  <div class="panel">
+  <div class="panel" id="settingsMain">
     <h2>⚙ PAUSED</h2>
     <button class="setbtn gold" id="resumeBtn">RESUME</button>
     <button class="setbtn" id="saveGameBtn">💾 SAVE GAME</button>
+    <button class="setbtn" id="soundBtn">SOUND ▸</button>
     <div class="togglerow on" id="togShake"><span>Screen shake</span><div class="pill"></div></div>
     <div class="togglerow" id="togVibro"><span>Vibration</span><div class="pill"></div></div>
     <div class="togglerow on" id="togDmg"><span>Damage numbers</span><div class="pill"></div></div>
@@ -346,6 +354,16 @@
     <button class="setbtn danger" id="restartBtn">↻ RESTART RUN</button>
     <button class="setbtn danger" id="quitBtn">⏏ SAVE &amp; QUIT TO TITLE</button>
     <p id="saveNote">Progress auto-saves after every wave.<br>Resuming continues from the start of your current wave.</p>
+  </div>
+  <div class="panel hidden" id="soundMenu">
+    <h2>🔊 SOUND</h2>
+    <div class="volrow"><span>Master</span><input type="range" id="volMaster" min="0" max="100" step="1" value="80"><b id="volMasterVal">80%</b></div>
+    <div class="volrow"><span>SFX</span><input type="range" id="volSfx" min="0" max="100" step="1" value="90"><b id="volSfxVal">90%</b></div>
+    <div class="volrow"><span>Music</span><input type="range" id="volMusic" min="0" max="100" step="1" value="50"><b id="volMusicVal">50%</b></div>
+    <div class="togglerow" id="togMuteMaster"><span>Mute master</span><div class="pill"></div></div>
+    <div class="togglerow" id="togMuteSfx"><span>Mute SFX</span><div class="pill"></div></div>
+    <div class="togglerow" id="togMuteMusic"><span>Mute music</span><div class="pill"></div></div>
+    <button class="setbtn" id="soundBackBtn">◂ BACK</button>
   </div>
 </div>
 

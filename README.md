@@ -60,6 +60,17 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.8.7 (Sound engine + world sprites)
+
+- **Sound engine** — shared lazy `AudioContext` with Master / SFX / Music buses,
+  mute flags, and `sfx.play(name)` for synthesized voices (stomp, whoosh, zap,
+  crackle, melee, hurt, level-up, wave-clear, UI click, weapon fire, cleaver).
+  Pause menu **SOUND ▸** submenu with volume sliders + mutes; persists in
+  `tr_settings`. Vibration stays on its own toggle.
+- **World sprites** — original transparent PNG pines (3 sizes) and rocks
+  (boulder / cluster / slab / mossy) under `assets/world/`, drawn with
+  `drawImage` (y-sort preserved) and procedural fallback if images fail.
+
 ### New in Release 2.8.4 (Gharok limb-flow pass)
 
 - **Boss draw** — `drawWarlord` evolves the 2.8.3 twin war-brute toward soft

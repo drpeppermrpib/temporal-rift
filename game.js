@@ -144,10 +144,10 @@ function buildWorld() {
     obstacles.push({ x, y, r, type, seed: Math.random() * 9 });
     return true;
   };
-  // scattered rocks & supply crates (rock variants: boulder / cluster / slab)
+  // scattered rocks & supply crates (variants: 0 boulder, 1 cluster, 2 slab, 3 mossy)
   for (let i = 0; i < 28; i++) {
     if (i % 2) {
-      const variant = i % 6 === 1 ? 0 : i % 6 === 3 ? 1 : 2; // 0 boulder, 1 cluster, 2 slab
+      const variant = i % 8 === 1 ? 0 : i % 8 === 3 ? 1 : i % 8 === 5 ? 2 : 3;
       tryPlace(rand(160, WORLD.w - 160), rand(160, WORLD.h - 160), rand(34, 58), 'rock')
         && (obstacles[obstacles.length - 1].variant = variant);
     } else {
@@ -199,7 +199,10 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (dialogOpen) { advanceDialog(); return; }
   if (layoutEditing) { if (e.code === 'KeyP' || e.code === 'Escape') finishLayoutEdit(); return; }
-  if (e.code === 'KeyP' || e.code === 'Escape') toggleSettings();
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    if (soundMenuOpen) { closeSoundMenu(); return; }
+    toggleSettings();
+  }
   if (e.code === 'KeyF') tryTransform();
   if (e.code === 'KeyQ') tryNova();
   if (e.code === 'KeyE') tryGrenade();
@@ -272,7 +275,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.8.6';
+const APP_VERSION = '2.8.7';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -315,8 +318,13 @@ if (UPDATE_CHANNEL === 'github') checkForUpdate();
 
 // ==================== SETTINGS & SAVE SYSTEM ======================
 const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';
-let settingsOpen = false;
-const settings = { shake: true, dmgText: true, vibro: IS_TOUCH, uiScale: 'normal', btnStyle: 'classic', hudOffset: 0, camView: 'normal', layout: null };
+let settingsOpen = false, soundMenuOpen = false;
+const settings = {
+  shake: true, dmgText: true, vibro: IS_TOUCH, uiScale: 'normal', btnStyle: 'classic',
+  hudOffset: 0, camView: 'normal', layout: null,
+  masterVol: 0.8, sfxVol: 0.9, musicVol: 0.5,
+  muteMaster: false, muteSfx: false, muteMusic: false,
+};
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) {}
 function persistSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {} }
 
@@ -367,159 +375,350 @@ function buzz(pattern) {
   try { navigator.vibrate(pattern); } catch (e) { /* some webviews throw on odd patterns */ }
 }
 
-// ---------- synthesized SFX (WebAudio, no samples) ----------
-// Lazy AudioContext: created on first use, resumed whenever the autoplay
-// policy has unlocked it (any tap/keypress after game start qualifies).
-let audioCtx = null, noiseBuf = null, lastWhoosh = -9, lastZap = -9, lastCrackle = -9, lastStomp = -9;
-function getNoiseBuf(ac) {
-  if (!noiseBuf) {
-    noiseBuf = ac.createBuffer(1, (ac.sampleRate * 0.5) | 0, ac.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  }
-  return noiseBuf;
-}
-function getAudio() {
-  if (audioCtx === null) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-    catch (e) { audioCtx = false; } // API missing — stay silent forever
-  }
-  if (!audioCtx) return null;
-  if (audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
-  return audioCtx;
-}
-// fireball "whoosh": band-passed noise sweeping down + a fading sine drop.
-// 100% synthesized — no sampled/copyrighted audio anywhere.
-function playWhoosh() {
-  try {
-    const ac = getAudio();
-    if (!ac || ac.state !== 'running') return;
-    const now = ac.currentTime;
-    if (now - lastWhoosh < 0.09) return; // throttle boss triple-volleys
-    lastWhoosh = now;
-    const src = ac.createBufferSource(); src.buffer = getNoiseBuf(ac);
-    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
-    bp.frequency.setValueAtTime(1900, now);
-    bp.frequency.exponentialRampToValueAtTime(240, now + 0.32);
-    const ng = ac.createGain();
-    ng.gain.setValueAtTime(0.0001, now);
-    ng.gain.exponentialRampToValueAtTime(0.2, now + 0.05);
-    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
-    const osc = ac.createOscillator(); osc.type = 'sine';
-    osc.frequency.setValueAtTime(520, now);
-    osc.frequency.exponentialRampToValueAtTime(140, now + 0.3);
-    const og = ac.createGain();
-    og.gain.setValueAtTime(0.0001, now);
-    og.gain.exponentialRampToValueAtTime(0.06, now + 0.04);
-    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
-    src.connect(bp).connect(ng).connect(ac.destination);
-    osc.connect(og).connect(ac.destination);
-    src.start(now); src.stop(now + 0.4);
-    osc.start(now); osc.stop(now + 0.35);
-  } catch (e) { /* audio must never break gameplay */ }
-}
-
-// Gusher "zap-thump" (v2.8): a fast square-wave zap dropping an octave into a
-// deep sine thump plus a low-passed noise slap. 100% synthesized, no samples.
-function playZapThump() {
-  try {
-    const ac = getAudio();
-    if (!ac || ac.state !== 'running') return;
-    const now = ac.currentTime;
-    if (now - lastZap < 0.12) return;
-    lastZap = now;
-    const osc = ac.createOscillator(); osc.type = 'square';
-    osc.frequency.setValueAtTime(880, now);
-    osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
-    const og = ac.createGain();
-    og.gain.setValueAtTime(0.0001, now);
-    og.gain.exponentialRampToValueAtTime(0.11, now + 0.015);
-    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-    const th = ac.createOscillator(); th.type = 'sine';
-    th.frequency.setValueAtTime(90, now + 0.02);
-    th.frequency.exponentialRampToValueAtTime(38, now + 0.22);
-    const tg = ac.createGain();
-    tg.gain.setValueAtTime(0.0001, now + 0.02);
-    tg.gain.exponentialRampToValueAtTime(0.2, now + 0.05);
-    tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
-    const src = ac.createBufferSource(); src.buffer = getNoiseBuf(ac);
-    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
-    const ng = ac.createGain();
-    ng.gain.setValueAtTime(0.0001, now);
-    ng.gain.exponentialRampToValueAtTime(0.09, now + 0.02);
-    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
-    osc.connect(og).connect(ac.destination);
-    th.connect(tg).connect(ac.destination);
-    src.connect(lp).connect(ng).connect(ac.destination);
-    osc.start(now); osc.stop(now + 0.18);
-    th.start(now); th.stop(now + 0.3);
-    src.start(now); src.stop(now + 0.16);
-  } catch (e) { /* audio must never break gameplay */ }
-}
-// Sticker "crackle-pop" (v2.8): stuttered high band-passed noise crackle
-// followed by a short falling triangle pop when the needle cluster bursts.
-function playCracklePop() {
-  try {
-    const ac = getAudio();
-    if (!ac || ac.state !== 'running') return;
-    const now = ac.currentTime;
-    if (now - lastCrackle < 0.1) return;
-    lastCrackle = now;
-    const src = ac.createBufferSource(); src.buffer = getNoiseBuf(ac);
-    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 8;
-    bp.frequency.setValueAtTime(3200, now);
-    bp.frequency.exponentialRampToValueAtTime(1400, now + 0.12);
-    const ng = ac.createGain();
-    ng.gain.setValueAtTime(0.0001, now);
-    for (let i = 0; i < 4; i++) { // stuttered crackle envelope
-      ng.gain.exponentialRampToValueAtTime(0.13, now + 0.01 + i * 0.03);
-      ng.gain.exponentialRampToValueAtTime(0.012, now + 0.025 + i * 0.03);
-    }
-    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-    const osc = ac.createOscillator(); osc.type = 'triangle';
-    osc.frequency.setValueAtTime(420, now + 0.1);
-    osc.frequency.exponentialRampToValueAtTime(120, now + 0.2);
-    const og = ac.createGain();
-    og.gain.setValueAtTime(0.0001, now + 0.1);
-    og.gain.exponentialRampToValueAtTime(0.17, now + 0.12);
-    og.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-    src.connect(bp).connect(ng).connect(ac.destination);
-    osc.connect(og).connect(ac.destination);
-    src.start(now); src.stop(now + 0.18);
-    osc.start(now + 0.1); osc.stop(now + 0.24);
-  } catch (e) { /* audio must never break gameplay */ }
-}
-
-// Gharok foot-stomp juice — ON after look approval (v2.8.6).
-// Synth thump + vibro (gated by settings.vibro inside buzz) + dust on footfalls.
+// ---------- SOUND ENGINE (v2.8.7) — shared WebAudio graph, synthesized SFX ----------
+// Categories: sfx / music / ui. Lazy AudioContext (autoplay-safe). Vibration stays
+// on settings.vibro via buzz() — never gated by muteMaster/muteSfx.
 const GHAROK_STOMP_JUICE = true;
-function playStomp() {
-  if (!GHAROK_STOMP_JUICE) return;
-  try {
-    const ac = getAudio();
-    if (!ac || ac.state !== 'running') return;
-    const now = ac.currentTime;
-    if (now - lastStomp < 0.14) return;
-    lastStomp = now;
-    const th = ac.createOscillator(); th.type = 'sine';
-    th.frequency.setValueAtTime(72, now);
-    th.frequency.exponentialRampToValueAtTime(28, now + 0.18);
-    const tg = ac.createGain();
-    tg.gain.setValueAtTime(0.0001, now);
-    tg.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
-    tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-    const src = ac.createBufferSource(); src.buffer = getNoiseBuf(ac);
-    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
-    const ng = ac.createGain();
-    ng.gain.setValueAtTime(0.0001, now);
-    ng.gain.exponentialRampToValueAtTime(0.11, now + 0.015);
-    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-    th.connect(tg).connect(ac.destination);
-    src.connect(lp).connect(ng).connect(ac.destination);
-    th.start(now); th.stop(now + 0.24);
-    src.start(now); src.stop(now + 0.14);
-  } catch (e) { /* audio must never break gameplay */ }
-}
+const sfx = (() => {
+  let ac = null, noiseBuf = null, graph = null, musicNodes = null;
+  const last = Object.create(null);
+
+  function noise(ctx) {
+    if (!noiseBuf || noiseBuf.sampleRate !== ctx.sampleRate) {
+      noiseBuf = ctx.createBuffer(1, (ctx.sampleRate * 0.5) | 0, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return noiseBuf;
+  }
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : +v || 0; }
+  function ensure() {
+    if (ac === false) return null;
+    if (!ac) {
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { ac = false; return null; }
+    }
+    if (ac.state === 'suspended') { try { ac.resume(); } catch (e) {} }
+    if (!graph) {
+      const master = ac.createGain();
+      const sfxBus = ac.createGain();
+      const musicBus = ac.createGain();
+      const uiBus = ac.createGain();
+      sfxBus.connect(master); musicBus.connect(master); uiBus.connect(master);
+      master.connect(ac.destination);
+      graph = { master, sfx: sfxBus, music: musicBus, ui: uiBus };
+      applyVolumes();
+    }
+    return ac;
+  }
+  function bus(cat) {
+    if (!graph) return null;
+    return graph[cat] || graph.sfx;
+  }
+  function applyVolumes() {
+    if (!graph) return;
+    const m = settings.muteMaster ? 0 : clamp01(settings.masterVol);
+    graph.master.gain.value = m;
+    graph.sfx.gain.value = settings.muteSfx ? 0 : clamp01(settings.sfxVol);
+    graph.music.gain.value = settings.muteMusic ? 0 : clamp01(settings.musicVol);
+    graph.ui.gain.value = settings.muteSfx ? 0 : clamp01(settings.sfxVol);
+    syncMusic();
+  }
+  function syncMusic() {
+    const want = !settings.muteMaster && !settings.muteMusic && clamp01(settings.musicVol) > 0.01
+      && (typeof state !== 'undefined' ? (state === 'playing' || state === 'shop') : false);
+    if (!want) { stopMusic(); return; }
+    const ctx = ensure();
+    if (!ctx || ctx.state !== 'running' || !graph) return;
+    if (musicNodes) return;
+    try {
+      const now = ctx.currentTime;
+      const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = 55;
+      const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = 82.5;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.035, now + 1.2);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 280;
+      o1.connect(g); o2.connect(g); g.connect(lp).connect(graph.music);
+      o1.start(now); o2.start(now);
+      musicNodes = { o1, o2, g };
+    } catch (e) { musicNodes = null; }
+  }
+  function stopMusic() {
+    if (!musicNodes) return;
+    try {
+      const g = musicNodes.g, ctx = ac;
+      if (ctx) {
+        const now = ctx.currentTime;
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+      }
+      musicNodes.o1.stop((ac ? ac.currentTime : 0) + 0.5);
+      musicNodes.o2.stop((ac ? ac.currentTime : 0) + 0.5);
+    } catch (e) {}
+    musicNodes = null;
+  }
+
+  // Registered synth voices — connect into `dest` (category bus), never ac.destination.
+  const voices = {
+    whoosh(ctx, dest, now) {
+      const src = ctx.createBufferSource(); src.buffer = noise(ctx);
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+      bp.frequency.setValueAtTime(1900, now);
+      bp.frequency.exponentialRampToValueAtTime(240, now + 0.32);
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, now);
+      ng.gain.exponentialRampToValueAtTime(0.2, now + 0.05);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+      const osc = ctx.createOscillator(); osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(140, now + 0.3);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, now);
+      og.gain.exponentialRampToValueAtTime(0.06, now + 0.04);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+      src.connect(bp).connect(ng).connect(dest);
+      osc.connect(og).connect(dest);
+      src.start(now); src.stop(now + 0.4);
+      osc.start(now); osc.stop(now + 0.35);
+    },
+    zap(ctx, dest, now) {
+      const osc = ctx.createOscillator(); osc.type = 'square';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, now);
+      og.gain.exponentialRampToValueAtTime(0.11, now + 0.015);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      const th = ctx.createOscillator(); th.type = 'sine';
+      th.frequency.setValueAtTime(90, now + 0.02);
+      th.frequency.exponentialRampToValueAtTime(38, now + 0.22);
+      const tg = ctx.createGain();
+      tg.gain.setValueAtTime(0.0001, now + 0.02);
+      tg.gain.exponentialRampToValueAtTime(0.2, now + 0.05);
+      tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+      const src = ctx.createBufferSource(); src.buffer = noise(ctx);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, now);
+      ng.gain.exponentialRampToValueAtTime(0.09, now + 0.02);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+      osc.connect(og).connect(dest);
+      th.connect(tg).connect(dest);
+      src.connect(lp).connect(ng).connect(dest);
+      osc.start(now); osc.stop(now + 0.18);
+      th.start(now); th.stop(now + 0.3);
+      src.start(now); src.stop(now + 0.16);
+    },
+    crackle(ctx, dest, now) {
+      const src = ctx.createBufferSource(); src.buffer = noise(ctx);
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 8;
+      bp.frequency.setValueAtTime(3200, now);
+      bp.frequency.exponentialRampToValueAtTime(1400, now + 0.12);
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, now);
+      for (let i = 0; i < 4; i++) {
+        ng.gain.exponentialRampToValueAtTime(0.13, now + 0.01 + i * 0.03);
+        ng.gain.exponentialRampToValueAtTime(0.012, now + 0.025 + i * 0.03);
+      }
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      const osc = ctx.createOscillator(); osc.type = 'triangle';
+      osc.frequency.setValueAtTime(420, now + 0.1);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.2);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, now + 0.1);
+      og.gain.exponentialRampToValueAtTime(0.17, now + 0.12);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      src.connect(bp).connect(ng).connect(dest);
+      osc.connect(og).connect(dest);
+      src.start(now); src.stop(now + 0.18);
+      osc.start(now + 0.1); osc.stop(now + 0.24);
+    },
+    stomp(ctx, dest, now) {
+      const th = ctx.createOscillator(); th.type = 'sine';
+      th.frequency.setValueAtTime(72, now);
+      th.frequency.exponentialRampToValueAtTime(28, now + 0.18);
+      const tg = ctx.createGain();
+      tg.gain.setValueAtTime(0.0001, now);
+      tg.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+      tg.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      const src = ctx.createBufferSource(); src.buffer = noise(ctx);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, now);
+      ng.gain.exponentialRampToValueAtTime(0.11, now + 0.015);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      th.connect(tg).connect(dest);
+      src.connect(lp).connect(ng).connect(dest);
+      th.start(now); th.stop(now + 0.24);
+      src.start(now); src.stop(now + 0.14);
+    },
+    melee(ctx, dest, now) {
+      const osc = ctx.createOscillator(); osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, now);
+      og.gain.exponentialRampToValueAtTime(0.14, now + 0.02);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+      const src = ctx.createBufferSource(); src.buffer = noise(ctx);
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2;
+      bp.frequency.value = 600;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, now);
+      ng.gain.exponentialRampToValueAtTime(0.1, now + 0.01);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+      osc.connect(og).connect(dest);
+      src.connect(bp).connect(ng).connect(dest);
+      osc.start(now); osc.stop(now + 0.16);
+      src.start(now); src.stop(now + 0.12);
+    },
+    hurt(ctx, dest, now) {
+      const osc = ctx.createOscillator(); osc.type = 'square';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(55, now + 0.18);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.0001, now);
+      og.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+      og.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      osc.connect(og).connect(dest);
+      osc.start(now); osc.stop(now + 0.22);
+    },
+    levelup(ctx, dest, now) {
+      const notes = [523, 659, 784, 1046];
+      for (let i = 0; i < notes.length; i++) {
+        const o = ctx.createOscillator(); o.type = 'triangle';
+        o.frequency.value = notes[i];
+        const g = ctx.createGain();
+        const t = now + i * 0.08;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.1, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+        o.connect(g).connect(dest);
+        o.start(t); o.stop(t + 0.3);
+      }
+    },
+    waveclear(ctx, dest, now) {
+      const notes = [392, 494, 587, 784];
+      for (let i = 0; i < notes.length; i++) {
+        const o = ctx.createOscillator(); o.type = 'sine';
+        o.frequency.value = notes[i];
+        const g = ctx.createGain();
+        const t = now + i * 0.1;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.09, t + 0.04);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+        o.connect(g).connect(dest);
+        o.start(t); o.stop(t + 0.38);
+      }
+    },
+    click(ctx, dest, now) {
+      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 880;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.06, now + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+      o.connect(g).connect(dest);
+      o.start(now); o.stop(now + 0.07);
+    },
+    fire(ctx, dest, now) {
+      const o = ctx.createOscillator(); o.type = 'square';
+      o.frequency.setValueAtTime(920, now);
+      o.frequency.exponentialRampToValueAtTime(420, now + 0.05);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.05, now + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+      const src = ctx.createBufferSource(); src.buffer = noise(ctx);
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1200;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, now);
+      ng.gain.exponentialRampToValueAtTime(0.04, now + 0.005);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+      o.connect(g).connect(dest);
+      src.connect(hp).connect(ng).connect(dest);
+      o.start(now); o.stop(now + 0.08);
+      src.start(now); src.stop(now + 0.06);
+    },
+    cleaver(ctx, dest, now) {
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(140, now);
+      o.frequency.exponentialRampToValueAtTime(40, now + 0.28);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.18, now + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+      const src = ctx.createBufferSource(); src.buffer = noise(ctx);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.0001, now);
+      ng.gain.exponentialRampToValueAtTime(0.14, now + 0.02);
+      ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      o.connect(g).connect(dest);
+      src.connect(lp).connect(ng).connect(dest);
+      o.start(now); o.stop(now + 0.34);
+      src.start(now); src.stop(now + 0.24);
+    },
+  };
+  const meta = {
+    whoosh: { cat: 'sfx', throttle: 0.09 },
+    zap: { cat: 'sfx', throttle: 0.12 },
+    crackle: { cat: 'sfx', throttle: 0.1 },
+    stomp: { cat: 'sfx', throttle: 0.14 },
+    melee: { cat: 'sfx', throttle: 0.08 },
+    hurt: { cat: 'sfx', throttle: 0.1 },
+    levelup: { cat: 'sfx', throttle: 0.3 },
+    waveclear: { cat: 'sfx', throttle: 0.5 },
+    click: { cat: 'ui', throttle: 0.04 },
+    fire: { cat: 'sfx', throttle: 0.055 },
+    cleaver: { cat: 'sfx', throttle: 0.2 },
+  };
+
+  const api = {
+    play(name, opts) {
+      try {
+        const voice = voices[name];
+        if (!voice) return;
+        if (name === 'stomp' && !GHAROK_STOMP_JUICE) return;
+        const m = meta[name] || { cat: 'sfx', throttle: 0 };
+        if (settings.muteMaster) return;
+        if ((m.cat === 'sfx' || m.cat === 'ui') && settings.muteSfx) return;
+        if (m.cat === 'music' && settings.muteMusic) return;
+        const ctx = ensure();
+        if (!ctx || ctx.state !== 'running') return;
+        const dest = bus(m.cat);
+        if (!dest) return;
+        const now = ctx.currentTime;
+        const th = (opts && opts.throttle != null) ? opts.throttle : m.throttle;
+        if (th > 0 && now - (last[name] || -9) < th) return;
+        last[name] = now;
+        voice(ctx, dest, now, opts || {});
+      } catch (e) { /* audio must never break gameplay */ }
+    },
+    setMaster(v) { settings.masterVol = clamp01(v); applyVolumes(); persistSettings(); },
+    setSfx(v) { settings.sfxVol = clamp01(v); applyVolumes(); persistSettings(); },
+    setMusic(v) { settings.musicVol = clamp01(v); applyVolumes(); persistSettings(); },
+    setMuteMaster(b) { settings.muteMaster = !!b; applyVolumes(); persistSettings(); },
+    setMuteSfx(b) { settings.muteSfx = !!b; applyVolumes(); persistSettings(); },
+    setMuteMusic(b) { settings.muteMusic = !!b; applyVolumes(); persistSettings(); },
+    applyFromSettings() { applyVolumes(); },
+    unlock() { ensure(); syncMusic(); },
+    syncMusic() { syncMusic(); },
+  };
+  return api;
+})();
+
+// Thin wrappers — existing call sites keep working; all route through the engine.
+function playWhoosh() { sfx.play('whoosh'); }
+function playZapThump() { sfx.play('zap'); }
+function playCracklePop() { sfx.play('crackle'); }
+function playStomp() { sfx.play('stomp'); }
+
+// Unlock AudioContext on first user gesture (desktop autoplay policies).
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => {
+  addEventListener(ev, () => sfx.unlock(), { once: false, passive: true });
+});
 
 // ---------- controls placement (custom layout) ----------
 // v2 (app 2.6) layout format: per-button positions.
@@ -718,11 +917,44 @@ function loadGame() {
   return true;
 }
 
+function openSoundMenu() {
+  soundMenuOpen = true;
+  $('settingsMain').classList.add('hidden');
+  $('soundMenu').classList.remove('hidden');
+  refreshSoundMenu();
+  sfx.play('click');
+}
+function closeSoundMenu() {
+  if (!soundMenuOpen) return;
+  soundMenuOpen = false;
+  $('soundMenu').classList.add('hidden');
+  $('settingsMain').classList.remove('hidden');
+  sfx.play('click');
+}
+function refreshSoundMenu() {
+  const pct = v => Math.round(clamp(v, 0, 1) * 100);
+  $('volMaster').value = pct(settings.masterVol);
+  $('volSfx').value = pct(settings.sfxVol);
+  $('volMusic').value = pct(settings.musicVol);
+  $('volMasterVal').textContent = pct(settings.masterVol) + '%';
+  $('volSfxVal').textContent = pct(settings.sfxVol) + '%';
+  $('volMusicVal').textContent = pct(settings.musicVol) + '%';
+  $('togMuteMaster').classList.toggle('on', !!settings.muteMaster);
+  $('togMuteSfx').classList.toggle('on', !!settings.muteSfx);
+  $('togMuteMusic').classList.toggle('on', !!settings.muteMusic);
+}
 function toggleSettings() {
   if (state !== 'playing' && state !== 'shop' && !settingsOpen) return;
   settingsOpen = !settingsOpen;
   $('settings').classList.toggle('hidden', !settingsOpen);
-  if (settingsOpen) refreshToggles();
+  if (!settingsOpen) {
+    soundMenuOpen = false;
+    $('soundMenu').classList.add('hidden');
+    $('settingsMain').classList.remove('hidden');
+  } else {
+    refreshToggles();
+    if (soundMenuOpen) refreshSoundMenu();
+  }
 }
 function refreshToggles() {
   $('togShake').classList.toggle('on', settings.shake);
@@ -1308,6 +1540,7 @@ function gainXp(n) {
     player.hp = Math.min(maxHp(), player.hp + 25);
     addFloater(player.x, player.y - 40, 'LEVEL UP! +1 SKILL POINT ✦', '#ffd54a', true);
     spawnParticles(player.x, player.y, 26, '#ffd54a', 4);
+    sfx.play('levelup');
     buzz([30, 50, 30, 50, 30]);
   }
 }
@@ -1590,6 +1823,7 @@ function startWave() {
   spawnTimer = 0.5;
   if (wave % 5 === 0) { spawnEnemy('warlord'); spawnQueue += 4; }
   banner(`WAVE ${wave}`, wave % 5 === 0 ? '⚠ ORK WARLORD APPROACHES ⚠' : 'the horde emerges…');
+  sfx.syncMusic();
 }
 function pickEnemyType() {
   const r = Math.random();
@@ -1624,6 +1858,7 @@ function endWave() {
   spawnParticles(chest.x, chest.y, 30, '#ffd54a', 4);
   graceT = 10;
   banner('WAVE CLEARED', '🎁 loot the supply cache — field lab opens soon');
+  sfx.play('waveclear');
   buzz([40, 60, 40, 60, 80]);
 }
 
@@ -1687,6 +1922,7 @@ function shootBolt(id, offHand) {
     life: 1.1, r: st.r, wpn: id, dmg: st.dmg, kb: st.kb,
   });
   camera.shake = Math.min(camera.shake + (id === 'gusher' ? 1.4 : 0.6), 4);
+  sfx.play('fire');
 }
 
 // Gusher impact: teal energy splash that blasts the whole pack backwards
@@ -1759,6 +1995,7 @@ function tryNova() {
   const R = 130 + (player.form ? 30 : 0);
   spawnRing(player.x, player.y, R);
   camera.shake = 8;
+  sfx.play('melee');
   buzz(20); // light tap on the melee burst
   for (const e of enemies) {
     if (e.dead) continue;
@@ -2109,6 +2346,7 @@ function update(dt) {
           spawnRing(e.x, e.y - 20, CLAW_RANGE);
           spawnParticles(e.x, e.y - 40, 18, '#ff6a4d', 5);
           warlordStomp(e, true);
+          sfx.play('cleaver');
           buzz(60);
           const pdx = player.x - e.x, pdy = player.y - e.y;
           const pd = Math.hypot(pdx, pdy) || 1;
@@ -2340,6 +2578,7 @@ function hurtPlayer(dmg) {
   player.hp -= dmg * (1 - armorReduce());
   player.hurtT = 0.45;
   camera.shake = 9;
+  sfx.play('hurt');
   buzz(dmg >= 25 ? 60 : 30); // heavy hits (boss slams) rumble harder
   spawnParticles(player.x, player.y - 14, 10, '#ff4d5e', 3);
   if (player.hp <= 0) gameOver();
@@ -3163,6 +3402,49 @@ const gharokSpr = { idle: null, walk: null, windup: null, ok: false };
 
 function gharokSpriteReady(img) {
   return !!(img && img.complete && img.naturalWidth > 0);
+}
+
+// ============ WORLD SPRITES (v2.8.7) — pine trees + rocks ============
+// assets/world/trees|rocks/*.png — drawImage when ready, procedural fallback otherwise.
+const worldSpr = {
+  trees: { small: null, med: null, tall: null },
+  rocks: { boulder: null, cluster: null, slab: null, mossy: null },
+  ok: false,
+};
+(function loadWorldSprites() {
+  const list = [
+    ['trees', 'small', 'assets/world/trees/pine_small.png'],
+    ['trees', 'med', 'assets/world/trees/pine_med.png'],
+    ['trees', 'tall', 'assets/world/trees/pine_tall.png'],
+    ['rocks', 'boulder', 'assets/world/rocks/rock_boulder.png'],
+    ['rocks', 'cluster', 'assets/world/rocks/rock_cluster.png'],
+    ['rocks', 'slab', 'assets/world/rocks/rock_slab.png'],
+    ['rocks', 'mossy', 'assets/world/rocks/rock_mossy.png'],
+  ];
+  let left = list.length, good = 0;
+  for (const [group, key, src] of list) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) worldSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) worldSpr.ok = good > 0; };
+    img.src = src;
+    worldSpr[group][key] = img;
+  }
+})();
+function worldSprReady(img) {
+  return !!(img && img.complete && img.naturalWidth > 0);
+}
+function pineSpriteFor(o) {
+  const size = o.size == null ? 1 : o.size;
+  const key = size === 0 ? 'small' : size === 2 ? 'tall' : 'med';
+  const img = worldSpr.trees[key];
+  return worldSprReady(img) ? img : null;
+}
+function rockSpriteFor(o) {
+  const v = o.variant == null ? (Math.floor(o.seed) % 4) : o.variant;
+  const keys = ['boulder', 'cluster', 'slab', 'mossy'];
+  const img = worldSpr.rocks[keys[v] || 'boulder'];
+  return worldSprReady(img) ? img : null;
 }
 
 function gharokSpriteFrame(e) {
@@ -4269,10 +4551,20 @@ function render() {
   }
 }
 
-// Chunky faceted rocks inspired by stylized grey/moss sheet (original procedural, not copies).
-// variant: 0 round boulder, 1 tall mossy cluster, 2 low slab / pile.
+// Chunky faceted rocks — sprite first (v2.8.7), procedural fallback.
+// variant: 0 boulder, 1 cluster, 2 slab, 3 mossy.
 function drawRockFormation(o) {
-  const v = o.variant == null ? (Math.floor(o.seed) % 3) : o.variant;
+  const img = rockSpriteFor(o);
+  if (img) {
+    const r = o.r;
+    const drawH = r * (o.variant === 2 ? 1.35 : 1.85);
+    const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.beginPath(); ctx.ellipse(0, r * 0.28, Math.max(r * 1.05, drawW * 0.42), r * 0.36, 0, 0, TAU); ctx.fill();
+    ctx.drawImage(img, -drawW / 2, -drawH + r * 0.2, drawW, drawH);
+    return;
+  }
+  const v = o.variant == null ? (Math.floor(o.seed) % 4) : o.variant % 3;
   const r = o.r;
   const moss = (v !== 2) || (o.seed % 1 > 0.55);
   const stoneLite = '#9aa3b0', stone = '#6e7684', stoneDeep = '#3e4552', edge = '#2a303a';
@@ -4336,13 +4628,26 @@ function drawRockFormation(o) {
   }
 }
 
-// Scalloped cartoon pine canopy — inspired by clean layered-tier pine ref (original procedural).
+// Pine canopy — sprite first (v2.8.7), scalloped procedural fallback.
 // size: 0 small / 1 medium / 2 tall. Drawn above y-sorted entities.
 function drawPineCanopy(o) {
   const size = o.size == null ? 1 : o.size;
+  const sway = Math.sin(performance.now() / 900 + o.seed) * (2.2 + size);
+  const img = pineSpriteFor(o);
+  if (img) {
+    const scale = size === 0 ? 0.78 : size === 2 ? 1.18 : 1;
+    const drawH = (96 + size * 18) * scale;
+    const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+    ctx.save();
+    ctx.translate(o.x + sway, o.y);
+    ctx.globalAlpha = 0.96;
+    ctx.drawImage(img, -drawW / 2, -drawH + 4, drawW, drawH);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    return;
+  }
   const scale = size === 0 ? 0.72 : size === 2 ? 1.22 : 1;
   const tiers = size === 0 ? 3 : size === 2 ? 5 : 4;
-  const sway = Math.sin(performance.now() / 900 + o.seed) * (2.2 + size);
   const baseY = -28 * scale;
   const topY = baseY - (38 + tiers * 14) * scale;
   ctx.save();
@@ -4452,19 +4757,21 @@ function drawObstacle(o) {
   } else if (o.type === 'rock') {
     drawRockFormation(o);
   } else if (o.type === 'tree') {
-    // trunk only here — scalloped canopy drawn above entities in drawPineCanopy
+    // Sprite pines draw full trunk+canopy in drawPineCanopy; procedural keeps trunk here.
     const size = o.size == null ? 1 : o.size;
     const scale = size === 0 ? 0.72 : size === 2 ? 1.22 : 1;
-    const lean = Math.sin(o.seed) * 3 * scale;
     ctx.fillStyle = 'rgba(0,0,0,0.32)';
     ctx.beginPath(); ctx.ellipse(0, 3, 14 * scale, 5.5 * scale, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#5a3a1e'; ctx.lineWidth = 8 * scale; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(lean, -26 * scale); ctx.stroke();
-    ctx.strokeStyle = '#3a2412'; ctx.lineWidth = 2.2 * scale;
-    ctx.beginPath();
-    ctx.moveTo(-2.2 * scale, -4); ctx.lineTo(-1.5 * scale + lean * 0.4, -20 * scale);
-    ctx.moveTo(1.8 * scale, -8); ctx.lineTo(1.2 * scale + lean * 0.5, -18 * scale);
-    ctx.stroke();
+    if (!pineSpriteFor(o)) {
+      const lean = Math.sin(o.seed) * 3 * scale;
+      ctx.strokeStyle = '#5a3a1e'; ctx.lineWidth = 8 * scale; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(lean, -26 * scale); ctx.stroke();
+      ctx.strokeStyle = '#3a2412'; ctx.lineWidth = 2.2 * scale;
+      ctx.beginPath();
+      ctx.moveTo(-2.2 * scale, -4); ctx.lineTo(-1.5 * scale + lean * 0.4, -20 * scale);
+      ctx.moveTo(1.8 * scale, -8); ctx.lineTo(1.2 * scale + lean * 0.5, -18 * scale);
+      ctx.stroke();
+    }
   } else if (o.type === 'deadtree') {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(0, 3, 13, 5, 0, 0, TAU); ctx.fill();
@@ -4617,6 +4924,23 @@ $('saveGameBtn').onclick = () => {
   $('saveGameBtn').textContent = '💾 SAVED ✓';
   setTimeout(() => $('saveGameBtn').textContent = '💾 SAVE GAME', 1200);
 };
+$('soundBtn').onclick = () => openSoundMenu();
+$('soundBackBtn').onclick = () => closeSoundMenu();
+$('volMaster').oninput = () => {
+  sfx.setMaster((+$('volMaster').value || 0) / 100);
+  $('volMasterVal').textContent = $('volMaster').value + '%';
+};
+$('volSfx').oninput = () => {
+  sfx.setSfx((+$('volSfx').value || 0) / 100);
+  $('volSfxVal').textContent = $('volSfx').value + '%';
+};
+$('volMusic').oninput = () => {
+  sfx.setMusic((+$('volMusic').value || 0) / 100);
+  $('volMusicVal').textContent = $('volMusic').value + '%';
+};
+$('togMuteMaster').onclick = () => { sfx.setMuteMaster(!settings.muteMaster); refreshSoundMenu(); sfx.play('click'); };
+$('togMuteSfx').onclick = () => { sfx.setMuteSfx(!settings.muteSfx); refreshSoundMenu(); };
+$('togMuteMusic').onclick = () => { sfx.setMuteMusic(!settings.muteMusic); refreshSoundMenu(); sfx.play('click'); };
 $('togShake').onclick = () => { settings.shake = !settings.shake; persistSettings(); refreshToggles(); };
 $('togDmg').onclick = () => { settings.dmgText = !settings.dmgText; persistSettings(); refreshToggles(); };
 $('togVibro').onclick = () => {
@@ -4652,22 +4976,32 @@ $('layoutReset').onclick = () => {
   persistSettings(); applyLayout(); positionJoyPlaceholder();
 };
 $('restartBtn').onclick = () => {
-  settingsOpen = false; $('settings').classList.add('hidden');
+  settingsOpen = false; soundMenuOpen = false;
+  $('settings').classList.add('hidden');
+  $('soundMenu').classList.add('hidden');
+  $('settingsMain').classList.remove('hidden');
   $('shop').classList.add('hidden'); $('gameover').classList.add('hidden');
   newGame();
 };
 $('quitBtn').onclick = () => {
   saveGame(false);
   settingsOpen = false;
+  soundMenuOpen = false;
   $('settings').classList.add('hidden');
+  $('soundMenu').classList.add('hidden');
+  $('settingsMain').classList.remove('hidden');
   $('shop').classList.add('hidden');
   $('hud').classList.add('hidden');
   $('btnMenu').classList.add('hidden');
   $('btnSettings').classList.add('hidden');
   $('btnTalk').classList.add('hidden');
   state = 'menu';
+  sfx.syncMusic();
   $('continueBtn').classList.toggle('hidden', !hasSave());
   $('menu').classList.remove('hidden');
 };
+
+// Apply persisted audio levels once the graph can be built.
+sfx.applyFromSettings();
 
 requestAnimationFrame(loop);

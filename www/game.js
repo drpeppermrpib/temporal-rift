@@ -214,6 +214,7 @@ addEventListener('keydown', e => {
     if (!nearestDownedCompanion() && !nearestDownedAlly()) tryTalk();
   }
   if (e.code === 'KeyB') tryBuild();
+  if (e.code === 'KeyH') tryAetherMend();
 });
 addEventListener('keyup', e => {
   keys[e.code] = false;
@@ -279,6 +280,7 @@ bindHold('btnGren', () => tryGrenade());
 bindHold('btnDash', () => tryDash(true));
 bindHold('btnForm', () => tryTransform());
 bindHold('btnBuild', () => tryBuild());
+bindHold('btnMend', () => tryAetherMend());
 bindHold('btnTalk', () => {
   talkHeld = true;
   if (!nearestDownedCompanion() && !nearestDownedAlly()) tryTalk();
@@ -286,7 +288,7 @@ bindHold('btnTalk', () => {
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.9.2';
+const APP_VERSION = '2.9.3';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -332,7 +334,8 @@ const SAVE_KEY = 'tr_save1', SETTINGS_KEY = 'tr_settings';
 let settingsOpen = false, soundMenuOpen = false;
 const settings = {
   shake: true, dmgText: true, vibro: IS_TOUCH, uiScale: 'normal', btnStyle: 'classic',
-  hudOffset: 0, mapSize: 'medium', adaptCollapsed: false, camView: 'normal', layout: null,
+  hudOffset: 0, mapSize: 'medium', adaptCollapsed: false, adaptHidden: false,
+  camView: 'normal', layout: null,
   masterVol: 0.8, sfxVol: 0.9, musicVol: 0.5,
   muteMaster: false, muteSfx: false, muteMusic: false,
 };
@@ -387,7 +390,10 @@ applyMapSize();
 function applyAdaptCollapse() {
   const box = $('adaptbox');
   if (!box) return;
-  box.classList.toggle('collapsed', !!settings.adaptCollapsed);
+  // Settings "Hide learning panel" fully removes it from combat HUD (persisted).
+  // Chevron collapse still works when the panel is shown.
+  box.classList.toggle('force-hidden', !!settings.adaptHidden);
+  box.classList.toggle('collapsed', !settings.adaptHidden && !!settings.adaptCollapsed);
   const chev = $('adaptChev');
   if (chev) chev.textContent = settings.adaptCollapsed ? '▸' : '▾';
 }
@@ -767,7 +773,7 @@ function playStomp() { sfx.play('stomp'); }
 // before measuring, so pre-2.6 saves keep their moved cluster with zero migration;
 // per-button entries in `btns` then override individual buttons on top of it.
 const GRID_BTN_IDS = ['btnBuild', 'btnForm', 'btnGren', 'btnDash', 'btnNova', 'btnBeam', 'btnFire'];
-const FLOAT_BTN_IDS = ['btnTalk', 'btnMenu', 'btnSettings']; // fixed-position controls outside the grid
+const FLOAT_BTN_IDS = ['btnTalk', 'btnMend', 'btnMenu', 'btnSettings']; // fixed-position controls outside the grid
 
 function applyLayout() {
   const tb = $('tbtns'), jz = $('joyZone');
@@ -835,20 +841,23 @@ function positionJoyPlaceholder() {
   jb.style.left = (zr.width / 2 - 55) + 'px';
   jb.style.top = (zr.height / 2 - 55) + 'px';
 }
-let talkWasHidden = false;
+let talkWasHidden = false, mendWasHidden = false;
 function setLayoutEditing(on) {
   layoutEditing = on;
   document.body.classList.toggle('layout-editing', on);
   $('layoutBar').classList.toggle('hidden', !on);
   const jb = $('joyBase'), jk = $('joyKnob');
   if (on) {
-    // TALK only appears near NPCs — show it while editing so it can be placed too
+    // TALK / MEND only appear when relevant — show them while editing so they can be placed
     talkWasHidden = $('btnTalk').classList.contains('hidden');
+    mendWasHidden = $('btnMend').classList.contains('hidden');
     $('btnTalk').classList.remove('hidden');
+    $('btnMend').classList.remove('hidden');
     applyLayout(); // touch controls just became visible → measure real positions
     positionJoyPlaceholder();
   } else {
     if (talkWasHidden) $('btnTalk').classList.add('hidden');
+    if (mendWasHidden) $('btnMend').classList.add('hidden');
     jb.style.display = 'none'; jk.style.display = 'none'; jb.style.left = ''; jb.style.top = '';
   }
 }
@@ -999,6 +1008,7 @@ function refreshToggles() {
   $('togShake').classList.toggle('on', settings.shake);
   $('togDmg').classList.toggle('on', settings.dmgText);
   $('togVibro').classList.toggle('on', settings.vibro);
+  if ($('togAdaptHide')) $('togAdaptHide').classList.toggle('on', !!settings.adaptHidden);
   $('uiSizeVal').textContent = settings.uiScale.toUpperCase();
   $('btnStyleVal').textContent = settings.btnStyle.toUpperCase();
   $('hudOffVal').textContent = '+' + (settings.hudOffset || 0) + ' PX';
@@ -1833,6 +1843,22 @@ function buyAetherHeal() {
   sfx.play('click');
   return true;
 }
+// One-tap field mend (v2.9.3) — same costs/heal as infirmary tile; no menu hop.
+function tryAetherMend() {
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen ||
+      infirmaryOpen || riftNetOpen || player.downed) return;
+  if (player.hp >= maxHp()) {
+    addFloater(player.x, player.y - 40, 'FULL HEALTH', '#7CFC00', false);
+    return;
+  }
+  const cost = aetherHealCost();
+  if (player.ki < cost) {
+    addFloater(player.x, player.y - 40, `NEED ${cost} AETHER`, '#ff8a93', false);
+    return;
+  }
+  buyAetherHeal();
+  buzz(18);
+}
 function buyAetherRevive(type) {
   const c = companions.find(x => x.type === type && x.downed);
   if (!c) return false;
@@ -2530,14 +2556,25 @@ function explodeGrenade(g) {
   }
 }
 
+function barricadeAimPos() {
+  return {
+    x: clamp(player.x + Math.cos(player.aim) * 62, 40, WORLD.w - 40),
+    y: clamp(player.y + Math.sin(player.aim) * 62, 40, WORLD.h - 40),
+  };
+}
+function barricadeSpotBlocked(bx, by) {
+  return obstacles.some(o => dist2(bx, by, o.x, o.y) < (o.r + 40) ** 2) ||
+    barricades.some(b => dist2(bx, by, b.x, b.y) < BARRICADE_MIN_GAP * BARRICADE_MIN_GAP);
+}
+function barricadeLinkTargets(bx, by) {
+  return barricades.filter(b => dist2(bx, by, b.x, b.y) <= BARRICADE_LINK_DIST * BARRICADE_LINK_DIST);
+}
 function tryBuild() {
   if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || riftNetOpen || player.downed) return;
   if (barricades.length >= BARRICADE_MAX) { addFloater(player.x, player.y - 40, `MAX ${BARRICADE_MAX} BARRICADES`, '#ff8a93', false); return; }
   if (cores < BARRICADE_COST) { addFloater(player.x, player.y - 40, `NEED ${BARRICADE_COST} ⬡`, '#4de1ff', false); return; }
-  const bx = clamp(player.x + Math.cos(player.aim) * 62, 40, WORLD.w - 40);
-  const by = clamp(player.y + Math.sin(player.aim) * 62, 40, WORLD.h - 40);
-  if (obstacles.some(o => dist2(bx, by, o.x, o.y) < (o.r + 40) ** 2) ||
-      barricades.some(b => dist2(bx, by, b.x, b.y) < BARRICADE_MIN_GAP * BARRICADE_MIN_GAP)) {
+  const { x: bx, y: by } = barricadeAimPos();
+  if (barricadeSpotBlocked(bx, by)) {
     addFloater(player.x, player.y - 40, 'NO ROOM HERE', '#ff8a93', false); return;
   }
   cores -= BARRICADE_COST;
@@ -3119,6 +3156,20 @@ function update(dt) {
     riftNetRequestRevive();
   }
 
+  // one-tap Aether Mend button (v2.9.3) — shows when wounded
+  const mendBtn = $('btnMend');
+  if (mendBtn) {
+    const showMend = state === 'playing' && !dialogOpen && !vendorOpen && !infirmaryOpen && !riftNetOpen &&
+      !player.downed && player.hp < maxHp();
+    mendBtn.classList.toggle('hidden', !showMend);
+    if (showMend) {
+      const cost = aetherHealCost();
+      const ok = player.ki >= cost;
+      mendBtn.textContent = ok ? `✧ MEND ${cost}◈` : `✧ NEED ${cost}◈`;
+      mendBtn.classList.toggle('need', !ok);
+    }
+  }
+
   updateHud();
 }
 
@@ -3357,6 +3408,7 @@ function gameOver() {
   $('btnMenu').classList.add('hidden');
   $('btnSettings').classList.add('hidden');
   $('btnTalk').classList.add('hidden');
+  if ($('btnMend')) $('btnMend').classList.add('hidden');
   $('goTitle').textContent = 'YOU HAVE FALLEN';
   $('goSub').textContent = 'Emberfall burns behind you…';
   $('goStats').innerHTML = statsHtml();
@@ -5097,6 +5149,48 @@ function render() {
   draws.sort((a, b) => a.y - b.y);
   for (const d of draws) d.f();
 
+  // ---- barricade place ghost + link preview (v2.9.3) ----
+  if (state === 'playing' && !player.downed && !paused && !dialogOpen && !vendorOpen &&
+      !settingsOpen && !infirmaryOpen && !riftNetOpen && !treeOpen) {
+    const { x: gx, y: gy } = barricadeAimPos();
+    const blocked = barricadeSpotBlocked(gx, gy) || barricades.length >= BARRICADE_MAX;
+    const canAfford = cores >= BARRICADE_COST;
+    const links = barricadeLinkTargets(gx, gy);
+    const willLink = !blocked && links.length > 0;
+    const col = blocked || !canAfford ? '255,100,110' : willLink ? '158,240,255' : '124,252,0';
+    const ghostR = willLink ? BARRICADE_BASE_R * 2 : BARRICADE_BASE_R;
+    const pulse = 0.55 + Math.sin(performance.now() / 180) * 0.25;
+    ctx.save();
+    ctx.globalAlpha = 0.55 + pulse * 0.2;
+    for (const o of links) {
+      ctx.strokeStyle = `rgba(158,240,255,${0.55 + pulse * 0.3})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath(); ctx.moveTo(gx, gy - 8); ctx.lineTo(o.x, o.y - 8); ctx.stroke();
+      ctx.setLineDash([]);
+      // highlight neighbor that will fortify
+      ctx.strokeStyle = `rgba(158,240,255,${0.35 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 4, 0, TAU); ctx.stroke();
+    }
+    ctx.strokeStyle = `rgba(${col},${0.75})`;
+    ctx.lineWidth = willLink ? 3.5 : 2.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.arc(gx, gy, ghostR, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(${col},0.12)`;
+    ctx.beginPath(); ctx.arc(gx, gy, ghostR, 0, TAU); ctx.fill();
+    ctx.fillStyle = `rgba(${col},0.9)`;
+    ctx.beginPath(); ctx.arc(gx, gy - 22, 3.5, 0, TAU); ctx.fill();
+    ctx.font = 'bold 10px Segoe UI'; ctx.textAlign = 'center';
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
+    let label = !canAfford ? `NEED ${BARRICADE_COST}⬡` : blocked ? 'NO ROOM' : willLink ? `LINK ×${links.length}` : 'BUILD';
+    ctx.strokeText(label, gx, gy + ghostR + 14);
+    ctx.fillStyle = `rgba(${col},0.95)`;
+    ctx.fillText(label, gx, gy + ghostR + 14);
+    ctx.restore();
+  }
+
   // ---- projectiles over actors ----
   ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 10;
   for (const b of bolts) {
@@ -5716,6 +5810,15 @@ $('togVibro').onclick = () => {
   settings.vibro = !settings.vibro; persistSettings(); refreshToggles();
   buzz(30); // confirmation blip when turning it on
 };
+if ($('togAdaptHide')) $('togAdaptHide').onclick = () => {
+  settings.adaptHidden = !settings.adaptHidden;
+  persistSettings(); refreshToggles();
+};
+$('adaptbox').onclick = () => {
+  if (settings.adaptHidden) return; // fully hidden via settings — ignore stray taps
+  settings.adaptCollapsed = !settings.adaptCollapsed;
+  persistSettings(); applyAdaptCollapse();
+};
 $('rowUiSize').onclick = () => {
   settings.uiScale = UI_SCALES[(UI_SCALES.indexOf(settings.uiScale) + 1) % UI_SCALES.length];
   applyUiScale(); applyLayout(); persistSettings(); refreshToggles();
@@ -5733,10 +5836,6 @@ $('rowMapSize').onclick = () => {
   settings.mapSize = MAP_SIZES[(MAP_SIZES.indexOf(settings.mapSize || 'medium') + 1) % MAP_SIZES.length];
   applyMapSize(); persistSettings(); refreshToggles();
   if (state === 'playing' || state === 'shop') drawMinimap();
-};
-$('adaptbox').onclick = () => {
-  settings.adaptCollapsed = !settings.adaptCollapsed;
-  persistSettings(); applyAdaptCollapse();
 };
 $('rowCamView').onclick = () => {
   const i = CAM_VIEWS.findIndex(v => v.id === settings.camView);
@@ -5773,6 +5872,7 @@ $('quitBtn').onclick = () => {
   $('btnMenu').classList.add('hidden');
   $('btnSettings').classList.add('hidden');
   $('btnTalk').classList.add('hidden');
+  if ($('btnMend')) $('btnMend').classList.add('hidden');
   state = 'menu';
   sfx.syncMusic();
   $('continueBtn').classList.toggle('hidden', !hasSave());

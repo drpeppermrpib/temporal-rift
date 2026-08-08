@@ -36,12 +36,13 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 
 | Feature / version | Master (repo) | BETA APK | GitHub Release | Play Closed |
 |---|---|---|---|---|
-| **App version** | **2.9.2** (versionCode 38) | Through `TemporalRift-BETA-2.9.2.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
+| **App version** | **2.9.3** (versionCode 39) | Through `TemporalRift-BETA-2.9.3.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
 | Package | `com.drpep.temporalrift` (prod) | `com.drpep.temporalrift.beta` | Sideload / release assets | Store-signed prod |
 | Update banner → GitHub | GitHub channel only | Per build channel | Yes (github) | Must stay **off** (`UPDATE_CHANNEL !== 'github'`) |
-| Learning engine + adapt panel | Yes | Yes (2.8+) | No (stuck ~2.6) | No if still on 2.6 |
+| Learning engine + adapt panel | Yes (+ settings hide toggle) | Yes (2.9.3) | No (stuck ~2.6) | No if still on 2.6 |
 | Dual-wield / companions / sentry | Yes (2.8+) | Yes | No (~2.6) | No if still on 2.6 |
 | Aether Infirmary + field revive | Yes (2.9.0–2.9.2) | Yes | No | No if still on 2.6 |
+| One-tap Aether Mend + wall ghost | Yes (2.9.3) | Yes | No | No if still on 2.6 |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | No | No if still on 2.6 |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **No** (not started) | **No** | **No** | **No** |
@@ -69,8 +70,8 @@ Hard constraints. Agents must check before reintroducing UI or features.
 |---|---|
 | Bottom region / city label (`regionFlashT`) | Replacement for removed center popup |
 | Channel-aware update check | Play builds must not offer GitHub updates |
-| Learning engine + collapsible adapt panel | Discoverability ≠ removal |
-| Barricades, exit pulse, fence tiers, sentry uplink, adjacency fortify links | Core defense |
+| Learning engine + collapsible adapt panel | Discoverability ≠ removal; 2.9.3 adds settings hide toggle (not removal of system) |
+| Barricades, exit pulse, fence tiers, sentry uplink, adjacency fortify links | Core defense; 2.9.3 adds pre-place link ghost |
 | Autosave / settings / layout drag / HUD offset / button styles / vibration | Mobile UX |
 | Dual-wield Ascension, Gusher, Sticker, companions (Rover/Warden/Scout) | 2.8+ |
 | Death checkpoints | 2.8+ |
@@ -78,6 +79,7 @@ Hard constraints. Agents must check before reintroducing UI or features.
 | Sound engine + SOUND submenu | 2.8.7 |
 | World pine/rock sprites | 2.8.7 |
 | Aether Infirmary (mend + menu revive) | 2.9.0 |
+| One-tap field Aether Mend (H / MEND btn) | 2.9.3 — same costs as infirmary |
 | Compact minimap + HP/aether cluster; map S/M/L; thinner beam ladder | 2.9.1 |
 | Field hold-Talk revive + PeerJS downed/revive | 2.9.2 |
 | BETA package `com.drpep.temporalrift.beta` | Side-by-side installs |
@@ -110,9 +112,6 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | High | Full **co-op combat sync** | PeerJS presence/HP/wave/revive shipped; enemies stay local — explicitly deferred |
 | High | **Buildable city** / Warcraft-style crafting behind fences | Roadmap Aug 6; not started (“post-launch”) |
 | Ops | Store / GitHub channel lag behind BETA | 2.7+ AABs on shelf; public channels last confirmed at 2.6 |
-| Polish | Dedicated **hide learning panel** toggle | Collapse chevron/`adaptCollapsed` exists; not full “settings hide in combat” |
-| Polish | **One-tap Aether Mend** on HUD | Still menu/infirmary |
-| Polish | **Linked-wall ghost preview** before place | Links apply on place; no pre-place ghost |
 | Backlog | Clan spot 2–5 players / robust rooms | Passkeys exist; not full lobby/matchmaking |
 | Backlog | Skill-tree polish | Called backlog in 2.8.3 notes |
 | Backlog | Music bus / full soundtrack | Largely stubbed |
@@ -122,6 +121,9 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 ## Changelog by version (seed — brief)
 
 Append new versions at the top of this list when shipping.
+
+### 2.9.3
+- Hide learning panel settings toggle; one-tap Aether Mend (H / MEND); linked-wall ghost preview before place.
 
 ### 2.9.2
 - Field hold-Talk squad revive + PeerJS downed/revive (`dd08d2d`).

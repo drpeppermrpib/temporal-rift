@@ -60,6 +60,16 @@ No install, no build step:
 - **Mobile-first tech** — virtual joystick, hold-to-fire ability buttons, auto-aim,
   devicePixelRatio-aware rendering, no scroll/zoom bleed, zero dependencies.
 
+### New in Release 2.9.3 (UX polish)
+
+- **Hide learning panel** — Settings toggle fully hides the Learning Engine HUD
+  (persisted). Chevron collapse still works when the panel is shown.
+- **One-tap Aether Mend** — tap **MEND** (or press **H**) in the field for the
+  same aether heal as the infirmary tile; no Bramm/menu hop. Menu mend still works.
+- **Linked-wall ghost preview** — aiming a barricade shows a place ghost plus
+  cyan link lines / `LINK ×N` before you commit with **B** / BUILD.
+- Field hold-Talk revive from 2.9.2 unchanged.
+
 ### New in Release 2.9.2 (Field revive + co-op revive)
 
 - **Field squad revive** — hold **Talk (T)** near a downed companion to channel

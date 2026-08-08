@@ -144,15 +144,26 @@ function buildWorld() {
     obstacles.push({ x, y, r, type, seed: Math.random() * 9 });
     return true;
   };
-  // scattered rocks & supply crates
-  for (let i = 0; i < 28; i++)
-    tryPlace(rand(160, WORLD.w - 160), rand(160, WORLD.h - 160), rand(36, 62), i % 2 ? 'rock' : 'crate');
+  // scattered rocks & supply crates (rock variants: boulder / cluster / slab)
+  for (let i = 0; i < 28; i++) {
+    if (i % 2) {
+      const variant = i % 6 === 1 ? 0 : i % 6 === 3 ? 1 : 2; // 0 boulder, 1 cluster, 2 slab
+      tryPlace(rand(160, WORLD.w - 160), rand(160, WORLD.h - 160), rand(34, 58), 'rock')
+        && (obstacles[obstacles.length - 1].variant = variant);
+    } else {
+      tryPlace(rand(160, WORLD.w - 160), rand(160, WORLD.h - 160), rand(36, 62), 'crate');
+    }
+  }
   // forest patches in the grass fields + dead trees in the marsh
+  // tree size: 0 small / 1 medium / 2 tall (scalloped pine tiers)
   for (let i = 0; i < 52; i++) {
     const cx = rand(300, WORLD.w - 300), cy = rand(300, WORLD.h - 300);
     const z = zoneAt(cx, cy);
-    if (z === 'grass') tryPlace(cx, cy, 14, 'tree');
-    else if (z === 'marsh') tryPlace(cx, cy, 12, 'deadtree');
+    if (z === 'grass') {
+      const size = i % 5 === 0 ? 2 : i % 3 === 0 ? 0 : 1;
+      if (tryPlace(cx, cy, 12 + size * 3, 'tree'))
+        obstacles[obstacles.length - 1].size = size;
+    } else if (z === 'marsh') tryPlace(cx, cy, 12, 'deadtree');
   }
   // ruined pillars around the fort + ash reach (fallen kingdom vibe)
   for (let i = 0; i < 9; i++)
@@ -261,7 +272,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.8.5';
+const APP_VERSION = '2.8.6';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -479,9 +490,9 @@ function playCracklePop() {
   } catch (e) { /* audio must never break gameplay */ }
 }
 
-// Gharok foot-stomp juice — DEFERRED until look is approved (v2.8.3+).
-// Flip GHAROK_STOMP_JUICE on to re-enable synth thump + vibro + dust.
-const GHAROK_STOMP_JUICE = false;
+// Gharok foot-stomp juice — ON after look approval (v2.8.6).
+// Synth thump + vibro (gated by settings.vibro inside buzz) + dust on footfalls.
+const GHAROK_STOMP_JUICE = true;
 function playStomp() {
   if (!GHAROK_STOMP_JUICE) return;
   try {
@@ -1907,12 +1918,12 @@ function spawnRing(x, y, R) { particles.push({ x, y, ring: true, r: 10, targetR:
 function emberBurst(x, y) { spawnParticles(x, y, 8, '#ff9d2e', 3); spawnParticles(x, y, 4, '#ffd54a', 2); }
 function addFloater(x, y, text, color, big) { floaters.push({ x, y, text, color, life: 1.1, big }); }
 function zap(x1, y1, x2, y2) { zaps.push({ x1, y1, x2, y2, life: 0.12 }); }
-// Gharok stomp juice (deferred — gated by GHAROK_STOMP_JUICE).
+// Gharok stomp juice — gated by GHAROK_STOMP_JUICE; buzz respects settings.vibro.
 function warlordStomp(e, heavy) {
   if (!GHAROK_STOMP_JUICE) return;
   playStomp();
   buzz(heavy ? [35, 40, 45] : 28);
-  camera.shake = Math.max(camera.shake, heavy ? 5.5 : 2.4);
+  if (settings.shake) camera.shake = Math.max(camera.shake, heavy ? 5.5 : 2.4);
   const side = (e._stompSide = -(e._stompSide || 1));
   spawnParticles(e.x + side * (e.r * 0.35), e.y + 4, heavy ? 8 : 4, '#8a7a58', heavy ? 2.4 : 1.6);
   spawnParticles(e.x + side * (e.r * 0.28), e.y + 2, heavy ? 4 : 2, '#6b5a40', heavy ? 1.8 : 1.2);
@@ -3132,9 +3143,10 @@ function drawWarlord_v282_template(e, alpha) {
   ctx.restore();
 }
 
-// ============ GHAROK SPRITES (v2.8.5) — real art from T-pose concept ============
-// Loaded from assets/gharok/*.png (synced into www/). Procedural VFX stay in
-// drawWarlord(); body falls back to drawWarlordProcedural if images fail.
+// ============ GHAROK SPRITES (v2.8.6) — real art from approved concept ============
+// Loaded from assets/gharok/*.png (synced into www/). NOT skeletal articulation —
+// frame-swap idle↔walk by gait phase + bob/lean/squash so steps read clearly.
+// Procedural VFX stay in drawWarlord(); body falls back to drawWarlordProcedural.
 const gharokSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadGharokSprites() {
   const keys = ['idle', 'walk', 'windup'];
@@ -3155,8 +3167,12 @@ function gharokSpriteReady(img) {
 
 function gharokSpriteFrame(e) {
   if (e.clawWind > 0 && gharokSpriteReady(gharokSpr.windup)) return gharokSpr.windup;
-  // slight walk bob: alternate idle/walk by gait phase
-  if (gharokSpriteReady(gharokSpr.walk) && Math.sin(e.walk || 0) > 0.15) return gharokSpr.walk;
+  // Moving: hard alternate idle (plant) ↔ walk (stride) each half-cycle so feet
+  // feel like stepping — not a soft sin threshold that barely swaps.
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 14;
+  if (moving && gharokSpriteReady(gharokSpr.walk) && gharokSpriteReady(gharokSpr.idle)) {
+    return (Math.floor((e.walk || 0) / Math.PI) & 1) ? gharokSpr.walk : gharokSpr.idle;
+  }
   if (gharokSpriteReady(gharokSpr.idle)) return gharokSpr.idle;
   if (gharokSpriteReady(gharokSpr.walk)) return gharokSpr.walk;
   if (gharokSpriteReady(gharokSpr.windup)) return gharokSpr.windup;
@@ -3166,7 +3182,14 @@ function gharokSpriteFrame(e) {
 function drawWarlordSprite(e, alpha) {
   const img = gharokSpriteFrame(e);
   if (!img) return false;
-  const bob = Math.abs(Math.sin(e.walk || 0)) * 3.2;
+  const t = e.walk || 0;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 14;
+  // Heavy lumber: vertical bob + plant squash + slight lean toward planted side
+  const bob = moving ? Math.abs(Math.sin(t)) * 5.2 : Math.abs(Math.sin(t * 0.6)) * 1.2;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0; // peaks on footfalls
+  const lean = moving ? Math.sin(t) * 0.045 : 0;
+  const squashY = 1 - plant * 0.04;
+  const squashX = 1 + plant * 0.03;
   const drawH = 228; // larger readable boss; collision r stays ~54
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const wind = e.clawWind > 0 ? clamp(e.clawWind / CLAW_WINDUP, 0, 1) : 0;
@@ -3178,7 +3201,7 @@ function drawWarlordSprite(e, alpha) {
   if (alpha !== undefined) ctx.globalAlpha = alpha;
 
   ctx.fillStyle = 'rgba(0,0,0,0.46)';
-  ctx.beginPath(); ctx.ellipse(0, 2, 52, 18, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 2, 52 + plant * 4, 18, 0, 0, TAU); ctx.fill();
 
   // purple rift aura (procedural)
   const ar = 50 + Math.sin(performance.now() / 70) * 2.5;
@@ -3189,6 +3212,8 @@ function drawWarlordSprite(e, alpha) {
 
   ctx.scale(e.facing || 1, 1);
   ctx.translate(0, -bob);
+  ctx.rotate(lean);
+  ctx.scale(squashX, squashY);
 
   // red cleaver telegraph glow
   if (wind > 0) {
@@ -4011,7 +4036,7 @@ function render() {
         ctx.beginPath(); ctx.arc(e.x, e.y, 18 * (1 - emerge) + 6, 0, TAU); ctx.stroke();
       }
       if (e.type === 'warlord') {
-        drawWarlord(e, emerge); // v2.8.5 sprite boss + procedural VFX (fallback: drawWarlordProcedural)
+        drawWarlord(e, emerge); // v2.8.6 sprite boss + gait bob + stomps (fallback: drawWarlordProcedural)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;
@@ -4167,17 +4192,10 @@ function render() {
   }
   ctx.globalAlpha = 1;
 
-  // ---- tree canopies over everything ----
+  // ---- pine canopies over everything (layered scalloped tiers; trunk drawn in drawObstacle) ----
   for (const o of obstacles) {
     if (o.type !== 'tree') continue;
-    ctx.globalAlpha = 0.88;
-    const cr = 46 + Math.sin(o.seed * 5) * 8;
-    const sway = Math.sin(performance.now() / 900 + o.seed) * 3;
-    ctx.fillStyle = '#1d3a22';
-    ctx.beginPath(); ctx.arc(o.x + sway, o.y - 34, cr, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#25482a';
-    ctx.beginPath(); ctx.arc(o.x + sway - cr * 0.3, o.y - 34 - cr * 0.25, cr * 0.55, 0, TAU); ctx.fill();
-    ctx.globalAlpha = 1;
+    drawPineCanopy(o);
   }
 
   // ---- floaters (outlined for readability over any terrain) ----
@@ -4251,6 +4269,124 @@ function render() {
   }
 }
 
+// Chunky faceted rocks inspired by stylized grey/moss sheet (original procedural, not copies).
+// variant: 0 round boulder, 1 tall mossy cluster, 2 low slab / pile.
+function drawRockFormation(o) {
+  const v = o.variant == null ? (Math.floor(o.seed) % 3) : o.variant;
+  const r = o.r;
+  const moss = (v !== 2) || (o.seed % 1 > 0.55);
+  const stoneLite = '#9aa3b0', stone = '#6e7684', stoneDeep = '#3e4552', edge = '#2a303a';
+  const mossCol = '#4a8a3a', mossDeep = '#2f6a28';
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  ctx.beginPath(); ctx.ellipse(0, r * 0.32, r * (v === 2 ? 1.35 : 1.15), r * 0.38, 0, 0, TAU); ctx.fill();
+
+  const facetBlob = (ox, oy, rx, ry, rot, seed) => {
+    ctx.beginPath();
+    const n = 6;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * TAU + rot + seed * 0.2;
+      const rr = 0.78 + Math.sin(seed * 5 + i * 2.1) * 0.18;
+      const px = ox + Math.cos(a) * rx * rr;
+      const py = oy + Math.sin(a) * ry * rr;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    const g = ctx.createLinearGradient(ox - rx, oy - ry, ox + rx * 0.6, oy + ry * 0.8);
+    g.addColorStop(0, stoneLite); g.addColorStop(0.4, stone); g.addColorStop(1, stoneDeep);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = edge; ctx.lineWidth = 2.2; ctx.stroke();
+    // hard facet highlight (top-left)
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.beginPath();
+    ctx.moveTo(ox - rx * 0.55, oy - ry * 0.1);
+    ctx.lineTo(ox - rx * 0.1, oy - ry * 0.75);
+    ctx.lineTo(ox + rx * 0.15, oy - ry * 0.35);
+    ctx.closePath(); ctx.fill();
+  };
+
+  if (v === 0) {
+    facetBlob(0, -r * 0.35, r * 0.95, r * 0.78, o.seed, o.seed);
+    if (moss) {
+      ctx.fillStyle = mossCol;
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.15, -r * 0.85, r * 0.38, r * 0.18, -0.3, 0, TAU); ctx.fill();
+      ctx.fillStyle = mossDeep;
+      ctx.beginPath();
+      ctx.ellipse(r * 0.2, -r * 0.7, r * 0.22, r * 0.12, 0.4, 0, TAU); ctx.fill();
+    }
+  } else if (v === 1) {
+    // three upright pillars
+    facetBlob(-r * 0.45, -r * 0.55, r * 0.38, r * 0.7, -0.15, o.seed);
+    facetBlob(r * 0.1, -r * 0.85, r * 0.42, r * 0.95, 0.05, o.seed + 1);
+    facetBlob(r * 0.48, -r * 0.5, r * 0.34, r * 0.62, 0.2, o.seed + 2);
+    if (moss) {
+      ctx.fillStyle = mossCol;
+      ctx.beginPath(); ctx.ellipse(r * 0.05, -r * 1.55, r * 0.28, r * 0.14, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-r * 0.4, -r * 1.1, r * 0.2, r * 0.1, -0.2, 0, TAU); ctx.fill();
+    }
+  } else {
+    // low overlapping slabs
+    facetBlob(-r * 0.35, -r * 0.22, r * 0.7, r * 0.42, -0.25, o.seed);
+    facetBlob(r * 0.4, -r * 0.28, r * 0.55, r * 0.36, 0.35, o.seed + 2);
+    facetBlob(0.05 * r, -r * 0.55, r * 0.5, r * 0.3, 0.05, o.seed + 4);
+    if (moss) {
+      ctx.fillStyle = mossCol;
+      ctx.beginPath(); ctx.ellipse(0, -r * 0.72, r * 0.42, r * 0.14, 0.1, 0, TAU); ctx.fill();
+    }
+  }
+}
+
+// Scalloped cartoon pine canopy — inspired by clean layered-tier pine ref (original procedural).
+// size: 0 small / 1 medium / 2 tall. Drawn above y-sorted entities.
+function drawPineCanopy(o) {
+  const size = o.size == null ? 1 : o.size;
+  const scale = size === 0 ? 0.72 : size === 2 ? 1.22 : 1;
+  const tiers = size === 0 ? 3 : size === 2 ? 5 : 4;
+  const sway = Math.sin(performance.now() / 900 + o.seed) * (2.2 + size);
+  const baseY = -28 * scale;
+  const topY = baseY - (38 + tiers * 14) * scale;
+  ctx.save();
+  ctx.translate(o.x + sway, o.y);
+  ctx.globalAlpha = 0.94;
+  for (let t = 0; t < tiers; t++) {
+    const p = t / (tiers - 1 || 1); // 0 top → 1 bottom
+    const y = topY + (baseY - topY) * p;
+    const halfW = (10 + p * 28) * scale;
+    const h = (12 + p * 4) * scale;
+    const lite = '#6db84a', mid = '#3d8a32', deep = '#2a6a28', edge = '#0e2412';
+    // scalloped tier silhouette
+    ctx.beginPath();
+    ctx.moveTo(0, y - h * 0.85);
+    const bumps = 5 + (t & 1);
+    for (let i = 0; i <= bumps; i++) {
+      const u = i / bumps;
+      const x = -halfW + u * halfW * 2;
+      const scallop = Math.sin(u * Math.PI) * h * 0.35 + Math.sin(u * Math.PI * 3 + o.seed) * h * 0.08;
+      ctx.lineTo(x, y + h * 0.55 - scallop);
+    }
+    ctx.lineTo(0, y - h * 0.85);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, y - h, 0, y + h * 0.4);
+    g.addColorStop(0, lite); g.addColorStop(0.45, mid); g.addColorStop(1, deep);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = edge; ctx.lineWidth = 1.6 * scale;
+    ctx.stroke();
+    // needle tick marks (few — keep cheap)
+    ctx.strokeStyle = 'rgba(14,36,18,0.45)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) {
+      const u = 0.2 + k * 0.28 + (o.seed % 1) * 0.05;
+      const x = -halfW * 0.7 + u * halfW * 1.4;
+      const ty = y + h * 0.1;
+      ctx.moveTo(x - 2 * scale, ty); ctx.lineTo(x, ty + 3.5 * scale); ctx.lineTo(x + 2 * scale, ty);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
 function drawDecor(d) {
   ctx.save(); ctx.translate(d.x, d.y);
   switch (d.type) {
@@ -4314,25 +4450,21 @@ function drawObstacle(o) {
     ctx.strokeStyle = 'rgba(77,225,255,.4)'; ctx.lineWidth = 1.5;
     ctx.strokeRect(-s / 4, -s * 0.75, s / 2, s / 2);
   } else if (o.type === 'rock') {
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath(); ctx.ellipse(0, o.r * 0.35, o.r * 1.15, o.r * 0.4, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#2a3040'; ctx.strokeStyle = '#454f66'; ctx.lineWidth = 3;
-    ctx.beginPath();
-    for (let i = 0; i < 7; i++) {
-      const a = i / 7 * TAU + o.seed, rr = o.r * (0.8 + Math.sin(o.seed * 7 + i * 3) * 0.2);
-      const px = Math.cos(a) * rr, py = Math.sin(a) * rr * 0.75 - o.r * 0.35;
-      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
-    }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.beginPath(); ctx.arc(-o.r * 0.25, -o.r * 0.6, o.r * 0.4, 0, TAU); ctx.fill();
+    drawRockFormation(o);
   } else if (o.type === 'tree') {
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath(); ctx.ellipse(0, 3, 16, 6, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#4a3826'; ctx.lineWidth = 9;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.sin(o.seed) * 3, -30); ctx.stroke();
-    ctx.strokeStyle = '#3a2c1e'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(-2, -6); ctx.lineTo(-2, -22); ctx.stroke();
+    // trunk only here — scalloped canopy drawn above entities in drawPineCanopy
+    const size = o.size == null ? 1 : o.size;
+    const scale = size === 0 ? 0.72 : size === 2 ? 1.22 : 1;
+    const lean = Math.sin(o.seed) * 3 * scale;
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.beginPath(); ctx.ellipse(0, 3, 14 * scale, 5.5 * scale, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#5a3a1e'; ctx.lineWidth = 8 * scale; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(lean, -26 * scale); ctx.stroke();
+    ctx.strokeStyle = '#3a2412'; ctx.lineWidth = 2.2 * scale;
+    ctx.beginPath();
+    ctx.moveTo(-2.2 * scale, -4); ctx.lineTo(-1.5 * scale + lean * 0.4, -20 * scale);
+    ctx.moveTo(1.8 * scale, -8); ctx.lineTo(1.2 * scale + lean * 0.5, -18 * scale);
+    ctx.stroke();
   } else if (o.type === 'deadtree') {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(0, 3, 13, 5, 0, 0, TAU); ctx.fill();

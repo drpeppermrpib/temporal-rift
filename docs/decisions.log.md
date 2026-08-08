@@ -17,7 +17,7 @@
 ---
 
 ### 2026-08-08 — SHIPPED — v2.9.3 hide learning / one-tap mend / wall ghost
-- Version / commit / APK: 2.9.3 (versionCode 39) / BETA `TemporalRift-BETA-2.9.3.apk`
+- Version / commit / APK: 2.9.3 (versionCode 39) / `baa9f3f` / BETA `TemporalRift-BETA-2.9.3.apk`
 - User intent: Fix audit polish misses and apply to current version
 - Agent action: Settings `adaptHidden` toggle (persisted); field MEND btn + Key H (`tryAetherMend`, same costs as infirmary); barricade aim ghost + link lines/`LINK ×N` before place; kept 2.9.2 field Talk revive
 - Notes: discoverability_risk reduced for mend (was menu-only). Co-op combat sync + buildable city still deferred. Play/GitHub public tracks not uploaded this pass.

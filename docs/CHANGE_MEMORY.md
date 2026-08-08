@@ -123,7 +123,7 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 Append new versions at the top of this list when shipping.
 
 ### 2.9.3
-- Hide learning panel settings toggle; one-tap Aether Mend (H / MEND); linked-wall ghost preview before place.
+- Hide learning panel settings toggle; one-tap Aether Mend (H / MEND); linked-wall ghost preview before place (`baa9f3f`).
 
 ### 2.9.2
 - Field hold-Talk squad revive + PeerJS downed/revive (`dd08d2d`).

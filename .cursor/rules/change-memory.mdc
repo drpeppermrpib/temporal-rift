@@ -1,0 +1,28 @@
+---
+description: Change memory — read before gameplay changes; append after ship; never re-add REMOVED
+alwaysApply: true
+---
+
+# Change memory (Temporal Rift)
+
+## Before gameplay / UX / channel changes
+
+1. Read `docs/CHANGE_MEMORY.md` (Remove/Keep register + channel matrix + pending).
+2. Skim newest rows in `docs/decisions.log.md`.
+3. Never silently re-add items marked **REMOVED** (center ENTERING popup, GitHub update banner on Play, copyrighted IP names).
+
+## After shipping (BETA, version bump, or user-ordered remove/keep)
+
+1. Append a dated entry to `docs/decisions.log.md` (`SHIPPED` / `REMOVED` / `KEPT` / `DEFERRED`).
+2. Update channel matrix / changelog seed in `docs/CHANGE_MEMORY.md` when versions move.
+3. If user says “take out / don’t bring back,” add a **REMOVED** row the same turn.
+
+## Baseline revert reference
+
+- `docs/chat_audit_misses_and_regressions.md` is an **immutable snapshot** — do not rewrite the body.
+- Git tag `baseline-pre-memory-system` (commit `180f2b6`) is the recovery point before this system.
+- Append corrections in CHANGE_MEMORY or the decision log only.
+
+## Felt-gone check
+
+If a combat helper is menu-only or auto-clears, note `discoverability_risk` in the decision entry. Check channel lag (Play/GitHub may still be on older builds than BETA) before assuming a code regression.

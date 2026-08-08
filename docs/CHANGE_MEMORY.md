@@ -1,0 +1,167 @@
+# Temporal Rift — Change Memory
+
+Living memory for agents and humans. Seeded from [`chat_audit_misses_and_regressions.md`](./chat_audit_misses_and_regressions.md) (baseline — do not rewrite that file).
+
+**Recovery point:** git tag `baseline-pre-memory-system` → commit `180f2b6` (chat audit on master before this system).
+
+---
+
+## How to use
+
+### Agents (before coding)
+
+1. Read this file + the **Remove / Keep register** below.
+2. Skim recent entries in [`decisions.log.md`](./decisions.log.md).
+3. Check the **Channel matrix** so you know which APK/channel the user might be on.
+4. Never silently re-add anything marked **REMOVED**.
+5. Do not treat the baseline audit as editable truth — append corrections here or in the decision log.
+
+### Agents (after every ship / BETA / version bump)
+
+1. Append a dated row to [`decisions.log.md`](./decisions.log.md) (`SHIPPED` / `REMOVED` / `KEPT` / `DEFERRED`).
+2. Update the **Channel matrix** if versions moved.
+3. Add a short **Changelog by version** entry here when `APP_VERSION` bumps.
+4. If user says “take out / don’t bring back,” add a **Remove** row immediately.
+
+### Humans
+
+- Feel a feature “gone”? Check channel matrix first (store/GitHub may lag BETA).
+- Device bugs go in **Open bugs / device notes** with package + version + ROM if known.
+
+---
+
+## Channel matrix
+
+Update when any channel ships. Audit snapshot as of 2026-08-08:
+
+| Feature / version | Master (repo) | BETA APK | GitHub Release | Play Closed |
+|---|---|---|---|---|
+| **App version** | **2.9.2** (versionCode 38) | Through `TemporalRift-BETA-2.9.2.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
+| Package | `com.drpep.temporalrift` (prod) | `com.drpep.temporalrift.beta` | Sideload / release assets | Store-signed prod |
+| Update banner → GitHub | GitHub channel only | Per build channel | Yes (github) | Must stay **off** (`UPDATE_CHANNEL !== 'github'`) |
+| Learning engine + adapt panel | Yes | Yes (2.8+) | No (stuck ~2.6) | No if still on 2.6 |
+| Dual-wield / companions / sentry | Yes (2.8+) | Yes | No (~2.6) | No if still on 2.6 |
+| Aether Infirmary + field revive | Yes (2.9.0–2.9.2) | Yes | No | No if still on 2.6 |
+| Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | No | No if still on 2.6 |
+| Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
+| Buildable city / craft behind fences | **No** (not started) | **No** | **No** | **No** |
+| Compact HUD + thinner beam (2.9.1) | Yes | Yes | No | No if still on 2.6 |
+
+**Channel lag note:** Play closed + GitHub “latest” were held around **2.6** while master/BETA raced to **2.9.x**. That is distribution lag, not a code regression.
+
+---
+
+## Remove / Keep register
+
+Hard constraints. Agents must check before reintroducing UI or features.
+
+### REMOVED — must NOT come back
+
+| Item | Intent | Since | Status |
+|---|---|---|---|
+| Center-screen region **“ENTERING”** popup | Remove; keep bottom region label only | v2.4 | Stayed removed in 2.9.2 — do not re-add |
+| GitHub update banner on **Play** builds | Must not push Play users to sideload | v2.5 | Gated: `UPDATE_CHANNEL === 'github'` only — keep gated |
+| Copyrighted Saiyan / Kamehameha naming | Scrub for store | v2 rewrite | Do not restore original IP names |
+
+### KEPT — must stay
+
+| Item | Notes |
+|---|---|
+| Bottom region / city label (`regionFlashT`) | Replacement for removed center popup |
+| Channel-aware update check | Play builds must not offer GitHub updates |
+| Learning engine + collapsible adapt panel | Discoverability ≠ removal |
+| Barricades, exit pulse, fence tiers, sentry uplink, adjacency fortify links | Core defense |
+| Autosave / settings / layout drag / HUD offset / button styles / vibration | Mobile UX |
+| Dual-wield Ascension, Gusher, Sticker, companions (Rover/Warden/Scout) | 2.8+ |
+| Death checkpoints | 2.8+ |
+| Camera view Normal/Low/Lower | 2.8+ |
+| Sound engine + SOUND submenu | 2.8.7 |
+| World pine/rock sprites | 2.8.7 |
+| Aether Infirmary (mend + menu revive) | 2.9.0 |
+| Compact minimap + HP/aether cluster; map S/M/L; thinner beam ladder | 2.9.1 |
+| Field hold-Talk revive + PeerJS downed/revive | 2.9.2 |
+| BETA package `com.drpep.temporalrift.beta` | Side-by-side installs |
+
+### Discoverability risk (not removed — easy to feel “gone”)
+
+| Item | Risk |
+|---|---|
+| Mid-wave squad revive (pre-2.9.2 was menu-only) | Wave-end auto-revive cleared downed companions before shop; fixed with field hold-Talk in 2.9.2 — keep field path if changing revive UX |
+| Menu-only systems generally | Mark `discoverability_risk` in decisions when shipping menu-only combat helpers |
+
+---
+
+## Open bugs / device notes
+
+| Date | Device / ROM | Package | Version | Symptom | Status |
+|---|---|---|---|---|---|
+| 2026-08-08 | **OnePlus 9 Pro / Evolution X** (user-reported; Android custom ROM) | unknown | unknown | **Unknown** — not documented in prior chat transcripts; no diagnosis | Open — needs repro + logcat + packageId + version label |
+
+*Hypotheses only (unconfirmed):* WebView/Chromium skew, battery killers vs AudioContext/WebRTC, cutout/gesture nav, SELinux on sideload vs Play, thermal throttle on heavier 2.8.5+ assets. Capture logcat around repro before assuming root cause.
+
+---
+
+## Pending / missed items (from audit)
+
+Do not invent extras. Skip boss art / combat “feel” polish unless user reopens (out of audit scope).
+
+| Priority | Item | Notes |
+|---|---|---|
+| High | Full **co-op combat sync** | PeerJS presence/HP/wave/revive shipped; enemies stay local — explicitly deferred |
+| High | **Buildable city** / Warcraft-style crafting behind fences | Roadmap Aug 6; not started (“post-launch”) |
+| Ops | Store / GitHub channel lag behind BETA | 2.7+ AABs on shelf; public channels last confirmed at 2.6 |
+| Polish | Dedicated **hide learning panel** toggle | Collapse chevron/`adaptCollapsed` exists; not full “settings hide in combat” |
+| Polish | **One-tap Aether Mend** on HUD | Still menu/infirmary |
+| Polish | **Linked-wall ghost preview** before place | Links apply on place; no pre-place ghost |
+| Backlog | Clan spot 2–5 players / robust rooms | Passkeys exist; not full lobby/matchmaking |
+| Backlog | Skill-tree polish | Called backlog in 2.8.3 notes |
+| Backlog | Music bus / full soundtrack | Largely stubbed |
+
+---
+
+## Changelog by version (seed — brief)
+
+Append new versions at the top of this list when shipping.
+
+### 2.9.2
+- Field hold-Talk squad revive + PeerJS downed/revive (`dd08d2d`).
+
+### 2.9.1
+- Compact map+HP HUD cluster; thinner beam ladder.
+
+### 2.9.0
+- Aether heal/revive (infirmary), dog durability, linked barricades, Gharok knockback mass, Riftnet co-op foundation (combat sync deferred).
+
+### 2.8.7
+- Sound engine submenu; sprite pines/rocks.
+
+### 2.8.1–2.8.6
+- Boss redesign iterations (art quality out of memory scope unless reopened).
+
+### 2.8
+- Dual-wield Ascension, Gusher/Sticker, companions, sentry, camera peek, death checkpoints; separate BETA package.
+
+### 2.7
+- Fusion zombies, graves/skeletons, fireballs, boss armor, fence upgrades (shelf; store rollout deferred).
+
+### 2.6
+- HUD under notch, movable buttons, styles; vibration on attacks. Last confirmed GitHub/Play public ship point for many testers.
+
+### 2.5
+- Play channel hides GitHub update banner.
+
+### 2.4
+- Removed center “entering city” popup; bottom region label kept.
+
+### Earlier (2.0–2.3)
+- v2 Ashen Vanguard rewrite, chests/armor/NPCs/barricades, autosave/settings, layout + city name on boss bar, GitHub update banner foundation.
+
+---
+
+## Related files
+
+| File | Role |
+|---|---|
+| [`chat_audit_misses_and_regressions.md`](./chat_audit_misses_and_regressions.md) | **Baseline audit** — immutable revert reference |
+| [`decisions.log.md`](./decisions.log.md) | Append-only dated decisions |
+| `.cursor/rules/change-memory.mdc` | Agent rule to load/update this system |

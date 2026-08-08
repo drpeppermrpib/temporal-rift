@@ -1,9 +1,13 @@
 # Temporal Rift — Chat Audit: Misses, Regressions, Writebacks
 
+> **BASELINE AUDIT — do not rewrite; append corrections elsewhere.**  
+> Immutable snapshot / revert reference (git tag `baseline-pre-memory-system`, commit `180f2b6`).  
+> Living memory lives in [`CHANGE_MEMORY.md`](./CHANGE_MEMORY.md) and [`decisions.log.md`](./decisions.log.md).
+
 **Date:** 2026-08-08  
 **Scope:** Reconstruct feature history from Cursor agent transcripts + spot-check current code (`APP_VERSION` **2.9.2**).  
 **Not in scope:** Boss look / how combat “feels” / Gharok art touchups (deferred by user).  
-**No remembering system implemented** — this document is analysis only.
+**Remembering system:** seeded after this audit — see `CHANGE_MEMORY.md` (do not edit this body to “catch up”).
 
 **Primary transcript:** [`a840435d-eb1f-4c40-8138-c782e5fe4af8`](../../../../projects/c-Users-drpep-cursor-agents-videogamemakes/agent-transcripts/a840435d-eb1f-4c40-8138-c782e5fe4af8/a840435d-eb1f-4c40-8138-c782e5fe4af8.jsonl) (~691 lines, ~130 user turns, Aug 4–8 2026)  
 **Related subagent / fork chats under same folder:** `1a69c006…` (v2.9.0 features), `5f0415cb…` (sound+sprites 2.8.7), `15a7205d…` / `658af4a8…` / `f0dd909c…` / `afb7e78d…` (Gharok passes), revive worker `3b175607…`  

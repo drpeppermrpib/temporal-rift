@@ -28,6 +28,19 @@ Write-Host "== Building Temporal Rift v$ver (both channels) =="
 function Set-Channel([string]$channel) {
     # Copy fresh web assets into www\ then stamp the requested channel
     Copy-Item "$root\index.html", "$root\game.js" "$root\www\" -Force
+    # Static art (Gharok sprites, etc.) — Capacitor serves from www\
+    if (Test-Path "$root\assets") {
+        New-Item -ItemType Directory -Force "$root\www\assets" | Out-Null
+        Get-ChildItem "$root\assets" -Directory | Where-Object { $_.Name -ne '_raw' } | ForEach-Object {
+            Copy-Item $_.FullName "$root\www\assets\$($_.Name)" -Recurse -Force
+        }
+        Get-ChildItem "$root\assets" -File | ForEach-Object {
+            Copy-Item $_.FullName "$root\www\assets\" -Force
+        }
+        # nested _raw under character folders is for regenerating art — omit from APK
+        Get-ChildItem "$root\www\assets" -Directory -Recurse | Where-Object { $_.Name -eq '_raw' } |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    }
     # -Encoding UTF8 is required: PS5 otherwise decodes BOM-less UTF-8 as ANSI (mojibake)
     $html = Get-Content "$root\www\index.html" -Raw -Encoding UTF8
     $stamped = $html -replace "window\.TR_CHANNEL='[a-z]+'", "window.TR_CHANNEL='$channel'"

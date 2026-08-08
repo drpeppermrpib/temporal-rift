@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GAME_URL = 'http://127.0.0.1:8322/index.html';
 const DBG_PORT = 9341;
-const OUT = join(__dirname, 'rollouts', 'gharok-2.8.4-preview.png');
-const OUT_ROOT = join(__dirname, 'gharok-2.8.4-preview.png');
+const OUT = join(__dirname, 'rollouts', 'gharok-2.8.5-preview.png');
+const OUT_ROOT = join(__dirname, 'gharok-2.8.5-preview.png');
 
 const EDGE_PATHS = [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
@@ -97,7 +97,13 @@ try {
   await navigate(GAME_URL);
   const ver = await evaluate('APP_VERSION');
   console.log('APP_VERSION:', ver);
-  if (ver !== '2.8.4') console.warn('WARNING: expected APP_VERSION 2.8.4, got', ver);
+  if (ver !== '2.8.5') console.warn('WARNING: expected APP_VERSION 2.8.5, got', ver);
+  // wait briefly for Gharok PNGs (async Image load)
+  for (let i = 0; i < 40; i++) {
+    const ready = await evaluate(`!!(typeof gharokSpr!=='undefined' && gharokSpr.idle && gharokSpr.idle.complete && gharokSpr.idle.naturalWidth)`);
+    if (ready) break;
+    await sleep(100);
+  }
 
   await evaluate(`document.getElementById('startBtn').click(); state`);
   // freeze waves, clear arena, spawn Gharok armor-intact + claw wind-up, no banner clutter
@@ -135,6 +141,8 @@ try {
     return {
       type: b.type, boss: !!b.boss, armor: b.armor, armorCrack: b.armorCrack,
       clawWind: b.clawWind, x: b.x, y: b.y,
+      spriteOk: !!(typeof gharokSpr !== 'undefined' && gharokSpr.idle && gharokSpr.idle.naturalWidth),
+      spriteFrame: b.clawWind > 0 ? 'windup' : 'idle/walk',
     };
   })()`);
   console.log('boss state:', JSON.stringify(info));

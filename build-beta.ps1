@@ -57,6 +57,17 @@ try {
 
     # ---- fresh github-channel web assets ------------------------------------
     Copy-Item "$root\index.html", "$root\game.js" "$root\www\" -Force
+    if (Test-Path "$root\assets") {
+        New-Item -ItemType Directory -Force "$root\www\assets" | Out-Null
+        Get-ChildItem "$root\assets" -Directory | Where-Object { $_.Name -ne '_raw' } | ForEach-Object {
+            Copy-Item $_.FullName "$root\www\assets\$($_.Name)" -Recurse -Force
+        }
+        Get-ChildItem "$root\assets" -File | ForEach-Object {
+            Copy-Item $_.FullName "$root\www\assets\" -Force
+        }
+        Get-ChildItem "$root\www\assets" -Directory -Recurse | Where-Object { $_.Name -eq '_raw' } |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    }
     $html = Get-Content "$root\www\index.html" -Raw -Encoding UTF8
     $stamped = $html -replace "window\.TR_CHANNEL='[a-z]+'", "window.TR_CHANNEL='github'"
     [System.IO.File]::WriteAllText("$root\www\index.html", $stamped, (New-Object System.Text.UTF8Encoding($false)))

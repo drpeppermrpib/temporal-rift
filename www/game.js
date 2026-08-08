@@ -261,7 +261,7 @@ $('btnTalk').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.8.4';
+const APP_VERSION = '2.8.5';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -3132,13 +3132,145 @@ function drawWarlord_v282_template(e, alpha) {
   ctx.restore();
 }
 
-// ============ GHAROK — FLOWING TWIN WAR-BRUTE (v2.8.4) ============
-// Evolves v2.8.3 silhouette toward soft connected limbs (concept:
-// gharok-tpose-flow-concept.png). Overlapping ellipses / tapered capsules —
-// NOT stacked rectangles. Twin necks → shared trapezius. Thigh→knee→calf→foot.
-// Mace + cleaver (red wind-up), armorCrack, original Gharok only.
-// Template drawWarlord_v282_template preserved above.
+// ============ GHAROK SPRITES (v2.8.5) — real art from T-pose concept ============
+// Loaded from assets/gharok/*.png (synced into www/). Procedural VFX stay in
+// drawWarlord(); body falls back to drawWarlordProcedural if images fail.
+const gharokSpr = { idle: null, walk: null, windup: null, ok: false };
+(function loadGharokSprites() {
+  const keys = ['idle', 'walk', 'windup'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) gharokSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) gharokSpr.ok = good > 0; };
+    img.src = 'assets/gharok/' + k + '.png';
+    gharokSpr[k] = img;
+  }
+})();
+
+function gharokSpriteReady(img) {
+  return !!(img && img.complete && img.naturalWidth > 0);
+}
+
+function gharokSpriteFrame(e) {
+  if (e.clawWind > 0 && gharokSpriteReady(gharokSpr.windup)) return gharokSpr.windup;
+  // slight walk bob: alternate idle/walk by gait phase
+  if (gharokSpriteReady(gharokSpr.walk) && Math.sin(e.walk || 0) > 0.15) return gharokSpr.walk;
+  if (gharokSpriteReady(gharokSpr.idle)) return gharokSpr.idle;
+  if (gharokSpriteReady(gharokSpr.walk)) return gharokSpr.walk;
+  if (gharokSpriteReady(gharokSpr.windup)) return gharokSpr.windup;
+  return null;
+}
+
+function drawWarlordSprite(e, alpha) {
+  const img = gharokSpriteFrame(e);
+  if (!img) return false;
+  const bob = Math.abs(Math.sin(e.walk || 0)) * 3.2;
+  const drawH = 228; // larger readable boss; collision r stays ~54
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const wind = e.clawWind > 0 ? clamp(e.clawWind / CLAW_WINDUP, 0, 1) : 0;
+  const flash = e.flash > 0;
+  const plates = e.maxArmor ? (e.armor > 0 ? e.armorCrack : 0) : 4;
+
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.46)';
+  ctx.beginPath(); ctx.ellipse(0, 2, 52, 18, 0, 0, TAU); ctx.fill();
+
+  // purple rift aura (procedural)
+  const ar = 50 + Math.sin(performance.now() / 70) * 2.5;
+  const ag = ctx.createRadialGradient(0, -drawH * 0.32, 4, 0, -drawH * 0.32, ar);
+  ag.addColorStop(0, '#b04dff48'); ag.addColorStop(1, '#b04dff00');
+  ctx.fillStyle = ag;
+  ctx.beginPath(); ctx.ellipse(0, -drawH * 0.32, ar * 0.78, ar, 0, 0, TAU); ctx.fill();
+
+  ctx.scale(e.facing || 1, 1);
+  ctx.translate(0, -bob);
+
+  // red cleaver telegraph glow
+  if (wind > 0) {
+    ctx.save();
+    ctx.globalAlpha *= 0.5 + wind * 0.5;
+    ctx.shadowColor = '#ff3a28';
+    ctx.shadowBlur = 24;
+    ctx.fillStyle = `rgba(255,58,40,${0.22 + wind * 0.4})`;
+    ctx.beginPath();
+    ctx.ellipse(drawW * 0.16, -drawH * 0.74, 30 + wind * 12, 38 + wind * 14, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (flash) ctx.filter = 'brightness(2.5) saturate(0.15)';
+  ctx.drawImage(img, -drawW / 2, -drawH + 6, drawW, drawH);
+  ctx.filter = 'none';
+
+  // armorCrack chip overlays (pauldrons + chest straps)
+  ctx.lineCap = 'round';
+  if (plates < 2) {
+    ctx.strokeStyle = flash ? '#fff' : '#1a3a16';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(-drawW * 0.22, -drawH * 0.62); ctx.lineTo(-drawW * 0.08, -drawH * 0.48);
+    ctx.moveTo(-drawW * 0.08, -drawH * 0.62); ctx.lineTo(-drawW * 0.22, -drawH * 0.48);
+    ctx.stroke();
+  } else if (plates === 2 && e.armor < e.maxArmor) {
+    ctx.strokeStyle = '#0c180e'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-drawW * 0.2, -drawH * 0.58); ctx.lineTo(-drawW * 0.1, -drawH * 0.5);
+    ctx.stroke();
+  }
+  if (plates < 1) {
+    ctx.strokeStyle = flash ? '#fff' : '#1a3a16';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(drawW * 0.08, -drawH * 0.6); ctx.lineTo(drawW * 0.24, -drawH * 0.48);
+    ctx.moveTo(drawW * 0.24, -drawH * 0.6); ctx.lineTo(drawW * 0.08, -drawH * 0.48);
+    ctx.stroke();
+  } else if (plates === 1 && e.armor < e.maxArmor) {
+    ctx.strokeStyle = '#0c180e'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(drawW * 0.1, -drawH * 0.56); ctx.lineTo(drawW * 0.22, -drawH * 0.48);
+    ctx.stroke();
+  }
+  if (e.maxArmor) {
+    for (let i = 0; i < 2; i++) {
+      const need = i + 3;
+      const cx = (i === 0 ? -1 : 1) * drawW * 0.08;
+      const cy = -drawH * 0.42;
+      if (plates < need) {
+        ctx.strokeStyle = flash ? '#fff' : '#1a3a16';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 10, cy - 6); ctx.lineTo(cx + 10, cy + 6);
+        ctx.moveTo(cx + 10, cy - 6); ctx.lineTo(cx - 10, cy + 6);
+        ctx.stroke();
+      } else if (plates === need && e.armor < e.maxArmor) {
+        ctx.strokeStyle = '#0c180e'; ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(cx - 8, cy - 4); ctx.lineTo(cx + 6, cy + 5);
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.restore();
+  return true;
+}
+
 function drawWarlord(e, alpha) {
+  if (gharokSpr.ok && drawWarlordSprite(e, alpha)) return;
+  // also try once images have loaded but ok flag races first paint
+  if (drawWarlordSprite(e, alpha)) { gharokSpr.ok = true; return; }
+  drawWarlordProcedural(e, alpha);
+}
+
+// ============ GHAROK — FLOWING TWIN WAR-BRUTE (v2.8.4 procedural fallback) ============
+// Soft connected limbs from T-pose concept. Used when sprite PNGs fail to load.
+// Template drawWarlord_v282_template preserved above.
+function drawWarlordProcedural(e, alpha) {
   const s = 3.2;
   const t = e.walk, swing = Math.sin(t) * 0.4, bob = Math.abs(Math.sin(t)) * 2.6;
   const flash = e.flash > 0;
@@ -3879,7 +4011,7 @@ function render() {
         ctx.beginPath(); ctx.arc(e.x, e.y, 18 * (1 - emerge) + 6, 0, TAU); ctx.stroke();
       }
       if (e.type === 'warlord') {
-        drawWarlord(e, emerge); // v2.8.4 flowing twin war-brute (template: drawWarlord_v282_template)
+        drawWarlord(e, emerge); // v2.8.5 sprite boss + procedural VFX (fallback: drawWarlordProcedural)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

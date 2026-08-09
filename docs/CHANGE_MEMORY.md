@@ -36,29 +36,29 @@ Update when any channel ships. Audit snapshot as of 2026-08-09:
 
 | Feature / version | Master (repo) | BETA APK | GitHub Release | Play Closed |
 |---|---|---|---|---|
-| **App version** | **2.13.2** (versionCode 46) | Through `TemporalRift-BETA-2.13.2.apk` | **v2.13.2** ([Release 8](https://github.com/drpeppermrpib/temporal-rift/releases/tag/v2.13.2)) | **AAB ready, upload pending** — `playstore/TemporalRift-2.13.2.aab` + `rollouts/rollout-4-v2.13.2/` (TR_CHANNEL=play, versionCode 46); Console may still show 2.8 or older until uploaded |
+| **App version** | **2.13.2** (versionCode 46) | Through `TemporalRift-BETA-2.13.2.apk` | **v2.13.2** ([Release 8](https://github.com/drpeppermrpib/temporal-rift/releases/tag/v2.13.2)) | **2.13.2** (versionCode 46) — Closed testing live (user confirmed 2026-08-09) |
 | Package | `com.drpep.temporalrift` (prod) | `com.drpep.temporalrift.beta` | Sideload / release assets | Store-signed prod |
 | Update banner → GitHub | GitHub channel only | Per build channel | Yes (github) | Must stay **off** (`TR_CHANNEL !== 'github'`) |
-| Learning engine + adapt panel | Yes (+ settings hide toggle) | Yes (2.9.3+) | Yes (2.13.2) | Pending upload |
-| Dual-wield / companions / sentry | Yes (2.8+) | Yes | Yes (2.13.2) | Pending upload |
-| Aether Infirmary + field revive | Yes (2.9.0–2.9.2) | Yes | Yes (2.13.2) | Pending upload |
-| One-tap Aether Mend + wall ghost | Yes (2.9.3) | Yes | Yes (2.13.2) | Pending upload |
-| RTS build picker / wood-gold / laborers | Yes (2.10.0+) | Yes | Yes (2.13.2) | Pending upload |
-| WC2-style town / mines / worker≠squad / +3 train | Yes (2.11.0+) | Yes | Yes (2.13.2) | Pending upload |
-| In-engine unit anim finish (Gharok + all figures) | Yes (2.12.0+) | Yes (2.12.0+) | Yes (2.13.2) | Pending upload |
-| Ashen Husk detailed sprites (idle/walk/windup, r=21 drawH=56) | Yes (2.12.1; size 2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Pending upload |
-| Ashen Skeleton sprites (idle/walk/windup, r=12 drawH=38) | Yes (2.13.0; size 2.13.1 lock) | Yes (2.13.1+) | Yes (2.13.2) | Pending upload |
-| Ashen Bulwark sprites (idle/walk/windup, r=23 drawH=62) | Yes (2.13.0; size 2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Pending upload |
-| Ashen Shaman sprites (idle/walk/windup, r=20 drawH=56) | Yes (2.13.0; size 2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Pending upload |
-| Enemy combat barks (synth + lines) | Yes (2.13.0) | Yes (2.13.0) | Yes (2.13.2) | Pending upload |
-| Muster militia WC2 engage + laborer revive | Yes (2.13.1) | Yes (2.13.1) | Yes (2.13.2) | Pending upload |
-| Laborer retaliate-on-hit only + squad smidge buff | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Pending upload |
-| Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | Yes (2.13.2) | Pending upload |
+| Learning engine + adapt panel | Yes (+ settings hide toggle) | Yes (2.9.3+) | Yes (2.13.2) | Yes (2.13.2) |
+| Dual-wield / companions / sentry | Yes (2.8+) | Yes | Yes (2.13.2) | Yes (2.13.2) |
+| Aether Infirmary + field revive | Yes (2.9.0–2.9.2) | Yes | Yes (2.13.2) | Yes (2.13.2) |
+| One-tap Aether Mend + wall ghost | Yes (2.9.3) | Yes | Yes (2.13.2) | Yes (2.13.2) |
+| RTS build picker / wood-gold / laborers | Yes (2.10.0+) | Yes | Yes (2.13.2) | Yes (2.13.2) |
+| WC2-style town / mines / worker≠squad / +3 train | Yes (2.11.0+) | Yes | Yes (2.13.2) | Yes (2.13.2) |
+| In-engine unit anim finish (Gharok + all figures) | Yes (2.12.0+) | Yes (2.12.0+) | Yes (2.13.2) | Yes (2.13.2) |
+| Ashen Husk detailed sprites (idle/walk/windup, r=21 drawH=56) | Yes (2.12.1; size 2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) |
+| Ashen Skeleton sprites (idle/walk/windup, r=12 drawH=38) | Yes (2.13.0; size 2.13.1 lock) | Yes (2.13.1+) | Yes (2.13.2) | Yes (2.13.2) |
+| Ashen Bulwark sprites (idle/walk/windup, r=23 drawH=62) | Yes (2.13.0; size 2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) |
+| Ashen Shaman sprites (idle/walk/windup, r=20 drawH=56) | Yes (2.13.0; size 2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) |
+| Enemy combat barks (synth + lines) | Yes (2.13.0) | Yes (2.13.0) | Yes (2.13.2) | Yes (2.13.2) |
+| Muster militia WC2 engage + laborer revive | Yes (2.13.1) | Yes (2.13.1) | Yes (2.13.2) | Yes (2.13.2) |
+| Laborer retaliate-on-hit only + squad smidge buff | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) |
+| Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | Yes (2.13.2) | Yes (2.13.2) |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
-| Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **Deepened** (2.13.2) | Pending upload |
-| Compact HUD + thinner beam (2.9.1) | Yes | Yes | Yes (2.13.2) | Pending upload |
+| Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **Deepened** (2.13.2) | **Deepened** (2.13.2) |
+| Compact HUD + thinner beam (2.9.1) | Yes | Yes | Yes (2.13.2) | Yes (2.13.2) |
 
-**Channel lag note:** GitHub catch-up shipped **v2.13.2** on 2026-08-09. Play Closed still needs the operator to upload `TemporalRift-2.13.2.aab` (do **not** upload 2.8).
+**Channel lag note:** GitHub Release **v2.13.2** and Play Closed testing **2.13.2** (versionCode 46) both live as of 2026-08-09 (user confirmed Play rollout).
 
 ---
 ## Remove / Keep register
@@ -121,7 +121,6 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Priority | Item | Notes |
 |---|---|---|
 | High | Full **co-op combat sync** | PeerJS presence/HP/wave/revive shipped; enemies stay local — explicitly deferred |
-| Ops | Play Closed upload of 2.13.2 AAB | GitHub Release **v2.13.2** shipped; Play AAB ready at `playstore/TemporalRift-2.13.2.aab` — upload pending |
 | Backlog | **Rift Forge** companion + **v3 overhaul** | Companion scaffold SHIPPED at `../rift-forge` + `RiftForge-0.1.0.apk`; **APK deferred for ease** — prefer Windows **character-drops** pipeline for v3 art (see `docs/CHARACTER_DROP_FORMAT.md`); full v3 loader/overhaul still pending |
 | Backlog | **Character sheet ingest** (canvas) | Drop folder ready; **primary path now in-engine anim** (2.12.0). Pixelorama/Forge APK optional later — do not require user Pixelorama |
 | Backlog | Clan spot 2–5 players / robust rooms | Passkeys exist; not full lobby/matchmaking |

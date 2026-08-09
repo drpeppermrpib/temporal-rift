@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — SHIPPED — Play Closed testing 2.13.2 live
+- Version / commit / APK: 2.13.2 (versionCode 46) / Play Closed testing (`playstore/TemporalRift-2.13.2.aab`, TR_CHANNEL=play)
+- User intent: Confirm Play Closed rollout finished — “nvm it worked”
+- Agent action: Interrupted unfinished browser/rollout work as SUCCESS; updated channel matrix Play Closed → **2.13.2** (versionCode 46); cleared AAB-upload-pending + Ops pending row; docs-only commit
+- Notes: User confirmed Closed testing live from their side; prior OPS handoff “upload pending” superseded
+
 ### 2026-08-09 — OPS — Public channel ship: GitHub v2.13.2 + Play AAB handoff
 - Version / commit / APK: 2.13.2 (versionCode 46) / tag `v2.13.2` / GitHub `TemporalRift.apk` (TR_CHANNEL=github) / Play `playstore/TemporalRift-2.13.2.aab` + `rollouts/rollout-4-v2.13.2/` (TR_CHANNEL=play, verified)
 - User intent: Roll 2.13.2 as a real update (not BETA sideload); user at Play Console with only ≤2.8 available — need 2.13.2 Play AAB ASAP

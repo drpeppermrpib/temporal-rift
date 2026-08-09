@@ -39,11 +39,12 @@ const $ = id => document.getElementById(id);
 function hash2(x, y) { let h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return h - Math.floor(h); }
 
 // ============================ WORLD ===============================
-const WORLD = { w: 3600, h: 3600 };
+// v2.11 — expanded playfield for forests, gold mines, and town footprint
+const WORLD = { w: 4800, h: 4800 };
 const CAMP = { x: WORLD.w / 2, y: WORLD.h / 2 };
-const FORT  = { x: WORLD.w - 1000, y: 120, w: 880, h: 820 };            // Northreach Fort (stone)
-const ASH   = { x: 120, y: WORLD.h - 1050, w: 950, h: 930 };            // The Ashen Reach
-const MARSH = { x: WORLD.w - 1150, y: WORLD.h - 1150, w: 1030, h: 1030 }; // Duskmere Marsh
+const FORT  = { x: WORLD.w - 1280, y: 160, w: 1100, h: 1000 };            // Northreach Fort (stone)
+const ASH   = { x: 160, y: WORLD.h - 1280, w: 1150, h: 1120 };            // The Ashen Reach
+const MARSH = { x: WORLD.w - 1400, y: WORLD.h - 1400, w: 1240, h: 1240 }; // Duskmere Marsh
 
 const inRect = (x, y, r) => x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h;
 const REGIONS = [
@@ -145,7 +146,7 @@ function buildWorld() {
     return true;
   };
   // scattered rocks & supply crates (variants: 0 boulder, 1 cluster, 2 slab, 3 mossy)
-  for (let i = 0; i < 28; i++) {
+  for (let i = 0; i < 40; i++) {
     if (i % 2) {
       const variant = i % 8 === 1 ? 0 : i % 8 === 3 ? 1 : i % 8 === 5 ? 2 : 3;
       tryPlace(rand(160, WORLD.w - 160), rand(160, WORLD.h - 160), rand(34, 58), 'rock')
@@ -154,9 +155,38 @@ function buildWorld() {
       tryPlace(rand(160, WORLD.w - 160), rand(160, WORLD.h - 160), rand(36, 62), 'crate');
     }
   }
-  // forest patches in the grass fields + dead trees in the marsh
-  // tree size: 0 small / 1 medium / 2 tall (scalloped pine tiers)
-  for (let i = 0; i < 52; i++) {
+  // dedicated choppable forest stands (v2.11) + scattered trees + marsh deadwood
+  forestStands = [];
+  const standSites = [
+    { x: CAMP.x - 520, y: CAMP.y - 380 },
+    { x: CAMP.x + 560, y: CAMP.y - 420 },
+    { x: CAMP.x - 480, y: CAMP.y + 520 },
+    { x: CAMP.x + 620, y: CAMP.y + 480 },
+    { x: CAMP.x - 900, y: CAMP.y + 40 },
+    { x: CAMP.x + 940, y: CAMP.y - 60 },
+    { x: FORT.x - 220, y: FORT.y + FORT.h + 180 },
+    { x: ASH.x + ASH.w + 200, y: ASH.y - 160 },
+  ];
+  standSites.forEach((site, si) => {
+    const sx = clamp(site.x, 260, WORLD.w - 260);
+    const sy = clamp(site.y, 260, WORLD.h - 260);
+    if (dist2(sx, sy, CAMP.x, CAMP.y) < 220 * 220) return;
+    forestStands.push({ x: sx, y: sy, r: 110, id: si });
+    for (let j = 0; j < 7; j++) {
+      const a = (j / 7) * TAU + si * 0.4, d = 28 + (j % 3) * 22;
+      const tx = sx + Math.cos(a) * d, ty = sy + Math.sin(a) * d;
+      const size = j % 4 === 0 ? 2 : j % 2 === 0 ? 1 : 0;
+      if (tryPlace(tx, ty, 12 + size * 3, 'tree')) {
+        const t = obstacles[obstacles.length - 1];
+        t.size = size;
+        t.standId = si;
+        t.woodLeft = 22 + size * 16;
+        t.maxWood = t.woodLeft;
+      }
+    }
+  });
+  // extra scattered trees across grass
+  for (let i = 0; i < 48; i++) {
     const cx = rand(300, WORLD.w - 300), cy = rand(300, WORLD.h - 300);
     const z = zoneAt(cx, cy);
     if (z === 'grass') {
@@ -164,20 +194,38 @@ function buildWorld() {
       if (tryPlace(cx, cy, 12 + size * 3, 'tree')) {
         const t = obstacles[obstacles.length - 1];
         t.size = size;
-        t.woodLeft = 18 + size * 14; // choppable timber stock (v2.10)
+        t.woodLeft = 18 + size * 14;
+        t.maxWood = t.woodLeft;
       }
     } else if (z === 'marsh') tryPlace(cx, cy, 12, 'deadtree');
   }
-  // gold / aether-ore veins for Ashen Laborers (v2.10) — ash + fort fringes
-  goldVeins = [];
-  for (let i = 0; i < 9; i++) {
-    const inAsh = i % 2 === 0;
-    const bx = inAsh ? ASH.x + rand(80, ASH.w - 80) : FORT.x + rand(80, FORT.w - 80);
-    const by = inAsh ? ASH.y + rand(80, ASH.h - 80) : FORT.y + rand(80, FORT.h - 80);
-    if (Math.hypot(bx - CAMP.x, by - CAMP.y) < 280) continue;
-    if (obstacles.some(o => dist2(bx, by, o.x, o.y) < 70 * 70)) continue;
-    goldVeins.push({ x: bx, y: by, r: 20, goldLeft: 55 + (i % 3) * 15, maxGold: 55 + (i % 3) * 15 });
-  }
+  // WC2-style gold mine buildings (v2.11) — laborers enter / carry gold out
+  goldVeins = []; // kept for save compat / minimap alias
+  goldMines = [];
+  const mineSites = [
+    { x: CAMP.x - 380, y: CAMP.y + 280 },
+    { x: CAMP.x + 420, y: CAMP.y + 260 },
+    { x: CAMP.x - 700, y: CAMP.y - 200 },
+    { x: CAMP.x + 740, y: CAMP.y - 240 },
+    { x: ASH.x + ASH.w * 0.55, y: ASH.y + 140 },
+    { x: FORT.x + 120, y: FORT.y + FORT.h - 100 },
+    { x: ASH.x + 180, y: ASH.y + ASH.h * 0.4 },
+    { x: FORT.x + FORT.w * 0.4, y: FORT.y + FORT.h + 220 },
+    { x: MARSH.x - 180, y: MARSH.y + 200 },
+  ];
+  mineSites.forEach((m, i) => {
+    const bx = clamp(m.x, 200, WORLD.w - 200);
+    const by = clamp(m.y, 200, WORLD.h - 200);
+    if (Math.hypot(bx - CAMP.x, by - CAMP.y) < 200) return;
+    if (obstacles.some(o => dist2(bx, by, o.x, o.y) < 80 * 80)) return;
+    if (goldMines.some(g => dist2(bx, by, g.x, g.y) < 140 * 140)) return;
+    const stock = 70 + (i % 3) * 20;
+    goldMines.push({
+      x: bx, y: by, r: 28, goldLeft: stock, maxGold: stock,
+      occupied: 0, name: 'Gold Mine',
+    });
+  });
+  goldVeins = goldMines; // laborers / draw / minimap still iterate goldVeins
   // ruined pillars around the fort + ash reach (fallen kingdom vibe)
   for (let i = 0; i < 9; i++)
     tryPlace(FORT.x + rand(60, FORT.w - 60), FORT.y + rand(60, FORT.h - 60), 20, 'pillar');
@@ -216,6 +264,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyP' || e.code === 'Escape') {
     if (buildPickOpen) { closeBuildPick(); return; }
     if (structPanelOpen) { closeStructPanel(); return; }
+    if (unitPanelOpen) { closeUnitPanel(); return; }
     if (soundMenuOpen) { closeSoundMenu(); return; }
     toggleSettings();
   }
@@ -226,7 +275,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyT') {
     talkHeld = true;
     // tap Talk for NPCs; hold Talk near a downed squadmate / co-op ally to channel revive
-    if (!nearestDownedCompanion() && !nearestDownedAlly()) tryTalk();
+    if (!nearestDownedCompanion() && !nearestDownedMilitia() && !nearestDownedAlly()) tryTalk();
   }
   if (e.code === 'KeyB') openBuildPick();
   if (e.code === 'KeyH') tryAetherMend();
@@ -308,12 +357,12 @@ bindHold('btnMend', () => tryAetherMend());
 bindHold('btnColossus', () => trySummonColossus());
 bindHold('btnTalk', () => {
   talkHeld = true;
-  if (!nearestDownedCompanion() && !nearestDownedAlly()) tryTalk();
+  if (!nearestDownedCompanion() && !nearestDownedMilitia() && !nearestDownedAlly()) tryTalk();
 }, () => { talkHeld = false; });
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.11.0';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -1047,12 +1096,19 @@ function refreshToggles() {
 let state = 'menu'; // menu | playing | shop | over
 let paused = false, treeOpen = false;
 let wave = 0, cores = 0, kills = 0, totalCores = 0, runTime = 0;
-let wood = 0, gold = 0; // RTS resources (v2.10) — separate from aether cores
-let goldVeins = [];      // {x,y,r,goldLeft,maxGold}
-let structures = [];     // Timber Camp / Muster Hall / Aether Pit
-let laborers = [];       // Ashen Laborers
+let wood = 0, gold = 0; // RTS resources (v2.10+) — separate from aether cores
+let goldVeins = [];      // alias → goldMines
+let goldMines = [];      // WC2-style mine buildings (v2.11)
+let forestStands = [];   // dedicated choppable stands (v2.11)
+let structures = [];     // Rift Keep / camps / halls
+let laborers = [];       // Ashen Laborers — workers ONLY (never squad slots)
+let militia = [];        // Muster combat squad (grows +3/wave)
+let waveTrainLeft = 3;
+let militiaIdSeq = 1;
 let colossus = null;     // temporary Aether Colossus ally
 let buildPickOpen = false, structPanelOpen = false, selectedStructure = null;
+let unitPanelOpen = false, selectedUnit = null;
+let rtsTipShown = false;
 let camera = { x: 0, y: 0, shake: 0 };
 let enemies = [], bolts = [], ebolts = [], grenades = [], pickups = [], particles = [], floaters = [], zaps = [];
 let beam = null, beamCharge = 0, charging = false;
@@ -1785,7 +1841,7 @@ function tryTalk() {
   if (npc.role === 'lore') { talkMira(); return; }
   if (npc.role === 'riftnet') { openRiftNet(); return; }
   // Bramm: if wounded / squad downed, offer aether infirmary first (mid-run recovery)
-  if (npc.role === 'quest' && (player.hp < maxHp() * 0.92 || companions.some(c => c.downed))) {
+  if (npc.role === 'quest' && (player.hp < maxHp() * 0.92 || companions.some(c => c.downed) || militia.some(m => m.downed))) {
     openInfirmary();
     return;
   }
@@ -1937,6 +1993,15 @@ function nearestDownedCompanion() {
   }
   return best;
 }
+function nearestDownedMilitia() {
+  let best = null, bd = REVIVE_RANGE * REVIVE_RANGE;
+  for (const m of militia) {
+    if (!m.downed) continue;
+    const d2 = dist2(m.x, m.y, player.x, player.y);
+    if (d2 < bd) { bd = d2; best = m; }
+  }
+  return best;
+}
 function nearestDownedAlly() {
   if (!riftNetLinked()) return null;
   let best = null, bestId = null, bd = REVIVE_RANGE * REVIVE_RANGE;
@@ -1968,6 +2033,11 @@ function completeFieldRevive(kind, target, cost) {
     addFloater(player.x, player.y - 52, `−${cost} aether`, '#4de1ff', false);
     return true;
   }
+  if (kind === 'militia') {
+    finishMilitiaRevive(target);
+    addFloater(player.x, player.y - 52, `−${cost} aether`, '#4de1ff', false);
+    return true;
+  }
   if (kind === 'ally') {
     try {
       riftNet.conn.send({ t: 'reviveDone', hpFrac: 0.65, from: riftNet.role, cost });
@@ -1994,9 +2064,11 @@ function updateReviveChannel(dt) {
     return;
   }
   const ally = nearestDownedAlly();
+  const mil = nearestDownedMilitia();
   const comp = nearestDownedCompanion();
   let kind = null, target = null, cost = 0, id = null;
   if (ally) { kind = 'ally'; target = ally; cost = ALLY_REVIVE_COST; id = ally.id; }
+  else if (mil) { kind = 'militia'; target = mil; cost = Math.max(12, 10 + Math.floor(mil.maxHp / 40)); id = mil.id; }
   else if (comp) { kind = 'comp'; target = comp; cost = aetherReviveCost(comp.type); id = comp.type; }
 
   const holding = talkHeld || !!keys.KeyT;
@@ -2376,10 +2448,19 @@ function startWave() {
   CATS.forEach(c => tally[c] *= 0.82); // the engine forgets, slowly
   graves = []; graveCount = 0;         // grave markers never cross waves
   spawnQueue = 6 + Math.round(wave * 3.2);
-  spawnQueue += companions.length; // a squad draws a slightly bigger horde
+  spawnQueue += companions.length + militia.filter(m => !m.downed).length; // squad draws bigger horde
   spawnTimer = 0.5;
+  waveTrainLeft = 3; // Muster Hall can train up to +3 combat each wave (v2.11)
   if (wave % 5 === 0) { spawnEnemy('warlord'); spawnQueue += 4; }
-  banner(`WAVE ${wave}`, wave % 5 === 0 ? '⚠ ORK WARLORD APPROACHES ⚠' : 'the horde emerges…');
+  banner(`WAVE ${wave}`, wave % 5 === 0 ? '⚠ ORK WARLORD APPROACHES ⚠' :
+    (waveTrainLeft ? `Muster: train up to ${waveTrainLeft} fighters` : 'the horde emerges…'));
+  if (wave === 1 && !rtsTipShown) {
+    rtsTipShown = true;
+    setTimeout(() => {
+      if (state === 'playing')
+        banner('TOWN TIP', 'B = BUILD · tap Laborers for Chop/Mine · tap Muster to train');
+    }, 4200);
+  }
   sfx.syncMusic();
 }
 function pickEnemyType() {
@@ -2392,13 +2473,20 @@ function pickEnemyType() {
 function endWave() {
   waveActive = false;
   graves = []; // pending skeletons die with the wave
-  // downed companions patch themselves up between assaults — no permanent loss
+  // downed companions + militia patch themselves up between assaults — no permanent loss
   for (const c of companions) {
     if (!c.downed) continue;
     c.downed = false;
     c.hp = c.maxHp;
     spawnParticles(c.x, c.y, 16, '#7CFC00', 3);
     addFloater(c.x, c.y - 28, COMP_TYPES[c.type].name.toUpperCase() + ' BACK UP!', '#7CFC00', false);
+  }
+  for (const m of militia) {
+    if (!m.downed) continue;
+    m.downed = false;
+    m.hp = m.maxHp;
+    spawnParticles(m.x, m.y, 14, '#7CFC00', 3);
+    addFloater(m.x, m.y - 28, militiaName(m).toUpperCase() + ' BACK UP!', '#7CFC00', false);
   }
   // co-op: free wave-break stand-up if you were bleeding out
   if (player.downed) {
@@ -2612,41 +2700,80 @@ function barricadeLinkTargets(bx, by) {
   return barricades.filter(b => dist2(bx, by, b.x, b.y) <= BARRICADE_LINK_DIST * BARRICADE_LINK_DIST);
 }
 
-// ===================== RTS LAYER (v2.10) ==========================
-// Additive city pathway: build picker, wood/gold, Ashen Laborers, upgradable
-// halls, Ashen Sentinel, Aether Colossus. Wave survival + barricades stay intact.
+// ===================== RTS LAYER (v2.11) ==========================
+// Warcraft-2–inspired town slice (original names only): Rift Keep hub,
+// Timber Camp, Muster Hall, farms, gold mines, worker/squad split,
+// click orders + light fighter skill trees. Wave survival intact.
 const STRUCT_KINDS = {
+  keep: {
+    name: 'Rift Keep', icon: '🏛',
+    desc: 'Town hub · deposit wood & gold · trains laborers',
+    cores: 10, wood: 20, gold: 10, max: 1, r: 54, hp: 420,
+    upWood: [0, 30, 55], upGold: [0, 16, 30], upCores: [0, 6, 12],
+  },
   timber: {
     name: 'Timber Camp', icon: '🪓',
-    desc: 'Trains Ashen Laborers · wood gather hub',
+    desc: 'Wood deposit hub · trains Ashen Laborers',
     cores: 4, wood: 0, gold: 0, max: 3, r: 40, hp: 220,
     upWood: [0, 20, 35], upGold: [0, 8, 18], upCores: [0, 4, 6],
   },
+  farm: {
+    name: 'Supply Camp', icon: '🌾',
+    desc: 'Raises worker cap · light wood trickle',
+    cores: 5, wood: 10, gold: 2, max: 4, r: 36, hp: 180,
+    upWood: [0, 14, 26], upGold: [0, 6, 12], upCores: [0, 3, 5],
+  },
+  golddepot: {
+    name: 'Gold Vault', icon: '◈',
+    desc: 'Preferred gold deposit · slight mine speed',
+    cores: 6, wood: 10, gold: 0, max: 2, r: 40, hp: 240,
+    upWood: [0, 18, 32], upGold: [0, 0, 8], upCores: [0, 4, 7],
+  },
   muster: {
     name: 'Muster Hall', icon: '⚔',
-    desc: 'Trains laborers & Ashen Sentinels · squad hub',
+    desc: 'Trains combat squad (+3/wave) · Spearmen & Bowmen',
     cores: 8, wood: 12, gold: 6, max: 2, r: 46, hp: 300,
     upWood: [0, 28, 50], upGold: [0, 14, 28], upCores: [0, 6, 10],
   },
   aetherpit: {
-    name: 'Aether Pit', icon: '◈',
+    name: 'Aether Pit', icon: '✧',
     desc: 'Seeps gold slowly · tiny aether trickle',
     cores: 6, wood: 8, gold: 4, max: 2, r: 38, hp: 200,
     upWood: [0, 16, 30], upGold: [0, 10, 20], upCores: [0, 5, 8],
   },
 };
-const LABORER_MAX = 6;
+const LABORER_BASE_MAX = 6;
 const LABORER_TRAIN = { wood: 8, gold: 2, cores: 1 };
-const SENTINEL_TRAIN = { wood: 18, gold: 12, cores: 4 }; // Muster Hall field train (also shop-buyable)
+const SPEAR_TRAIN = { wood: 14, gold: 8, cores: 3 };
+const BOW_TRAIN = { wood: 12, gold: 10, cores: 3 };
+const SENTINEL_TRAIN = { wood: 18, gold: 12, cores: 4 }; // unique named companion
 const COLOSSUS_COST = { wood: 40, gold: 25, cores: 15 };
 const COLOSSUS_DURATION = 48;
+const MILITIA_TYPES = {
+  spear: { name: 'Ashen Spearman', melee: true, hp: 200, spd: 215, range: 70, dmg: 12, atk: 0.95, r: 12 },
+  bow: { name: 'Ashen Bowman', melee: false, hp: 155, spd: 240, range: 480, dmg: 9, atk: 1.15, r: 12 },
+};
+const UNIT_SKILL_COST = [
+  { wood: 10, gold: 6, cores: 2 },
+  { wood: 18, gold: 12, cores: 4 },
+  { wood: 28, gold: 20, cores: 6 },
+];
 
+function laborerCap() {
+  let cap = LABORER_BASE_MAX;
+  for (const s of structures) {
+    if (s.kind === 'farm') cap += 2 + (s.lvl - 1);
+    if (s.kind === 'keep') cap += 2 + s.lvl;
+  }
+  return cap;
+}
+function militiaName(m) { return (MILITIA_TYPES[m.kind] || { name: 'Fighter' }).name; }
 function countStruct(kind) { return structures.filter(s => s.kind === kind).length; }
 function structureSpotBlocked(bx, by, r) {
   return obstacles.some(o => dist2(bx, by, o.x, o.y) < (o.r + r) ** 2) ||
     barricades.some(b => dist2(bx, by, b.x, b.y) < (b.r + r - 6) ** 2) ||
     structures.some(s => dist2(bx, by, s.x, s.y) < (s.r + r) ** 2) ||
-    goldVeins.some(g => dist2(bx, by, g.x, g.y) < (g.r + r) ** 2) ||
+    goldMines.some(g => dist2(bx, by, g.x, g.y) < (g.r + r) ** 2) ||
     Math.hypot(bx - CAMP.x, by - CAMP.y) < 90;
 }
 function canAffordCosts(c) {
@@ -2664,7 +2791,7 @@ function costLabel(c) {
 }
 function openBuildPick() {
   if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen ||
-      riftNetOpen || infirmaryOpen || structPanelOpen || player.downed) return;
+      riftNetOpen || infirmaryOpen || structPanelOpen || unitPanelOpen || player.downed) return;
   if (buildPickOpen) { closeBuildPick(); return; }
   buildPickOpen = true;
   renderBuildPick();
@@ -2678,7 +2805,6 @@ function renderBuildPick() {
   const grid = $('buildPickGrid');
   if (!grid) return;
   grid.innerHTML = '';
-  // barricade option (existing)
   const bOpt = document.createElement('button');
   bOpt.className = 'buildopt' + (barricades.length >= BARRICADE_MAX || cores < BARRICADE_COST ? ' locked' : '');
   bOpt.innerHTML = `<h4>⛨ Energy Barricade</h4>
@@ -2686,8 +2812,10 @@ function renderBuildPick() {
     <div class="price">⬡ ${BARRICADE_COST} · ${barricades.length}/${BARRICADE_MAX}</div>`;
   bOpt.onclick = () => { if (tryPlaceBarricade()) closeBuildPick(); };
   grid.appendChild(bOpt);
-  for (const kind of Object.keys(STRUCT_KINDS)) {
+  const order = ['keep', 'timber', 'farm', 'golddepot', 'muster', 'aetherpit'];
+  for (const kind of order) {
     const def = STRUCT_KINDS[kind];
+    if (!def) continue;
     const n = countStruct(kind);
     const cost = { cores: def.cores, wood: def.wood, gold: def.gold };
     const locked = n >= def.max || !canAffordCosts(cost);
@@ -2749,27 +2877,74 @@ function tryPlaceStructure(kind) {
   addFloater(bx, by - 40, def.name.toUpperCase() + ' RAISED', '#7CFC00', true);
   return true;
 }
-// legacy alias — BUILD now opens picker; keep name for any stray callers
 function tryBuild() { openBuildPick(); }
+
+function seedStarterTown() {
+  // Default Rift Keep + 2 Ashen Laborers so the overhaul is discoverable
+  if (!structures.some(s => s.kind === 'keep')) {
+    const kx = CAMP.x - 70, ky = CAMP.y + 95;
+    structures.push({
+      kind: 'keep', x: kx, y: ky, r: STRUCT_KINDS.keep.r,
+      hp: STRUCT_KINDS.keep.hp, maxHp: STRUCT_KINDS.keep.hp, lvl: 1,
+      trainCd: 0, seepT: 0, kiT: 0,
+    });
+  }
+  if (laborers.length < 2) {
+    spawnLaborer(CAMP.x + 40, CAMP.y + 110);
+    spawnLaborer(CAMP.x - 30, CAMP.y + 125);
+  }
+}
 
 function trySelectStructureAt(clientX, clientY) {
   if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen ||
-      riftNetOpen || infirmaryOpen || buildPickOpen || player.downed) return false;
+      riftNetOpen || infirmaryOpen || buildPickOpen || unitPanelOpen || player.downed) return false;
   const wx = clientX + camera.x, wy = clientY + camera.y;
-  let best = null, bestD = 48 * 48;
+  // units first (laborers / militia / companions)
+  if (trySelectUnitAt(wx, wy)) return true;
+  let best = null, bestD = 52 * 52;
   for (const s of structures) {
     const d2 = dist2(wx, wy, s.x, s.y - 10);
     if (d2 < bestD) { bestD = d2; best = s; }
   }
+  // also allow tapping gold mines for a tip (not a full panel)
+  for (const m of goldMines) {
+    if (m.goldLeft <= 0) continue;
+    if (dist2(wx, wy, m.x, m.y) < 40 * 40) {
+      addFloater(m.x, m.y - 36, 'GOLD MINE — order Laborers to Mine', '#ffd54a', false);
+      return true;
+    }
+  }
   if (!best) return false;
-  if (dist2(best.x, best.y, player.x, player.y) > 160 * 160) {
+  if (dist2(best.x, best.y, player.x, player.y) > 180 * 180) {
     addFloater(player.x, player.y - 36, 'MOVE CLOSER TO BUILDING', '#ffd54a', false);
-    return true; // consume click so we don't fire through UI intent
+    return true;
   }
   openStructPanel(best);
   return true;
 }
+function trySelectUnitAt(wx, wy) {
+  let best = null, bestD = 36 * 36, kind = null;
+  for (const L of laborers) {
+    if (L.insideMine) continue;
+    const d2 = dist2(wx, wy, L.x, L.y - 8);
+    if (d2 < bestD) { bestD = d2; best = L; kind = 'laborer'; }
+  }
+  for (const m of militia) {
+    if (m.downed) continue;
+    const d2 = dist2(wx, wy, m.x, m.y - 8);
+    if (d2 < bestD) { bestD = d2; best = m; kind = 'militia'; }
+  }
+  for (const c of companions) {
+    if (c.downed) continue;
+    const d2 = dist2(wx, wy, c.x, c.y - 8);
+    if (d2 < bestD) { bestD = d2; best = c; kind = 'companion'; }
+  }
+  if (!best) return false;
+  openUnitPanel(best, kind);
+  return true;
+}
 function openStructPanel(s) {
+  closeUnitPanel();
   selectedStructure = s;
   structPanelOpen = true;
   renderStructPanel();
@@ -2780,16 +2955,34 @@ function closeStructPanel() {
   selectedStructure = null;
   if ($('structPanel')) $('structPanel').classList.add('hidden');
 }
+function openUnitPanel(u, kind) {
+  closeStructPanel();
+  selectedUnit = { ref: u, kind };
+  unitPanelOpen = true;
+  renderUnitPanel();
+  if ($('unitPanel')) $('unitPanel').classList.remove('hidden');
+}
+function closeUnitPanel() {
+  unitPanelOpen = false;
+  selectedUnit = null;
+  if ($('unitPanel')) $('unitPanel').classList.add('hidden');
+}
 function renderStructPanel() {
   const s = selectedStructure;
   if (!s || !STRUCT_KINDS[s.kind]) { closeStructPanel(); return; }
   const def = STRUCT_KINDS[s.kind];
   $('structTitle').textContent = def.icon + ' ' + def.name + ' · L' + s.lvl;
-  $('structMeta').textContent =
-    `HP ${Math.ceil(s.hp)}/${s.maxHp} · Laborers ${laborers.length}/${LABORER_MAX}` +
-    (s.kind === 'timber' ? ' · Chop / deposit hub' :
-     s.kind === 'muster' ? ' · Train squad / laborers' :
-     ' · Gold seep + aether drip');
+  const metaBits = [
+    `HP ${Math.ceil(s.hp)}/${s.maxHp}`,
+    `Workers ${laborers.length}/${laborerCap()} (not squad)`,
+    `Squad ${companions.length + militia.length} · train left ${waveTrainLeft}`,
+  ];
+  if (s.kind === 'timber') metaBits.push('Chop / deposit hub');
+  if (s.kind === 'keep') metaBits.push('Town hub · wood+gold deposit');
+  if (s.kind === 'muster') metaBits.push('Combat train only');
+  if (s.kind === 'farm') metaBits.push('Raises worker cap');
+  if (s.kind === 'golddepot') metaBits.push('Gold deposit priority');
+  $('structMeta').textContent = metaBits.join(' · ');
   const acts = $('structActions');
   acts.innerHTML = '';
   const addBtn = (label, cls, fn, disabled) => {
@@ -2816,18 +3009,27 @@ function renderStructPanel() {
   } else {
     addBtn('MAX LEVEL', '', null, true);
   }
-  if (s.kind === 'timber' || s.kind === 'muster') {
+  // Workers train at Keep / Timber / Farm — NEVER consume squad slots
+  if (s.kind === 'timber' || s.kind === 'keep' || s.kind === 'farm') {
     addBtn(`🪓 TRAIN LABORER (${costLabel(LABORER_TRAIN)})`, 'green', () => {
-      if (laborers.length >= LABORER_MAX) { addFloater(s.x, s.y - 40, 'MAX LABORERS', '#ff8a93', false); return; }
+      if (laborers.length >= laborerCap()) { addFloater(s.x, s.y - 40, 'MAX WORKERS', '#ff8a93', false); return; }
       if (!canAffordCosts(LABORER_TRAIN)) { addFloater(s.x, s.y - 40, 'NEED ' + costLabel(LABORER_TRAIN), '#ffd54a', false); return; }
       spendCosts(LABORER_TRAIN);
       spawnLaborer(s.x + rand(-30, 30), s.y + 36);
       addFloater(s.x, s.y - 40, 'ASHEN LABORER READY', '#c8a06a', true);
       renderStructPanel();
-    }, laborers.length >= LABORER_MAX || !canAffordCosts(LABORER_TRAIN));
+    }, laborers.length >= laborerCap() || !canAffordCosts(LABORER_TRAIN));
   }
   if (s.kind === 'muster') {
-    addBtn(`⚔ TRAIN SENTINEL (${costLabel(SENTINEL_TRAIN)})`, 'green', () => {
+    addBtn(`⚔ TRAIN SPEARMAN (${costLabel(SPEAR_TRAIN)}) · ${waveTrainLeft} left`, 'green', () => {
+      if (!tryTrainMilitia('spear', s)) return;
+      renderStructPanel();
+    }, waveTrainLeft <= 0 || !canAffordCosts(SPEAR_TRAIN));
+    addBtn(`🏹 TRAIN BOWMAN (${costLabel(BOW_TRAIN)}) · ${waveTrainLeft} left`, 'green', () => {
+      if (!tryTrainMilitia('bow', s)) return;
+      renderStructPanel();
+    }, waveTrainLeft <= 0 || !canAffordCosts(BOW_TRAIN));
+    addBtn(`🛡 TRAIN SENTINEL (${costLabel(SENTINEL_TRAIN)})`, '', () => {
       if (squad.owned.sentinel) { addFloater(s.x, s.y - 40, 'SENTINEL ALREADY RECRUITED', '#9ef0ff', false); return; }
       if (!canAffordCosts(SENTINEL_TRAIN)) { addFloater(s.x, s.y - 40, 'NEED ' + costLabel(SENTINEL_TRAIN), '#ffd54a', false); return; }
       spendCosts(SENTINEL_TRAIN);
@@ -2842,20 +3044,129 @@ function renderStructPanel() {
   addBtn('⚔ RIFT TITAN (C)', '', () => { closeStructPanel(); trySummonColossus(); });
 }
 if ($('structClose')) $('structClose').onclick = () => closeStructPanel();
+if ($('unitClose')) $('unitClose').onclick = () => closeUnitPanel();
+
+function renderUnitPanel() {
+  if (!selectedUnit || !selectedUnit.ref) { closeUnitPanel(); return; }
+  const { ref: u, kind } = selectedUnit;
+  const title = $('unitTitle'), meta = $('unitMeta'), acts = $('unitActions');
+  if (!title || !meta || !acts) return;
+  acts.innerHTML = '';
+  const addBtn = (label, cls, fn, disabled) => {
+    const b = document.createElement('button');
+    b.className = cls || '';
+    b.textContent = label;
+    b.disabled = !!disabled;
+    if (!disabled) b.onclick = fn;
+    acts.appendChild(b);
+  };
+  if (kind === 'laborer') {
+    title.textContent = '🪓 Ashen Laborer (worker)';
+    meta.textContent = `HP ${Math.ceil(u.hp)}/${u.maxHp} · Order: ${(u.order || 'auto').toUpperCase()} · Does NOT use squad slots`;
+    addBtn('Chop Lumber', u.order === 'chop' ? 'green' : '', () => {
+      u.order = 'chop'; u.task = 'idle'; u.target = null; u.carry = null; u.insideMine = false;
+      addFloater(u.x, u.y - 24, 'ORDER: CHOP', '#7a9a5a', false);
+      renderUnitPanel();
+    });
+    addBtn('Mine Gold', u.order === 'mine' ? 'gold' : 'gold', () => {
+      u.order = 'mine'; u.task = 'idle'; u.target = null; u.carry = null;
+      addFloater(u.x, u.y - 24, 'ORDER: MINE', '#ffd54a', false);
+      renderUnitPanel();
+    });
+    addBtn('Auto Gather', u.order === 'auto' || !u.order ? 'green' : '', () => {
+      u.order = 'auto'; u.task = 'idle'; u.target = null;
+      addFloater(u.x, u.y - 24, 'ORDER: AUTO', '#c8a06a', false);
+      renderUnitPanel();
+    });
+    addBtn('Follow (build assist)', u.order === 'follow' ? 'green' : '', () => {
+      u.order = 'follow'; u.task = 'follow'; u.target = null; u.carry = null; u.insideMine = false;
+      addFloater(u.x, u.y - 24, 'ORDER: FOLLOW', '#9ef0ff', false);
+      renderUnitPanel();
+    });
+  } else if (kind === 'militia') {
+    const t = MILITIA_TYPES[u.kind];
+    title.textContent = '⚔ ' + t.name + ' (squad)';
+    meta.textContent = `HP ${Math.ceil(u.hp)}/${u.maxHp} · Skills D${u.sk.dmg}/A${u.sk.armor}/S${u.sk.spd} · Revivable`;
+    addUnitSkillButtons(u, addBtn);
+  } else if (kind === 'companion') {
+    title.textContent = '★ ' + COMP_TYPES[u.type].name + ' (named companion)';
+    meta.textContent = `HP ${Math.ceil(u.hp)}/${u.maxHp} · Field skills below · Full tree also in K menu`;
+    if (!u.sk) u.sk = { dmg: 0, armor: 0, spd: 0 };
+    addUnitSkillButtons(u, addBtn);
+  }
+}
+function addUnitSkillButtons(u, addBtn) {
+  const nodes = [
+    { key: 'dmg', label: '⚔ Edge (+dmg)' },
+    { key: 'armor', label: '🛡 Plate (+armor)' },
+    { key: 'spd', label: '» Stride (+speed)' },
+  ];
+  for (const n of nodes) {
+    const rank = u.sk[n.key] || 0;
+    if (rank >= 3) { addBtn(n.label + ' MAX', '', null, true); continue; }
+    const cost = UNIT_SKILL_COST[rank];
+    addBtn(`${n.label} L${rank + 1} (${costLabel(cost)})`, 'gold', () => {
+      if (!canAffordCosts(cost)) { addFloater(u.x, u.y - 30, 'NEED ' + costLabel(cost), '#ffd54a', false); return; }
+      spendCosts(cost);
+      u.sk[n.key] = rank + 1;
+      if (n.key === 'armor') {
+        u.maxHp = Math.round(u.maxHp * 1.12);
+        u.hp = Math.min(u.maxHp, u.hp + 20);
+      }
+      spawnParticles(u.x, u.y, 16, '#ffd54a', 3);
+      addFloater(u.x, u.y - 28, n.label.toUpperCase(), '#7CFC00', true);
+      renderUnitPanel();
+    }, !canAffordCosts(cost));
+  }
+}
+
+function tryTrainMilitia(kind, atStruct) {
+  if (waveTrainLeft <= 0) {
+    addFloater(atStruct.x, atStruct.y - 40, 'WAVE TRAIN CAP (+3)', '#ff8a93', false); return false;
+  }
+  const cost = kind === 'bow' ? BOW_TRAIN : SPEAR_TRAIN;
+  if (!canAffordCosts(cost)) {
+    addFloater(atStruct.x, atStruct.y - 40, 'NEED ' + costLabel(cost), '#ffd54a', false); return false;
+  }
+  spendCosts(cost);
+  waveTrainLeft--;
+  const t = MILITIA_TYPES[kind];
+  militia.push({
+    id: militiaIdSeq++, kind,
+    x: atStruct.x + rand(-36, 36), y: atStruct.y + 40,
+    vx: 0, vy: 0, r: t.r,
+    hp: t.hp, maxHp: t.hp, downed: false, hurtT: 0,
+    atkCd: rand(0.2, 0.8), walk: rand(0, 8), facing: 1, aim: 0,
+    sk: { dmg: 0, armor: 0, spd: 0 },
+  });
+  spawnParticles(atStruct.x, atStruct.y, 22, '#7CFC00', 4);
+  addFloater(atStruct.x, atStruct.y - 44, t.name.toUpperCase() + ' TRAINED!', '#7CFC00', true);
+  return true;
+}
 
 function spawnLaborer(x, y) {
   laborers.push({
     x, y, vx: 0, vy: 0, r: 11, hp: 90, maxHp: 90,
     carry: null, // {type:'wood'|'gold', amt}
-    target: null, task: 'idle', gatherT: 0, walk: rand(0, 8), facing: 1, hurtT: 0,
+    target: null, task: 'idle', order: 'auto',
+    gatherT: 0, walk: rand(0, 8), facing: 1, hurtT: 0,
+    insideMine: false, mineT: 0,
   });
 }
-function nearestTimberCamp(from) {
+function nearestDeposit(from, resType) {
   let best = null, bd = 1e12;
-  for (const s of structures) {
-    if (s.kind !== 'timber') continue;
-    const d = dist2(from.x, from.y, s.x, s.y);
-    if (d < bd) { bd = d; best = s; }
+  const prefer = resType === 'gold'
+    ? ['golddepot', 'keep', 'timber', 'muster']
+    : ['timber', 'keep', 'golddepot', 'muster'];
+  for (const kind of prefer) {
+    for (const s of structures) {
+      if (s.kind !== kind) continue;
+      const d = dist2(from.x, from.y, s.x, s.y);
+      // slight bias toward preferred kinds
+      const bias = prefer.indexOf(kind) * 80 * 80;
+      if (d + bias < bd) { bd = d + bias; best = s; }
+    }
+    if (best && (kind === prefer[0] || kind === prefer[1])) break;
   }
   return best;
 }
@@ -2863,8 +3174,29 @@ function gatherRateMul() {
   let mul = 1;
   for (const s of structures) {
     if (s.kind === 'timber') mul = Math.max(mul, 1 + 0.35 * (s.lvl - 1));
+    if (s.kind === 'golddepot') mul = Math.max(mul, 1 + 0.2 * (s.lvl - 1));
+    if (s.kind === 'keep') mul = Math.max(mul, 1 + 0.15 * s.lvl);
   }
   return mul;
+}
+function pickChopTarget(L) {
+  let tree = null, td = 640 * 640;
+  for (const o of obstacles) {
+    if (o.type !== 'tree' || !(o.woodLeft > 0)) continue;
+    let d2 = dist2(L.x, L.y, o.x, o.y);
+    if (o.standId != null) d2 *= 0.72; // prefer forest stands
+    if (d2 < td) { td = d2; tree = o; }
+  }
+  return tree;
+}
+function pickMineTarget(L) {
+  let mine = null, vd = 720 * 720;
+  for (const g of goldMines) {
+    if (!(g.goldLeft > 0)) continue;
+    const d2 = dist2(L.x, L.y, g.x, g.y);
+    if (d2 < vd) { vd = d2; mine = g; }
+  }
+  return mine;
 }
 function updateLaborers(dt) {
   const rate = gatherRateMul();
@@ -2872,45 +3204,60 @@ function updateLaborers(dt) {
     if (L.hp <= 0) continue;
     L.hurtT = Math.max(0, L.hurtT - dt);
     L.gatherT = Math.max(0, L.gatherT - dt);
-    // assign task
-    if (!L.carry && L.task !== 'gather') {
-      // prefer wood if under 80, else gold, else whichever available
-      let tree = null, td = 520 * 520;
-      for (const o of obstacles) {
-        if (o.type !== 'tree' || !(o.woodLeft > 0)) continue;
-        const d2 = dist2(L.x, L.y, o.x, o.y);
-        if (d2 < td) { td = d2; tree = o; }
+    // inside mine: work then exit with gold
+    if (L.insideMine && L.target) {
+      L.mineT = (L.mineT || 0) - dt;
+      L.vx = 0; L.vy = 0;
+      if (L.mineT <= 0) {
+        if (L.target.goldLeft > 0) {
+          L.target.goldLeft--;
+          L.carry = { type: 'gold', amt: 1 + (Math.random() < 0.2 * rate ? 1 : 0) };
+          L.target.occupied = Math.max(0, (L.target.occupied || 1) - 1);
+          spawnParticles(L.target.x, L.target.y - 8, 5, '#ffd54a', 2);
+        }
+        L.insideMine = false;
+        L.task = 'deposit';
+        L.target = nearestDeposit(L, 'gold');
       }
-      let vein = null, vd = 560 * 560;
-      for (const g of goldVeins) {
-        if (!(g.goldLeft > 0)) continue;
-        const d2 = dist2(L.x, L.y, g.x, g.y);
-        if (d2 < vd) { vd = d2; vein = g; }
-      }
-      if (wood < 80 && tree) { L.task = 'gather'; L.target = tree; L.res = 'wood'; }
-      else if (vein) { L.task = 'gather'; L.target = vein; L.res = 'gold'; }
-      else if (tree) { L.task = 'gather'; L.target = tree; L.res = 'wood'; }
-      else { L.task = 'idle'; L.target = null; }
+      continue;
+    }
+    if (L.order === 'follow') {
+      L.task = 'follow'; L.target = null;
+    } else if (!L.carry && L.task !== 'gather' && L.task !== 'enterMine') {
+      const want = L.order || 'auto';
+      const tree = pickChopTarget(L);
+      const mine = pickMineTarget(L);
+      if (want === 'chop' && tree) { L.task = 'gather'; L.target = tree; L.res = 'wood'; }
+      else if (want === 'mine' && mine) { L.task = 'enterMine'; L.target = mine; L.res = 'gold'; }
+      else if (want === 'auto') {
+        if (wood < 90 && tree) { L.task = 'gather'; L.target = tree; L.res = 'wood'; }
+        else if (mine) { L.task = 'enterMine'; L.target = mine; L.res = 'gold'; }
+        else if (tree) { L.task = 'gather'; L.target = tree; L.res = 'wood'; }
+        else { L.task = 'idle'; L.target = null; }
+      } else { L.task = 'idle'; L.target = null; }
     } else if (L.carry) {
       L.task = 'deposit';
-      L.target = nearestTimberCamp(L) || structures.find(s => s.kind === 'muster') || null;
+      L.target = nearestDeposit(L, L.carry.type);
     }
     let gx = player.x + rand(-40, 40), gy = player.y + 70;
-    if (L.task === 'gather' && L.target) {
+    if (L.task === 'follow') {
+      gx = player.x + rand(-50, 50); gy = player.y + 80;
+    } else if ((L.task === 'gather' || L.task === 'enterMine') && L.target) {
       gx = L.target.x; gy = L.target.y;
       const reach = (L.target.r || 14) + L.r + 6;
       if (dist2(L.x, L.y, gx, gy) < reach * reach) {
         L.vx *= 0.5; L.vy *= 0.5;
-        if (L.gatherT <= 0) {
+        if (L.task === 'enterMine') {
+          L.insideMine = true;
+          L.mineT = Math.max(1.1, 2.4 / rate);
+          L.target.occupied = (L.target.occupied || 0) + 1;
+          L.task = 'mining';
+        } else if (L.gatherT <= 0) {
           L.gatherT = 1.15 / rate;
           if (L.res === 'wood' && L.target.woodLeft > 0) {
             L.target.woodLeft--;
             L.carry = { type: 'wood', amt: 1 + (Math.random() < 0.25 * rate ? 1 : 0) };
             spawnParticles(L.target.x, L.target.y - 10, 3, '#7a9a5a', 2);
-          } else if (L.res === 'gold' && L.target.goldLeft > 0) {
-            L.target.goldLeft--;
-            L.carry = { type: 'gold', amt: 1 };
-            spawnParticles(L.target.x, L.target.y - 6, 4, '#ffd54a', 2);
           } else {
             L.task = 'idle'; L.target = null;
           }
@@ -2918,7 +3265,6 @@ function updateLaborers(dt) {
       }
     } else if (L.task === 'deposit') {
       if (!L.target) {
-        // instant deposit if no camp yet
         if (L.carry.type === 'wood') wood += L.carry.amt; else gold += L.carry.amt;
         addFloater(L.x, L.y - 22, L.carry.type === 'wood' ? '+🪵' : '+◈', '#ffd54a', false);
         L.carry = null; L.task = 'idle';
@@ -2942,8 +3288,10 @@ function updateLaborers(dt) {
     if (Math.abs(L.vx) > 4) L.facing = L.vx >= 0 ? 1 : -1;
   }
   laborers = laborers.filter(L => L.hp > 0);
+  if (selectedUnit && selectedUnit.kind === 'laborer' && !laborers.includes(selectedUnit.ref)) closeUnitPanel();
 }
 function hurtLaborer(L, dmg) {
+  if (L.insideMine) return; // safe while in mine shaft
   L.hp -= dmg;
   L.hurtT = 0.5;
   if (L.hp <= 0) {
@@ -2967,6 +3315,14 @@ function updateStructures(dt) {
         player.ki = Math.min(maxKi(), player.ki + 1 + s.lvl);
       }
     }
+    if (s.kind === 'farm') {
+      s.seepT = (s.seepT || 0) - dt;
+      if (s.seepT <= 0) {
+        s.seepT = 7.5 - s.lvl * 0.8;
+        wood += 1;
+        addFloater(s.x, s.y - 30, '+🪵', '#7a9a5a', false);
+      }
+    }
   }
 }
 function collideStructures(e, dt) {
@@ -2984,10 +3340,16 @@ function collideStructures(e, dt) {
       }
     }
   }
-  // laborers get smacked if enemies touch them
   for (const L of laborers) {
+    if (L.insideMine) continue;
     if (dist2(e.x, e.y, L.x, L.y) < (e.r + L.r) ** 2) {
       if ((L.hurtT || 0) <= 0) hurtLaborer(L, e.dmg * 0.35);
+    }
+  }
+  for (const m of militia) {
+    if (m.downed) continue;
+    if (dist2(e.x, e.y, m.x, m.y) < (e.r + m.r + 4) ** 2) {
+      if ((m.hurtT || 0) <= 0) hurtMilitia(m, e.dmg * 0.4);
     }
   }
   if (colossus && !colossus.dead && dist2(e.x, e.y, colossus.x, colossus.y) < (e.r + colossus.r) ** 2) {
@@ -2997,6 +3359,104 @@ function collideStructures(e, dt) {
   }
   structures = structures.filter(s => s.hp > 0);
   if (selectedStructure && !structures.includes(selectedStructure)) closeStructPanel();
+}
+
+function militiaDamage(m) {
+  const t = MILITIA_TYPES[m.kind];
+  return t.dmg * (1 + 0.28 * (m.sk.dmg || 0));
+}
+function militiaSpd(m) {
+  const t = MILITIA_TYPES[m.kind];
+  return t.spd * (1 + 0.12 * (m.sk.spd || 0));
+}
+function hurtMilitia(m, dmg) {
+  if (m.downed || m.hurtT > 0) return;
+  dmg *= 1 / (1 + 0.18 * (m.sk.armor || 0));
+  if (dist2(m.x, m.y, player.x, player.y) < 115 * 115) dmg *= 0.58;
+  m.hp -= dmg;
+  m.hurtT = 0.65;
+  spawnParticles(m.x, m.y - 10, 5, '#ff8a93', 2);
+  if (m.hp <= 0) {
+    m.hp = 0; m.downed = true;
+    addFloater(m.x, m.y - 30, militiaName(m).toUpperCase() + ' DOWN', '#ff8a93', true);
+  }
+}
+function finishMilitiaRevive(m) {
+  m.downed = false;
+  m.hp = Math.ceil(m.maxHp * 0.65);
+  m.hurtT = 0.8;
+  spawnParticles(m.x, m.y, 16, '#4de1ff', 4);
+  addFloater(m.x, m.y - 32, militiaName(m).toUpperCase() + ' REVIVED', '#4de1ff', true);
+  sfx.play('click');
+}
+function updateMilitia(dt) {
+  militia.forEach((m, idx) => {
+    if (m.downed) return;
+    m.hurtT = Math.max(0, m.hurtT - dt);
+    m.atkCd -= dt;
+    const t = MILITIA_TYPES[m.kind];
+    let foe = null, fd2 = (t.melee ? 90 : t.range) ** 2;
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0.3 || e.emergeT > 0) continue;
+      const d2 = dist2(e.x, e.y, m.x, m.y);
+      if (d2 < fd2) { fd2 = d2; foe = e; }
+    }
+    const slotA = (companions.length + idx) * 2.2 + 1.8;
+    let gx = player.x + Math.cos(slotA) * 70, gy = player.y + Math.sin(slotA) * 70;
+    if (foe) {
+      if (t.melee) { gx = foe.x; gy = foe.y; }
+      else {
+        const fd = Math.sqrt(fd2) || 1;
+        const hold = t.range * 0.55;
+        if (fd < hold * 0.7) { gx = m.x - (foe.x - m.x) / fd * 55; gy = m.y - (foe.y - m.y) / fd * 55; }
+        else if (fd > hold) { gx = foe.x; gy = foe.y; }
+        else { gx = m.x; gy = m.y; }
+      }
+    }
+    const dx = gx - m.x, dy = gy - m.y, gd = Math.hypot(dx, dy);
+    const spd = militiaSpd(m);
+    if (gd > 22) { m.vx = lerp(m.vx, dx / gd * spd, dt * 5); m.vy = lerp(m.vy, dy / gd * spd, dt * 5); }
+    else { m.vx *= 0.82; m.vy *= 0.82; }
+    for (const o of militia) {
+      if (o === m || o.downed) continue;
+      const d2 = dist2(m.x, m.y, o.x, o.y);
+      if (d2 < 28 * 28 && d2 > 0.01) {
+        const d = Math.sqrt(d2); m.vx += (m.x - o.x) / d * 50; m.vy += (m.y - o.y) / d * 50;
+      }
+    }
+    const pd2 = dist2(m.x, m.y, player.x, player.y);
+    if (pd2 < 34 * 34 && pd2 > 0.01) {
+      const d = Math.sqrt(pd2); m.vx += (m.x - player.x) / d * 85; m.vy += (m.y - player.y) / d * 85;
+    }
+    m.x = clamp(m.x + m.vx * dt, m.r, WORLD.w - m.r);
+    m.y = clamp(m.y + m.vy * dt, m.r, WORLD.h - m.r);
+    collideObstacles(m);
+    m.walk += dt * Math.hypot(m.vx, m.vy) * 0.045;
+    if (Math.abs(m.vx) > 4) m.facing = m.vx >= 0 ? 1 : -1;
+    if (pd2 > 1300 * 1300) { m.x = player.x + rand(-70, 70); m.y = player.y + rand(-70, 70); }
+    if (foe) {
+      m.aim = Math.atan2(foe.y - m.y, foe.x - m.x);
+      m.facing = Math.cos(m.aim) >= 0 ? 1 : -1;
+      if (t.melee) {
+        if (m.atkCd <= 0 && fd2 < (m.r + foe.r + 14) ** 2) {
+          m.atkCd = t.atk;
+          const d = Math.sqrt(fd2) || 1;
+          directDamage(foe, militiaDamage(m), (foe.x - m.x) / d, (foe.y - m.y) / d, 130);
+          zap(m.x, m.y - 8, foe.x, foe.y - 10);
+          spawnParticles(foe.x, foe.y - 8, 4, '#c8a06a', 2);
+        }
+      } else if (m.atkCd <= 0) {
+        m.atkCd = t.atk;
+        const a = m.aim + rand(-0.05, 0.05);
+        cbolts.push({
+          x: m.x + Math.cos(a) * 16, y: m.y - 12 + Math.sin(a) * 16,
+          vx: Math.cos(a) * 700, vy: Math.sin(a) * 700,
+          life: 1.0, r: 3, dmg: militiaDamage(m), pierce: 1, hit: [], scout: false,
+        });
+      }
+    }
+  });
+  if (selectedUnit && selectedUnit.kind === 'militia' && !militia.includes(selectedUnit.ref)) closeUnitPanel();
 }
 
 // adjacent barricades merge in effective size + HP (v2.9) — see below
@@ -3487,6 +3947,10 @@ function update(dt) {
       const mul = c.type === 'warden' ? 0.55 : 0.38;
       if (dist2(e.x, e.y, c.x, c.y) < (e.r + c.r + 4) ** 2) hurtCompanion(c, e.dmg * mul);
     }
+    for (const m of militia) {
+      if (m.downed) continue;
+      if (dist2(e.x, e.y, m.x, m.y) < (e.r + m.r + 4) ** 2) hurtMilitia(m, e.dmg * 0.4);
+    }
     if (colossus && !colossus.dead && dist2(e.x, e.y, colossus.x, colossus.y) < (e.r + colossus.r + 6) ** 2) {
       hurtColossus(e.dmg * 0.45);
     }
@@ -3513,6 +3977,7 @@ function update(dt) {
   }
   enemies = enemies.filter(e => !e.dead);
   updateCompanions(dt);
+  updateMilitia(dt);
   updateSentries(dt);
   updateLaborers(dt);
   updateStructures(dt);
@@ -3644,13 +4109,14 @@ function update(dt) {
   // talk / revive button visibility
   const npcNear = nearestNpc();
   const downComp = nearestDownedCompanion();
+  const downMil = nearestDownedMilitia();
   const downAlly = nearestDownedAlly();
   const talkBtn = $('btnTalk');
   const showTalk = state === 'playing' && !dialogOpen && !vendorOpen && !infirmaryOpen && !riftNetOpen &&
-    (npcNear || downComp || downAlly || player.downed);
+    (npcNear || downComp || downMil || downAlly || player.downed);
   talkBtn.classList.toggle('hidden', !showTalk);
   if (player.downed) talkBtn.textContent = '✚ PING';
-  else if (downAlly || downComp) talkBtn.textContent = '✚ HOLD REVIVE';
+  else if (downAlly || downComp || downMil) talkBtn.textContent = '✚ HOLD REVIVE';
   else if (npcNear) talkBtn.textContent = npcNear.role === 'vendor' ? '🜚 TRADE' : '💬 TALK';
   // when downed, tap Talk = revive ping
   if (player.downed && talkHeld && !reviveChan.kind) {
@@ -3974,6 +4440,8 @@ function updateHud() {
   $('coreNum').textContent = cores;
   if ($('woodNum')) $('woodNum').textContent = wood;
   if ($('goldNum')) $('goldNum').textContent = gold;
+  if ($('workerNum')) $('workerNum').textContent = laborers.length + '/' + laborerCap();
+  if ($('squadNum')) $('squadNum').textContent = (companions.length + militia.length) + (waveTrainLeft ? ` (+${waveTrainLeft})` : '');
   $('killNum').textContent = kills;
   $('spNum').textContent = player.sp;
   $('phaseLabel').textContent = paused ? '⏸ PAUSED' :
@@ -3985,7 +4453,9 @@ function updateHud() {
   $('grenadeHud').textContent = '✦ ' + '●'.repeat(player.grenades) + '○'.repeat(Math.max(0, maxGrenades() - player.grenades)) +
     `  ·  ⛨ ${barricades.length}/${BARRICADE_MAX}` +
     (structures.length ? `  ·  🏛 ${structures.length}` : '') +
-    (laborers.length ? `  ·  🪓 ${laborers.length}` : '') +
+    (laborers.length ? `  ·  🪓 ${laborers.length}/${laborerCap()}` : '') +
+    (militia.length ? `  ·  ⚔ ${militia.length}` : '') +
+    (waveTrainLeft > 0 && waveActive ? `  ·  train ${waveTrainLeft}` : '') +
     (colossus && !colossus.dead ? `  ·  ⚔ TITAN ${Math.ceil(colossus.life)}s` : '') +
     (loadout.secondary ? `  ·  ⌖ ${WEAPON_NAMES[loadout.primary]} + ${WEAPON_NAMES[loadout.secondary]}` : '') +
     (cds.length ? '  ·  ' + cds.join(' · ') : '');
@@ -4036,9 +4506,17 @@ function drawMinimap() {
   for (const s of structures) {
     g.fillRect(toX(s.x) - 1.5, toY(s.y) - 1.5, 3, 3);
   }
+  g.fillStyle = 'rgba(90,140,70,0.55)';
+  for (const fs of forestStands) {
+    g.beginPath(); g.arc(toX(fs.x), toY(fs.y), Math.max(2, fs.r * sx * 0.35), 0, TAU); g.fill();
+  }
   g.fillStyle = '#ffd54a';
-  for (const v of goldVeins) {
-    if (v.goldLeft > 0) g.fillRect(toX(v.x) - 1, toY(v.y) - 1, 2, 2);
+  for (const v of (goldMines.length ? goldMines : goldVeins)) {
+    if (v.goldLeft > 0) g.fillRect(toX(v.x) - 1.5, toY(v.y) - 1.5, 3, 3);
+  }
+  g.fillStyle = '#9ef0ff';
+  for (const m of militia) {
+    if (!m.downed) g.fillRect(toX(m.x) - 1, toY(m.y) - 1, 2, 2);
   }
   if (colossus && !colossus.dead) {
     g.fillStyle = '#b04dff';
@@ -5354,6 +5832,7 @@ function drawCompanion(c) {
 }
 
 function drawLaborer(L) {
+  if (L.insideMine) return; // working underground
   ctx.save();
   ctx.translate(L.x, L.y);
   ctx.scale(L.facing, 1);
@@ -5371,32 +5850,93 @@ function drawLaborer(L) {
     ctx.fillRect(6, -14 + bob, 7, 6);
   }
   ctx.restore();
+  if (selectedUnit && selectedUnit.kind === 'laborer' && selectedUnit.ref === L) {
+    ctx.strokeStyle = 'rgba(124,252,0,0.85)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(L.x, L.y, 16, 0, TAU); ctx.stroke();
+  }
   ctx.font = '8px Segoe UI'; ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(200,160,106,0.9)';
-  ctx.fillText('Laborer', L.x, L.y + 12);
+  ctx.fillText(L.order === 'mine' ? 'Mine' : L.order === 'chop' ? 'Chop' : 'Laborer', L.x, L.y + 12);
+}
+function drawMilitia(m) {
+  const t = MILITIA_TYPES[m.kind];
+  ctx.save();
+  ctx.translate(m.x, m.y);
+  ctx.scale(m.facing, 1);
+  const bob = Math.sin(m.walk) * 1.4;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(0, 2, 9, 3.2, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = m.hurtT > 0.2 ? '#fff' : (m.kind === 'bow' ? '#6a7a58' : '#5a6878');
+  ctx.fillRect(-6, -18 + bob, 12, 14);
+  ctx.fillStyle = '#c8b090';
+  ctx.beginPath(); ctx.arc(0, -22 + bob, 5.5, 0, TAU); ctx.fill();
+  if (m.kind === 'spear') {
+    ctx.strokeStyle = '#c8a06a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(8, -28 + bob); ctx.lineTo(8, 2 + bob); ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#8a7050'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-2, -14 + bob); ctx.lineTo(12, -20 + bob); ctx.stroke();
+  }
+  ctx.restore();
+  if (m.downed) {
+    ctx.fillStyle = '#ff8a93';
+    ctx.font = 'bold 11px Segoe UI'; ctx.textAlign = 'center';
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+    ctx.strokeText('✚ DOWN', m.x, m.y - 34);
+    ctx.fillText('✚ DOWN', m.x, m.y - 34);
+    if (reviveChan.kind === 'militia' && reviveChan.id === m.id)
+      drawReviveProgress(m.x, m.y, reviveChan.t / REVIVE_HOLD_SEC);
+  } else if (m.hp < m.maxHp) {
+    const w = 26;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(m.x - w / 2, m.y - 34, w, 3.5);
+    ctx.fillStyle = '#9ef0ff';
+    ctx.fillRect(m.x - w / 2, m.y - 34, w * clamp(m.hp / m.maxHp, 0, 1), 3.5);
+  }
+  if (selectedUnit && selectedUnit.kind === 'militia' && selectedUnit.ref === m) {
+    ctx.strokeStyle = 'rgba(158,240,255,0.9)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(m.x, m.y, 17, 0, TAU); ctx.stroke();
+  }
+  ctx.font = '8px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(158,240,255,0.9)';
+  ctx.fillText(t.name.replace('Ashen ', ''), m.x, m.y + 12);
 }
 function drawStructure(s) {
   const def = STRUCT_KINDS[s.kind];
   const pulse = 0.7 + Math.sin(performance.now() / 280 + s.x) * 0.2;
-  const col = s.kind === 'timber' ? '200,160,106' : s.kind === 'muster' ? '176,77,255' : '77,225,255';
+  const colMap = {
+    keep: '255,213,74', timber: '200,160,106', farm: '124,180,90',
+    golddepot: '255,200,80', muster: '176,77,255', aetherpit: '77,225,255',
+  };
+  const col = colMap[s.kind] || '200,160,106';
   ctx.strokeStyle = `rgba(${col},${0.55 * pulse})`;
   ctx.lineWidth = 3;
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.stroke();
   ctx.fillStyle = `rgba(${col},0.1)`;
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
-  // simple building block
+  // building body — Keep is taller
+  const bw = s.kind === 'keep' ? 42 : 32, bh = s.kind === 'keep' ? 40 : 28;
   ctx.fillStyle = '#2a2218';
-  ctx.fillRect(s.x - 16, s.y - 28, 32, 28);
+  ctx.fillRect(s.x - bw / 2, s.y - bh, bw, bh);
   ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2;
-  ctx.strokeRect(s.x - 16, s.y - 28, 32, 28);
-  ctx.fillStyle = `rgba(${col},${pulse})`;
-  ctx.fillRect(s.x - 10, s.y - 40, 20, 12);
-  // HP
+  ctx.strokeRect(s.x - bw / 2, s.y - bh, bw, bh);
+  if (s.kind === 'keep') {
+    ctx.fillStyle = `rgba(${col},${pulse})`;
+    ctx.fillRect(s.x - 8, s.y - bh - 16, 16, 16);
+    ctx.fillRect(s.x - bw / 2 - 4, s.y - bh - 6, 10, 14);
+    ctx.fillRect(s.x + bw / 2 - 6, s.y - bh - 6, 10, 14);
+  } else if (s.kind === 'farm') {
+    ctx.fillStyle = '#6a8a40';
+    ctx.fillRect(s.x - 18, s.y - 8, 36, 6);
+  } else {
+    ctx.fillStyle = `rgba(${col},${pulse})`;
+    ctx.fillRect(s.x - 10, s.y - bh - 12, 20, 12);
+  }
   const w = 34;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(s.x - w / 2, s.y - 48, w, 3.5);
+  ctx.fillRect(s.x - w / 2, s.y - bh - 20, w, 3.5);
   ctx.fillStyle = `rgb(${col})`;
-  ctx.fillRect(s.x - w / 2, s.y - 48, w * clamp(s.hp / s.maxHp, 0, 1), 3.5);
+  ctx.fillRect(s.x - w / 2, s.y - bh - 20, w * clamp(s.hp / s.maxHp, 0, 1), 3.5);
   ctx.font = 'bold 9px Segoe UI'; ctx.textAlign = 'center';
   ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
   const label = (def ? def.name : s.kind) + ' L' + s.lvl;
@@ -5405,16 +5945,32 @@ function drawStructure(s) {
   ctx.fillText(label, s.x, s.y + 14);
 }
 function drawGoldVein(v) {
+  // WC2-style mine building (v2.11)
   const pulse = 0.6 + Math.sin(performance.now() / 200 + v.x) * 0.25;
-  ctx.fillStyle = `rgba(255,213,74,${0.25 * pulse})`;
-  ctx.beginPath(); ctx.arc(v.x, v.y, v.r, 0, TAU); ctx.fill();
-  ctx.fillStyle = '#c9a227';
-  ctx.beginPath(); ctx.arc(v.x - 4, v.y - 2, 5, 0, TAU); ctx.fill();
+  ctx.fillStyle = `rgba(255,213,74,${0.12 * pulse})`;
+  ctx.beginPath(); ctx.arc(v.x, v.y, v.r + 6, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#3a3228';
+  ctx.fillRect(v.x - 18, v.y - 22, 36, 24);
+  ctx.strokeStyle = `rgba(255,213,74,${0.7 * pulse})`; ctx.lineWidth = 2;
+  ctx.strokeRect(v.x - 18, v.y - 22, 36, 24);
+  // entrance arch
+  ctx.fillStyle = '#1a1410';
+  ctx.beginPath(); ctx.arc(v.x, v.y - 2, 9, Math.PI, 0); ctx.fill();
+  ctx.fillRect(v.x - 9, v.y - 2, 18, 10);
+  // ore sparkles
   ctx.fillStyle = '#ffd54a';
-  ctx.beginPath(); ctx.arc(v.x + 5, v.y + 1, 4, 0, TAU); ctx.fill();
-  ctx.font = '8px Segoe UI'; ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,213,74,0.85)';
-  ctx.fillText('◈ ' + v.goldLeft, v.x, v.y + 16);
+  ctx.beginPath(); ctx.arc(v.x - 12, v.y - 16, 3, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(v.x + 10, v.y - 14, 2.5, 0, TAU); ctx.fill();
+  ctx.font = 'bold 8px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,213,74,0.9)';
+  ctx.fillText('Mine · ◈' + v.goldLeft, v.x, v.y + 18);
+}
+function drawForestStand(fs) {
+  ctx.strokeStyle = 'rgba(90,140,70,0.25)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.arc(fs.x, fs.y, fs.r, 0, TAU); ctx.stroke();
+  ctx.setLineDash([]);
 }
 function drawColossus(c) {
   const t = performance.now() / 1000;
@@ -5742,10 +6298,12 @@ function render() {
     }});
   }
   for (const c of companions) draws.push({ y: c.y, f: () => drawCompanion(c) });
+  for (const m of militia) draws.push({ y: m.y, f: () => drawMilitia(m) });
   for (const L of laborers) draws.push({ y: L.y, f: () => drawLaborer(L) });
   for (const s of structures) draws.push({ y: s.y, f: () => drawStructure(s) });
   if (colossus && !colossus.dead) draws.push({ y: colossus.y, f: () => drawColossus(colossus) });
-  for (const v of goldVeins) {
+  for (const fs of forestStands) draws.push({ y: fs.y + 40, f: () => drawForestStand(fs) });
+  for (const v of (goldMines.length ? goldMines : goldVeins)) {
     if (v.goldLeft > 0) draws.push({ y: v.y, f: () => drawGoldVein(v) });
   }
   draws.push({ y: player.y, f: () => {
@@ -6384,11 +6942,15 @@ function renderMenuBg(now) {
 // ========================== NEW GAME ==============================
 function newGame() {
   wave = 0; cores = 0; kills = 0; totalCores = 0; runTime = 0; victoryShown = false;
-  wood = 22; gold = 10; // starter stock so Timber Camp / laborers are reachable early
-  goldVeins = []; structures = []; laborers = []; colossus = null;
+  wood = 30; gold = 16; // starter stock — Keep + laborers reachable early
+  goldVeins = []; goldMines = []; forestStands = [];
+  structures = []; laborers = []; militia = []; colossus = null;
+  waveTrainLeft = 3; militiaIdSeq = 1; rtsTipShown = false;
   buildPickOpen = false; structPanelOpen = false; selectedStructure = null;
+  unitPanelOpen = false; selectedUnit = null;
   if ($('buildPick')) $('buildPick').classList.add('hidden');
   if ($('structPanel')) $('structPanel').classList.add('hidden');
+  if ($('unitPanel')) $('unitPanel').classList.add('hidden');
   enemies = []; bolts = []; ebolts = []; grenades = []; pickups = []; particles = []; floaters = []; zaps = [];
   beam = null; beamCharge = 0; charging = false; paused = false; treeOpen = false;
   dialogOpen = false; vendorOpen = false; infirmaryOpen = false; riftNetOpen = false;
@@ -6409,6 +6971,7 @@ function newGame() {
   loadout = { primary: 'rifle', secondary: null };
   currentRegion = '';
   buildWorld();
+  seedStarterTown();
   resetPlayer();
   campTrackX = player.x; campTrackY = player.y;
   updateQuestHud();

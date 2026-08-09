@@ -242,6 +242,17 @@
   #structActions button.gold{border-color:var(--gold);color:var(--gold)}
   #structActions button.green{border-color:var(--green);color:var(--green)}
   #structActions button:disabled{opacity:.4;cursor:not-allowed}
+  #unitPanel{z-index:32}
+  #unitPanel .panel{background:var(--panel);border:1px solid var(--gold);border-radius:16px;
+    padding:16px 18px;max-width:420px;width:92vw}
+  #unitPanel h2{color:var(--gold);letter-spacing:2px;font-size:17px;margin-bottom:4px}
+  #unitPanel p.meta{color:#8fa3bd;font-size:12px;margin-bottom:10px;line-height:1.4}
+  #unitActions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  #unitActions button{border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;
+    letter-spacing:1px;cursor:pointer;border:1px solid var(--border);background:rgba(20,32,54,.9);color:#cfe2ff}
+  #unitActions button.gold{border-color:var(--gold);color:var(--gold)}
+  #unitActions button.green{border-color:var(--green);color:var(--green)}
+  #unitActions button:disabled{opacity:.4;cursor:not-allowed}
   #btnMenu{position:fixed;right:max(10px,env(safe-area-inset-right));top:calc(var(--safeTop) + 118px);z-index:16;pointer-events:auto;
     width:auto;height:auto;border-radius:9px;padding:7px 13px;font-size:11px;
     background:rgba(14,24,44,.72);border:1px solid var(--border);color:#cfe2ff}
@@ -349,6 +360,8 @@
     <span class="cyan">⬡ <b id="coreNum">0</b></span>
     <span style="color:#c8a06a">🪵 <b id="woodNum">0</b></span>
     <span style="color:#ffd54a">◈ <b id="goldNum">0</b></span>
+    <span style="color:#c8a06a">🪓 <b id="workerNum">0</b></span>
+    <span style="color:#9ef0ff">⚔ <b id="squadNum">0</b></span>
     <span>☠ <b id="killNum">0</b></span>
     <span class="sp">✦ <b id="spNum">0</b> SP</span>
     <span id="phaseLabel" class="cyan"></span>
@@ -401,8 +414,8 @@
 
 <div id="buildPick" class="overlay hidden">
   <div class="panel">
-    <h2>⛨ BUILD — CHOOSE STRUCTURE</h2>
-    <p class="hint">Places at your aim point · Barricades still link · Wood / gold from Ashen Laborers</p>
+    <h2>⛨ BUILD — RAISE YOUR TOWN</h2>
+    <p class="hint">Aim then place · Start with Rift Keep (already raised) · Tap laborers for Chop / Mine · Muster trains fighters (+3/wave)</p>
     <div id="buildPickGrid"></div>
     <button class="big" id="buildPickCancel" style="width:100%">CANCEL</button>
   </div>
@@ -414,6 +427,15 @@
     <p class="meta" id="structMeta"></p>
     <div id="structActions"></div>
     <button class="big" id="structClose" style="width:100%">CLOSE</button>
+  </div>
+</div>
+
+<div id="unitPanel" class="overlay hidden">
+  <div class="panel">
+    <h2 id="unitTitle">UNIT</h2>
+    <p class="meta" id="unitMeta"></p>
+    <div id="unitActions"></div>
+    <button class="big" id="unitClose" style="width:100%">CLOSE</button>
   </div>
 </div>
 
@@ -478,10 +500,12 @@
     <div><kbd>LMB</kbd> Pulse rifle &nbsp; <kbd>RMB</kbd> hold+release: Nova Beam</div>
     <div><kbd>Q</kbd> Aether nova &nbsp; <kbd>E</kbd> Grenade</div>
     <div><kbd>Shift</kbd> Dash &nbsp; <kbd>F</kbd> Ascend (full aether)</div>
-    <div><kbd>B</kbd> Build barricade (3⬡) — ghost shows link before place</div>
+    <div><kbd>B</kbd> Build town (Rift Keep / Timber / Muster / farms) · ghost shows barricade links</div>
+    <div><kbd>Tap unit</kbd> Laborer orders (Chop/Mine) · fighter skill nodes (dmg/armor/speed)</div>
     <div><kbd>H</kbd> Aether Mend (one-tap heal) · <kbd>T</kbd> Talk / hold near downed squad to revive</div>
     <div><kbd>P</kbd> Pause / settings / save &nbsp; 📱 Full touch controls on mobile</div>
     <div><kbd>K</kbd> Skill tree &nbsp; 🎁 Loot the supply cache after every wave — 💾 progress auto-saves too!</div>
+    <div style="color:#c8a06a">Ashen Laborers = workers only (not squad). Muster Hall trains Spearmen/Bowmen (+3 per wave).</div>
   </div>
   <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
     <button class="big hidden" id="continueBtn" style="border-color:var(--cyan);background:linear-gradient(180deg,#9adfff,#2e9dff)">CONTINUE ➤</button>

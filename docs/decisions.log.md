@@ -16,6 +16,24 @@
 
 ---
 
+### 2026-08-08 — SHIPPED — v2.11.0 WC2-inspired RTS overhaul slice
+- Version / commit / APK: 2.11.0 (versionCode 41) / (pending commit) / BETA `TemporalRift-BETA-2.11.0.apk`
+- User intent: Warcraft-2–inspired additive overhaul (~2hr playable slice): town buildings, choppable forests, gold mines, workers≠squad, Muster +3/wave fighters, click orders/skills, expanded map; original names only; keep wave survival
+- Agent action: Map 3600→4800; forest stands + gold mine buildings; Rift Keep / Supply Camp / Gold Vault + existing halls; Ashen Laborers worker-only with Chop/Mine/Follow orders; Muster Spearmen/Bowmen (+3 train/wave, revivable); light fighter skill nodes; starter Keep+2 laborers + tips; HUD worker/squad counts; kept companions/barricades/mend/revive/learning/BETA id; no Play Console; no Rift Forge v3
+- Notes: discoverability_risk reduced (starter Keep + tip banner + clearer BUILD hint). Pathfinding/AI polish still thin vs full WC2. No copyrighted names.
+
+### 2026-08-08 — SHIPPED — Rift Forge companion scaffold (sibling project)
+- Version / commit / APK: Forge 0.1.0 / sibling repo `videogamemakes/rift-forge` / `rollouts/RiftForge-0.1.0.apk`
+- User intent: Companion APK/web workshop for 2D kits → Drive → later Temporal Rift v3; not a Tripo 3D clone
+- Agent action: Scaffold Capacitor app + pack format + sample `ash-scout` + debug APK; v3 loader remains stub/docs only
+- Notes: Game still procedural/hardcoded draw paths. Cloud gen stubbed (no paid key required). v3 overhaul still DEFERRED until ordered.
+
+### 2026-08-08 — DEFERRED — Rift Forge companion started; v3 overhaul pending
+- Version / commit / APK: n/a (companion / planning)
+- User intent: Note that Rift Forge companion work has started; full v3 overhaul still pending
+- Agent action: Thin memory note only — no gameplay/APK ship this entry
+- Notes: Do not treat as SHIPPED remove/keep; overhaul deferred until explicitly ordered
+
 ### 2026-08-08 — SHIPPED — v2.10.0 additive RTS build picker slice
 - Version / commit / APK: 2.10.0 (versionCode 40) / `fe493db` / BETA `TemporalRift-BETA-2.10.0.apk`
 - User intent: Free Tripo alternatives research + Warcraft-2-inspired additive RTS (build picker, wood/gold workers, upgradable buildings, more squads, megazord-like combiner) without gutting wave survival; copyright-safe names only

@@ -17,7 +17,7 @@
 ---
 
 ### 2026-08-09 — DEFERRED — Ashen Skeleton art drafted (APK apply later)
-- Version / commit / APK: assets+docs only (no APP_VERSION / versionCode bump) / pending commit / **no BETA APK**
+- Version / commit / APK: assets+docs only (no APP_VERSION / versionCode bump) / `24c4c31` / **no BETA APK**
 - User intent: Mesh 3 skeleton refs into detailed sprites like Ashen Husk / Gharok; art for NPCs first; no new APK this pass
 - Agent action: Generated original Ashen Skeleton idle/walk/windup; size lock `r=10` / `drawH=32.4` (36×0.9); soft-wire behind `SKELETON_SPRITE_ENABLED=false`; docs + Desktop preview; CHANGE_MEMORY append
 - Notes: Ready for next NPC refs. Flip flag + BETA when applying. No WoW/Blizzard/InkWell IP.

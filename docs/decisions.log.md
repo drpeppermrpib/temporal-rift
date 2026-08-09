@@ -17,7 +17,7 @@
 ---
 
 ### 2026-08-09 — DEFERRED — Ashen Shaman art drafted (APK apply later)
-- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / pending / **no BETA APK**
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / ccefeae / **no BETA APK**
 - User intent: Mesh 4 shaman/mage refs into detailed caster sprites like Husk/Skeleton/Bulwark; art for NPCs; no new APK this pass
 - Agent action: Generated original Ashen Shaman / Rift Hexer idle/walk/windup; size lock `r=13` / `drawH=36` (36×1.0 husk baseline); soft-wire behind `SHAMAN_SPRITE_ENABLED=false`; docs + Desktop preview; CHANGE_MEMORY append
 - Notes: Ready for NPC #4 ravager. Flip flag + BETA when applying. No WoW/Blizzard/Warhammer/Disney IP.

@@ -56,5 +56,5 @@ for Photos review (chat may not show PNGs).
 ## Next
 
 - Flip `BULWARK_SPRITE_ENABLED` + BETA APK when applying to game
-- NPC **#3** shaman / ravager art pass when refs ready
+- NPC **#3** shaman done (see `docs/shaman-art-plan.md`); next: ravager when refs ready
 - Optional more walk / hurt / fusion-emerge frames

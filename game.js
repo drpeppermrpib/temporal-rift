@@ -5488,6 +5488,101 @@ function drawBulwarkSprite(e, alpha) {
   return true;
 }
 
+// ============ ASHEN SHAMAN SPRITES — art drafted; APK apply deferred ============
+// assets/shaman/{idle,walk,windup}.png — husk/Gharok quality, caster scale (NOT boss).
+// Collision r=13 unchanged. drawH = 36 * 1.0 = 36 (matches figure s). Same as husk baseline.
+// Flag off by default so live/BETA look unchanged until user applies NPC art pass.
+const SHAMAN_SPRITE_ENABLED = false;
+const SHAMAN_SPRITE_DRAWH = 36 * 1.0; // 36 — SIZE LOCK (matches drawFigure H / husk baseline)
+const shamanSpr = { idle: null, walk: null, windup: null, ok: false };
+(function loadShamanSprites() {
+  if (!SHAMAN_SPRITE_ENABLED) return; // soft-load only when enabled
+  const keys = ['idle', 'walk', 'windup'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) shamanSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) shamanSpr.ok = good > 0; };
+    img.src = 'assets/shaman/' + k + '.png';
+    shamanSpr[k] = img;
+  }
+})();
+
+function shamanSpriteReady(img) {
+  return !!(SHAMAN_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+
+function shamanSpriteFrame(e) {
+  if ((e.swipeT || 0) > 0 && shamanSpriteReady(shamanSpr.windup)) return shamanSpr.windup;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  if (moving && shamanSpriteReady(shamanSpr.walk) && shamanSpriteReady(shamanSpr.idle)) {
+    return (Math.floor((e.walk || 0) / Math.PI) & 1) ? shamanSpr.walk : shamanSpr.idle;
+  }
+  if (shamanSpriteReady(shamanSpr.idle)) return shamanSpr.idle;
+  if (shamanSpriteReady(shamanSpr.walk)) return shamanSpr.walk;
+  if (shamanSpriteReady(shamanSpr.windup)) return shamanSpr.windup;
+  return null;
+}
+
+function drawShamanSprite(e, alpha) {
+  if (!SHAMAN_SPRITE_ENABLED) return false;
+  const img = shamanSpriteFrame(e);
+  if (!img) return false;
+  const s = 1.0; // UNIT_SIZES shaman figure s (same as husk)
+  const drawH = SHAMAN_SPRITE_DRAWH; // 36 — husk baseline, not boss 228
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const t = e.walk || 0;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  const swipe = e.swipeT || 0;
+  const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
+  const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
+  const hurt = e.flash > 0;
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.2 * s
+    : (swipe > 0) ? 0.7 * s
+    : Math.abs(Math.sin(t * 0.55)) * 0.4 * s;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
+  const lean = moving ? Math.sin(t) * 0.035
+    : windPose > 0 ? -0.08 - windPose * 0.04
+    : strikePose > 0 ? 0.1 * (1 - strikePose * 0.3)
+    : hurt ? -0.09
+    : Math.sin(t * 0.55) * 0.01;
+  const squashY = 1 - plant * 0.03 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.012 : 0);
+  const squashX = 1 + plant * 0.025 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.012 : 0);
+
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 8 * s * (1 + plant * 0.04), 3.4 * s, 0, 0, TAU); ctx.fill();
+
+  ctx.scale(e.facing || 1, 1);
+  ctx.translate(0, -bob);
+  ctx.rotate(lean);
+  ctx.scale(squashX, squashY);
+
+  if (windPose > 0 || strikePose > 0) {
+    ctx.save();
+    const glow = windPose || strikePose;
+    ctx.globalAlpha *= 0.35 + glow * 0.4;
+    ctx.shadowColor = '#5ce1ff';
+    ctx.shadowBlur = 10 * s;
+    ctx.fillStyle = `rgba(92,225,255,${0.1 + glow * 0.22})`;
+    ctx.beginPath();
+    ctx.ellipse(drawW * 0.14, -drawH * 0.62, 7 * s + glow * 4, 9 * s + glow * 5, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (hurt) ctx.filter = 'brightness(2.5) saturate(0.15)';
+  ctx.drawImage(img, -drawW / 2, -drawH + 2, drawW, drawH);
+  ctx.filter = 'none';
+
+  ctx.restore();
+  return true;
+}
+
 // ============ WORLD SPRITES (v2.8.7) — pine trees + rocks ============
 // assets/world/trees|rocks/*.png — drawImage when ready, procedural fallback otherwise.
 const worldSpr = {
@@ -6699,6 +6794,8 @@ function render() {
         // Ashen Skeleton sheets — drawH=32.4, r=10; gated by SKELETON_SPRITE_ENABLED (APK apply deferred)
       } else if (e.type === 'bulwark' && drawBulwarkSprite(e, emerge)) {
         // Ashen Bulwark sheets — drawH=52.2, r=20; gated by BULWARK_SPRITE_ENABLED (APK apply deferred)
+      } else if (e.type === 'shaman' && drawShamanSprite(e, emerge)) {
+        // Ashen Shaman sheets — drawH=36, r=13; gated by SHAMAN_SPRITE_ENABLED (APK apply deferred)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

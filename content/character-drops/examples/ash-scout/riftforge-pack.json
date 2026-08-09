@@ -1,0 +1,142 @@
+{
+  "format": "riftforge-pack",
+  "formatVersion": 1,
+  "id": "ash-scout",
+  "name": "Ash Scout",
+  "role": "ally",
+  "createdAt": "2026-08-09T00:28:22.765Z",
+  "forgeVersion": "0.1.0",
+  "palette": {
+    "skin": "#c4a882",
+    "cloth": "#3a5a4a",
+    "accent": "#6fd3a2",
+    "legs": "#20242e",
+    "outline": "#0a0e14"
+  },
+  "rig": {
+    "type": "humanoid-2d",
+    "bones": [
+      {
+        "id": "root",
+        "parent": null,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "id": "hip",
+        "parent": "root",
+        "x": 0,
+        "y": -15
+      },
+      {
+        "id": "torso",
+        "parent": "hip",
+        "x": 0,
+        "y": -12
+      },
+      {
+        "id": "head",
+        "parent": "torso",
+        "x": 0,
+        "y": -10
+      },
+      {
+        "id": "armL",
+        "parent": "torso",
+        "x": -6,
+        "y": -2
+      },
+      {
+        "id": "armR",
+        "parent": "torso",
+        "x": 6,
+        "y": -2
+      },
+      {
+        "id": "legL",
+        "parent": "hip",
+        "x": -3,
+        "y": 2
+      },
+      {
+        "id": "legR",
+        "parent": "hip",
+        "x": 3,
+        "y": 2
+      }
+    ],
+    "defaults": {
+      "height": 36,
+      "bulk": 1,
+      "headScale": 1,
+      "hunch": 0,
+      "weapon": "rifle"
+    }
+  },
+  "parts": {
+    "head": {
+      "shape": "round",
+      "scale": 1
+    },
+    "torso": {
+      "shape": "taper",
+      "bulk": 1
+    },
+    "arms": {
+      "shape": "stick",
+      "weapon": "rifle"
+    },
+    "legs": {
+      "shape": "stick"
+    },
+    "extra": {
+      "pauldron": false,
+      "rags": false,
+      "aura": null
+    }
+  },
+  "animations": {
+    "idle": {
+      "sheet": "sheets/idle.png",
+      "frameW": 64,
+      "frameH": 64,
+      "frames": 4,
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "sheet": "sheets/walk.png",
+      "frameW": 64,
+      "frameH": 64,
+      "frames": 6,
+      "fps": 10,
+      "loop": true
+    },
+    "attack": {
+      "sheet": "sheets/attack.png",
+      "frameW": 64,
+      "frameH": 64,
+      "frames": 4,
+      "fps": 12,
+      "loop": false
+    },
+    "death": {
+      "sheet": "sheets/death.png",
+      "frameW": 64,
+      "frameH": 64,
+      "frames": 4,
+      "fps": 8,
+      "loop": false
+    }
+  },
+  "statsHint": {
+    "hp": 80,
+    "spd": 180,
+    "dmg": 8
+  },
+  "cloudGen": {
+    "provider": null,
+    "prompt": null,
+    "status": "none"
+  }
+}

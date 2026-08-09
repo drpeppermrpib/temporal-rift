@@ -16,6 +16,18 @@
 
 ---
 
+### 2026-08-08 — SHIPPED — Windows character-drop pipeline (docs + folder)
+- Version / commit / APK: docs only (no APP_VERSION bump) / pending commit
+- User intent: Rift Forge APK too hard for skins; want limb-flowing enemies/allies + moving textures via easy Windows tools; drop files for agent; AI-smart tooling wish
+- Agent action: Researched FOSS Windows 2D tools; scaffolded `content/character-drops/` + `docs/CHARACTER_DROP_FORMAT.md`; copied ash-scout metadata example; recommended Pixelorama primary / LibreSprite backup; **no** in-engine skeletal/sheet loader this pass (procedural draw still default)
+- Notes: **Rift Forge APK deferred for ease** — Windows drop pipeline preferred for v3 art. ComfyUI/AnimateDiff optional drafts only. Next: artist drops sheets → agent wires one unit sheet player.
+
+### 2026-08-08 — DEFERRED — Rift Forge APK expansion for day-to-day skins
+- Version / commit / APK: n/a (companion path)
+- User intent: Skins/characters easier than Forge APK
+- Agent action: Do not expand Forge APK; document simpler Windows editor → `character-drops` handoff instead
+- Notes: Forge scaffold remains; v3 overhaul still deferred. Prefer Pixelorama/LibreSprite locally.
+
 ### 2026-08-08 — SHIPPED — v2.11.0 WC2-inspired RTS overhaul slice
 - Version / commit / APK: 2.11.0 (versionCode 41) / `740e93a` / BETA `TemporalRift-BETA-2.11.0.apk`
 - User intent: Warcraft-2–inspired additive overhaul (~2hr playable slice): town buildings, choppable forests, gold mines, workers≠squad, Muster +3/wave fighters, click orders/skills, expanded map; original names only; keep wave survival

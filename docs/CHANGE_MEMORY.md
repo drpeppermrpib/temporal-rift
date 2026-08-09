@@ -115,7 +115,8 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 |---|---|---|
 | High | Full **co-op combat sync** | PeerJS presence/HP/wave/revive shipped; enemies stay local — explicitly deferred |
 | Ops | Store / GitHub channel lag behind BETA | 2.7+ AABs on shelf; public channels last confirmed at 2.6 |
-| Backlog | **Rift Forge** companion + **v3 overhaul** | Companion scaffold SHIPPED at `../rift-forge` + `RiftForge-0.1.0.apk`; **v3 overhaul still pending** — see decisions 2026-08-08 |
+| Backlog | **Rift Forge** companion + **v3 overhaul** | Companion scaffold SHIPPED at `../rift-forge` + `RiftForge-0.1.0.apk`; **APK deferred for ease** — prefer Windows **character-drops** pipeline for v3 art (see `docs/CHARACTER_DROP_FORMAT.md`); full v3 loader/overhaul still pending |
+| Backlog | **Character sheet ingest** (canvas) | Drop folder `content/character-drops/` ready; in-engine spritesheet player + one-unit swap not shipped yet |
 | Backlog | Clan spot 2–5 players / robust rooms | Passkeys exist; not full lobby/matchmaking |
 | Backlog | Skill-tree polish | Called backlog in 2.8.3 notes |
 | Backlog | Music bus / full soundtrack | Largely stubbed |

@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-08 — SHIPPED — v2.12.0 in-engine unit animation finish (sizes locked)
+- Version / commit / APK: 2.12.0 (versionCode 42) / (pending commit) / BETA `TemporalRift-BETA-2.12.0.apk`
+- User intent: Can't use Pixelorama (SplashTop); do Gharok-style finished movements for all units; keep current sizes; no Pixelorama workflow push
+- Agent action: Finished Gharok idle/walk/attack(windup+strike)/hurt lean on existing sheets + procedural fallback; additive limb-flow walk/attack/hurt for enemies + allies + laborers/militia/Colossus; locked radii/draw scales in `docs/UNIT_SIZES.md`; noted Pixelorama/Forge deferred — primary = in-engine
+- Notes: No dedicated death corpse sheets (particle death remains). Militia still thinner than Gharok sheet quality. SplashTop/Pixelorama out of scope.
+
 ### 2026-08-08 — SHIPPED — Windows character-drop pipeline (docs + folder)
 - Version / commit / APK: docs only (no APP_VERSION bump) / `526f9ac`
 - User intent: Rift Forge APK too hard for skins; want limb-flowing enemies/allies + moving textures via easy Windows tools; drop files for agent; AI-smart tooling wish

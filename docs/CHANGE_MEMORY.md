@@ -36,7 +36,7 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 
 | Feature / version | Master (repo) | BETA APK | GitHub Release | Play Closed |
 |---|---|---|---|---|
-| **App version** | **2.11.0** (versionCode 41) | Through `TemporalRift-BETA-2.11.0.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
+| **App version** | **2.12.0** (versionCode 42) | Through `TemporalRift-BETA-2.12.0.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
 | Package | `com.drpep.temporalrift` (prod) | `com.drpep.temporalrift.beta` | Sideload / release assets | Store-signed prod |
 | Update banner → GitHub | GitHub channel only | Per build channel | Yes (github) | Must stay **off** (`UPDATE_CHANNEL !== 'github'`) |
 | Learning engine + adapt panel | Yes (+ settings hide toggle) | Yes (2.9.3+) | No (stuck ~2.6) | No if still on 2.6 |
@@ -44,7 +44,8 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 | Aether Infirmary + field revive | Yes (2.9.0–2.9.2) | Yes | No | No if still on 2.6 |
 | One-tap Aether Mend + wall ghost | Yes (2.9.3) | Yes | No | No if still on 2.6 |
 | RTS build picker / wood-gold / laborers | Yes (2.10.0+) | Yes | No | No if still on 2.6 |
-| WC2-style town / mines / worker≠squad / +3 train | Yes (2.11.0) | Yes (2.11.0) | No | No if still on 2.6 |
+| WC2-style town / mines / worker≠squad / +3 train | Yes (2.11.0+) | Yes | No | No if still on 2.6 |
+| In-engine unit anim finish (Gharok + all figures) | Yes (2.12.0) | Yes (2.12.0) | No | No if still on 2.6 |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | No | No if still on 2.6 |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **No** | **No** |
@@ -116,7 +117,7 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | High | Full **co-op combat sync** | PeerJS presence/HP/wave/revive shipped; enemies stay local — explicitly deferred |
 | Ops | Store / GitHub channel lag behind BETA | 2.7+ AABs on shelf; public channels last confirmed at 2.6 |
 | Backlog | **Rift Forge** companion + **v3 overhaul** | Companion scaffold SHIPPED at `../rift-forge` + `RiftForge-0.1.0.apk`; **APK deferred for ease** — prefer Windows **character-drops** pipeline for v3 art (see `docs/CHARACTER_DROP_FORMAT.md`); full v3 loader/overhaul still pending |
-| Backlog | **Character sheet ingest** (canvas) | Drop folder `content/character-drops/` ready; in-engine spritesheet player + one-unit swap not shipped yet |
+| Backlog | **Character sheet ingest** (canvas) | Drop folder ready; **primary path now in-engine anim** (2.12.0). Pixelorama/Forge APK optional later — do not require user Pixelorama |
 | Backlog | Clan spot 2–5 players / robust rooms | Passkeys exist; not full lobby/matchmaking |
 | Backlog | Skill-tree polish | Called backlog in 2.8.3 notes |
 | Backlog | Music bus / full soundtrack | Largely stubbed |
@@ -127,6 +128,9 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 ## Changelog by version (seed — brief)
 
 Append new versions at the top of this list when shipping.
+
+### 2.12.0
+- In-engine animation finish (no Pixelorama required): Gharok idle/walk/windup+strike/hurt lean at locked `r=54` / `drawH=228`; additive walk/attack/hurt for husks, sprinters, shamans, ravagers, bulwarks, skeletons, companions, militia, laborers, Colossus. Sizes locked in `docs/UNIT_SIZES.md`. Pixelorama drop path optional later.
 
 ### 2.11.0
 - WC2-inspired town slice: larger map (4800); forest stands; gold mine buildings; Rift Keep / Supply Camp / Gold Vault; Ashen Laborers = workers only (Chop/Mine orders, separate cap); Muster Spearmen/Bowmen (+3/wave, revivable); click unit skill nodes; starter Keep+laborers + tips. Wave survival / learning / barricades / mend / revive / companions kept.

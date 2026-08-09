@@ -362,7 +362,7 @@ bindHold('btnTalk', () => {
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.11.0';
+const APP_VERSION = '2.12.0';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -1428,6 +1428,7 @@ function updateCompanions(dt) {
   companions.forEach((c, idx) => {
     if (c.downed) return;
     c.hurtT = Math.max(0, c.hurtT - dt);
+    if (c.swipeT > 0) c.swipeT = Math.max(0, c.swipeT - dt);
     c.atkCd -= dt;
     const t = COMP_TYPES[c.type];
     // nearest living enemy in engagement range
@@ -1494,6 +1495,7 @@ function updateCompanions(dt) {
       if (c.type === 'rover') {
         if (c.atkCd <= 0 && fd2 < (c.r + foe.r + 12) ** 2) {
           c.atkCd = compInterval(c);
+          c.swipeT = UNIT_SWIPE;
           const d = Math.sqrt(fd2) || 1;
           directDamage(foe, compDamage(c), (foe.x - c.x) / d, (foe.y - c.y) / d, 140);
           zap(c.x, c.y - 8, foe.x, foe.y - 10); // plasma-bite arc
@@ -1501,6 +1503,7 @@ function updateCompanions(dt) {
         }
       } else if (c.atkCd <= 0) {
         c.atkCd = compInterval(c);
+        c.swipeT = UNIT_SWIPE * 0.7;
         const a = c.aim + rand(-0.04, 0.04);
         const spd = c.type === 'scout' ? 820 : 620;
         cbolts.push({
@@ -1544,8 +1547,10 @@ function updateCompanions(dt) {
 // ravager (ork brute) · warlord (twin-skulled war-brute boss, every 5 waves)
 // bulwark (two husks fused mid-wave) · skeleton (claws out of husk graves)
 
-// boss claw slash (v2.8): wind-up is the dodge window
-const CLAW_WINDUP = 0.7, CLAW_RANGE = 165, CLAW_CD = 5, CLAW_DMG_MUL = 1.5, CLAW_KB = 820;
+// boss claw slash (v2.8): wind-up is the dodge window; strike linger reads the follow-through
+const CLAW_WINDUP = 0.7, CLAW_STRIKE = 0.28, CLAW_RANGE = 165, CLAW_CD = 5, CLAW_DMG_MUL = 1.5, CLAW_KB = 820;
+// Contact-melee swipe telegraph for non-boss figures (visual only — hitbox unchanged)
+const UNIT_SWIPE = 0.32;
 const ETYPES = {
   husk:     { r: 14, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
   sprinter: { r: 11, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
@@ -3393,6 +3398,7 @@ function updateMilitia(dt) {
   militia.forEach((m, idx) => {
     if (m.downed) return;
     m.hurtT = Math.max(0, m.hurtT - dt);
+    if (m.swipeT > 0) m.swipeT = Math.max(0, m.swipeT - dt);
     m.atkCd -= dt;
     const t = MILITIA_TYPES[m.kind];
     let foe = null, fd2 = (t.melee ? 90 : t.range) ** 2;
@@ -3440,6 +3446,7 @@ function updateMilitia(dt) {
       if (t.melee) {
         if (m.atkCd <= 0 && fd2 < (m.r + foe.r + 14) ** 2) {
           m.atkCd = t.atk;
+          m.swipeT = UNIT_SWIPE;
           const d = Math.sqrt(fd2) || 1;
           directDamage(foe, militiaDamage(m), (foe.x - m.x) / d, (foe.y - m.y) / d, 130);
           zap(m.x, m.y - 8, foe.x, foe.y - 10);
@@ -3447,6 +3454,7 @@ function updateMilitia(dt) {
         }
       } else if (m.atkCd <= 0) {
         m.atkCd = t.atk;
+        m.swipeT = UNIT_SWIPE * 0.65;
         const a = m.aim + rand(-0.05, 0.05);
         cbolts.push({
           x: m.x + Math.cos(a) * 16, y: m.y - 12 + Math.sin(a) * 16,
@@ -3506,6 +3514,7 @@ function updateColossus(dt) {
   if (!colossus || colossus.dead) { colossus = null; return; }
   colossus.life -= dt;
   colossus.atkCd -= dt;
+  if (colossus.swipeT > 0) colossus.swipeT = Math.max(0, colossus.swipeT - dt);
   if (colossus.life <= 0 || colossus.hp <= 0) {
     addFloater(colossus.x, colossus.y - 50, 'COLOSSUS FADES', '#b04dff', true);
     spawnParticles(colossus.x, colossus.y, 40, '#b04dff', 5);
@@ -3531,6 +3540,7 @@ function updateColossus(dt) {
   if (Math.abs(colossus.vx) > 3) colossus.facing = colossus.vx >= 0 ? 1 : -1;
   if (foe && colossus.atkCd <= 0 && fd2 < (colossus.r + foe.r + 18) ** 2) {
     colossus.atkCd = 1.05;
+    colossus.swipeT = UNIT_SWIPE * 1.2;
     const d = Math.sqrt(fd2) || 1;
     directDamage(foe, 28 + wave * 1.2, (foe.x - colossus.x) / d, (foe.y - colossus.y) / d, 220);
     spawnParticles(foe.x, foe.y, 10, '#b04dff', 3);
@@ -3873,11 +3883,13 @@ function update(dt) {
     // the player flying with bonus damage — dodgeable during the wind-up
     if (e.boss) {
       e.clawCd = (e.clawCd === undefined ? 2.5 : e.clawCd) - dt;
+      if (e.clawStrike > 0) e.clawStrike = Math.max(0, e.clawStrike - dt);
       if (e.clawWind > 0) {
         e.clawWind -= dt;
         e.vx *= 0.8; e.vy *= 0.8; // plants its feet for the swing
         if (Math.random() < dt * 26) spawnParticles(e.x + e.facing * 44, e.y - 96, 1, '#ff6a4d', 3);
         if (e.clawWind <= 0) {
+          e.clawStrike = CLAW_STRIKE; // follow-through pose after the hit
           camera.shake = Math.max(camera.shake, 10);
           spawnRing(e.x, e.y - 20, CLAW_RANGE);
           spawnParticles(e.x, e.y - 40, 18, '#ff6a4d', 5);
@@ -3901,6 +3913,7 @@ function update(dt) {
         buzz(20);
       }
     }
+    if (e.swipeT > 0) e.swipeT = Math.max(0, e.swipeT - dt);
     e.vx = lerp(e.vx, ex / d * e.spd * spdMul * dir, dt * 4);
     e.vy = lerp(e.vy, ey / d * e.spd * spdMul * dir, dt * 4);
     // warlord mass drag — knockback bleeds off fast so rifle ticks don't skate him
@@ -3933,6 +3946,7 @@ function update(dt) {
     // melee swipes hit whatever is in reach: the player or a companion
     const pd2c = dist2(e.x, e.y, player.x, player.y);
     if (pd2c < (e.r + player.r + 6) ** 2 && player.hurtT <= 0) {
+      if (!e.boss) e.swipeT = UNIT_SWIPE;
       hurtPlayer(e.dmg);
       if (e.kbPlayer) { // bulwark slam shoves the player back
         const pd = Math.sqrt(pd2c) || 1;
@@ -3945,13 +3959,20 @@ function update(dt) {
       if (c.downed) continue;
       // non-Warden companions take less melee splash; Warden still tanks
       const mul = c.type === 'warden' ? 0.55 : 0.38;
-      if (dist2(e.x, e.y, c.x, c.y) < (e.r + c.r + 4) ** 2) hurtCompanion(c, e.dmg * mul);
+      if (dist2(e.x, e.y, c.x, c.y) < (e.r + c.r + 4) ** 2) {
+        if (!e.boss) e.swipeT = Math.max(e.swipeT || 0, UNIT_SWIPE * 0.85);
+        hurtCompanion(c, e.dmg * mul);
+      }
     }
     for (const m of militia) {
       if (m.downed) continue;
-      if (dist2(e.x, e.y, m.x, m.y) < (e.r + m.r + 4) ** 2) hurtMilitia(m, e.dmg * 0.4);
+      if (dist2(e.x, e.y, m.x, m.y) < (e.r + m.r + 4) ** 2) {
+        if (!e.boss) e.swipeT = Math.max(e.swipeT || 0, UNIT_SWIPE * 0.85);
+        hurtMilitia(m, e.dmg * 0.4);
+      }
     }
     if (colossus && !colossus.dead && dist2(e.x, e.y, colossus.x, colossus.y) < (e.r + colossus.r + 6) ** 2) {
+      if (!e.boss) e.swipeT = Math.max(e.swipeT || 0, UNIT_SWIPE * 0.7);
       hurtColossus(e.dmg * 0.45);
     }
     if (e.ranged) {
@@ -3962,6 +3983,7 @@ function update(dt) {
         if (!e.boss && wave >= ESC_WAVE && Math.random() < 0.35) e.boltMode = !e.boltMode;
         const rapid = !!e.boltMode && !e.boss;
         e.atkCd = e.boss ? 1.1 : rapid ? rand(1.0, 1.6) : rand(1.6, 2.6);
+        if (!e.boss) e.swipeT = UNIT_SWIPE; // staff cast pose
         const a = Math.atan2(ey, ex) + rand(-0.05, 0.05);
         const n = e.boss ? 3 : 1;
         if (!rapid) playWhoosh();
@@ -4557,22 +4579,34 @@ function drawMinimap() {
 // zombies, orks, shamans, NPC) share this rig with different configs.
 function drawFigure(x, y, o) {
   const s = o.s || 1;
-  const H = 36 * s;                      // total height
+  const H = 36 * s;                      // total height — SIZE LOCK (do not change)
   const t = o.walk || 0;
-  const swing = o.moving === false ? 0 : Math.sin(t) * 0.55;
-  const bob = o.moving === false ? 0 : Math.abs(Math.sin(t)) * 2.2 * s;
+  const isMoving = o.moving === false ? false : !!o.moving;
+  // Walk: opposite-phase limbs + plant squash. Idle: soft breath bob.
+  const swing = isMoving ? Math.sin(t) * 0.62 : Math.sin(t * 0.55) * 0.08;
+  const bob = isMoving ? Math.abs(Math.sin(t)) * 2.2 * s : Math.abs(Math.sin(t * 0.55)) * 0.55 * s;
+  const plant = isMoving ? Math.max(0, Math.cos(t * 2)) : 0; // peaks on footfalls
   const hunch = o.hunch || 0;
   const lean = hunch * 7 * s;            // forward lean offset
+  // Attack phases from swipe countdown (UNIT_SWIPE): first half windup, second strike
+  const swipe = o.swipe || 0;
+  const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
+  const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
+  const hurtLean = (o.flash > 0 || o.hurtRecoil) ? -0.12 : 0;
+  const atkLean = windPose * -0.08 + strikePose * 0.14;
   ctx.save();
   ctx.translate(x, y);
   if (o.alpha !== undefined) ctx.globalAlpha = o.alpha;
 
-  // shadow
+  // shadow — SIZE LOCK ellipse
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(0, 0, 11 * s, 4.5 * s, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 11 * s * (1 + plant * 0.04), 4.5 * s, 0, 0, TAU); ctx.fill();
 
   ctx.scale(o.facing || 1, 1);
   ctx.translate(0, -bob);
+  ctx.rotate(hurtLean + atkLean);
+  // micro plant squash (visual only — collision r unchanged)
+  if (plant > 0) ctx.scale(1 + plant * 0.025, 1 - plant * 0.03);
 
   const hipY = -H * 0.42;
   const shY = -H * 0.72 + hunch * 5 * s; // shoulder line
@@ -4595,11 +4629,16 @@ function drawFigure(x, y, o) {
 
   ctx.lineCap = 'round';
 
-  // ---- legs ----
+  // ---- legs (flowing stride: hip → mid → foot, opposite phase) ----
+  const legAmp = isMoving ? 5.4 * s : 0.8 * s;
+  const footL = -1.5 * s + Math.sin(t) * legAmp;
+  const footR = 1.5 * s - Math.sin(t) * legAmp;
+  const midLY = hipY * 0.45 - 1 * 0.55;
+  const midRY = hipY * 0.45 - 1 * 0.55;
   ctx.strokeStyle = legC; ctx.lineWidth = 3.4 * s;
   ctx.beginPath();
-  ctx.moveTo(-1.5 * s, hipY); ctx.lineTo(-1.5 * s + Math.sin(t) * 5 * s, -1);
-  ctx.moveTo(1.5 * s, hipY); ctx.lineTo(1.5 * s - Math.sin(t) * 5 * s, -1);
+  ctx.moveTo(-1.5 * s, hipY); ctx.lineTo(-1.5 * s + Math.sin(t) * legAmp * 0.55, midLY); ctx.lineTo(footL, -1);
+  ctx.moveTo(1.5 * s, hipY); ctx.lineTo(1.5 * s - Math.sin(t) * legAmp * 0.55, midRY); ctx.lineTo(footR, -1);
   ctx.stroke();
 
   // ---- torso ----
@@ -4630,13 +4669,16 @@ function drawFigure(x, y, o) {
 
   // ---- arms & weapon ----
   const armY = shY + 2 * s;
+  // opposite-arm swing vs legs (counter-rotation) when idle/walk; attack overrides
+  const armSwing = isMoving ? -swing * 4 * s : Math.sin(t * 0.55) * 0.6 * s;
+  const reachMul = 1 + windPose * -0.25 + strikePose * 0.55;
   ctx.strokeStyle = skin; ctx.lineWidth = 3 * s;
   if (o.weapon === 'rifle') {
     // both hands forward holding a rifle aimed at o.gunAngle (mirrored space)
     const ga = o.gunAngle || 0;
     ctx.save();
     ctx.translate(lean, armY);
-    ctx.rotate(ga);
+    ctx.rotate(ga + windPose * -0.12 + strikePose * 0.06);
     ctx.beginPath(); // supporting arms
     ctx.moveTo(0, 0); ctx.lineTo(8 * s, 2.5 * s);
     ctx.moveTo(0, 0); ctx.lineTo(13 * s, 1.5 * s);
@@ -4665,10 +4707,10 @@ function drawFigure(x, y, o) {
   } else if (o.weapon === 'cannon') {
     // arm-mounted pulse cannon: chunky tube in place of a hand (Warden)
     const ga = o.gunAngle || 0;
-    ctx.beginPath(); ctx.moveTo(lean, armY); ctx.lineTo(lean - 5 * s, armY + 10 * s); ctx.stroke(); // off arm hangs
+    ctx.beginPath(); ctx.moveTo(lean, armY); ctx.lineTo(lean - 5 * s, armY + 10 * s + armSwing * 0.3); ctx.stroke(); // off arm hangs
     ctx.save();
     ctx.translate(lean, armY);
-    ctx.rotate(ga);
+    ctx.rotate(ga + windPose * -0.1 + strikePose * 0.08);
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(9 * s, 1.5 * s); ctx.stroke();
     ctx.fillStyle = flash ? '#fff' : '#5a6478';
     ctx.fillRect(3 * s, -3 * s, 13 * s, 6 * s);
@@ -4682,7 +4724,7 @@ function drawFigure(x, y, o) {
     const ga = o.gunAngle || 0;
     ctx.save();
     ctx.translate(lean, armY);
-    ctx.rotate(ga);
+    ctx.rotate(ga + windPose * -0.15 + strikePose * 0.05);
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(8 * s, 2 * s); ctx.moveTo(0, 0); ctx.lineTo(12 * s, 0.5 * s); ctx.stroke();
     ctx.strokeStyle = flash ? '#fff' : '#6b4c30'; ctx.lineWidth = 2.4 * s;
     ctx.beginPath(); ctx.moveTo(2 * s, 0); ctx.lineTo(15 * s, 0); ctx.stroke(); // stock
@@ -4694,10 +4736,33 @@ function drawFigure(x, y, o) {
     ctx.strokeStyle = flash ? '#fff' : '#d8e6f5'; ctx.lineWidth = 0.8 * s;
     ctx.beginPath(); ctx.moveTo(7 * s, -7 * s); ctx.lineTo(7 * s, 7 * s); ctx.stroke(); // string
     ctx.restore();
+  } else if (o.weapon === 'spear') {
+    // militia spear — shaft tracks walk + thrust on strike
+    const thrust = strikePose * 10 * s - windPose * 4 * s;
+    ctx.beginPath();
+    ctx.moveTo(lean, armY); ctx.lineTo(lean + 4 * s + thrust * 0.2, armY + 6 * s + armSwing * 0.4); ctx.stroke();
+    ctx.strokeStyle = flash ? '#fff' : '#c8a06a'; ctx.lineWidth = 2.2 * s;
+    ctx.beginPath();
+    ctx.moveTo(lean + 6 * s + thrust, armY - 18 * s); ctx.lineTo(lean + 6 * s + thrust, armY + 10 * s); ctx.stroke();
+    ctx.fillStyle = flash ? '#fff' : '#d8d0c0';
+    ctx.beginPath();
+    ctx.moveTo(lean + 6 * s + thrust, armY - 20 * s);
+    ctx.lineTo(lean + 9 * s + thrust, armY - 14 * s);
+    ctx.lineTo(lean + 3 * s + thrust, armY - 14 * s);
+    ctx.fill();
+  } else if (o.weapon === 'bow') {
+    const drawAmt = windPose * 4 * s;
+    ctx.beginPath();
+    ctx.moveTo(lean, armY); ctx.lineTo(lean + 10 * s, armY - 2 * s + armSwing * 0.2); ctx.stroke();
+    ctx.strokeStyle = flash ? '#fff' : '#8a7050'; ctx.lineWidth = 2 * s;
+    ctx.beginPath();
+    ctx.moveTo(lean + 4 * s, armY - 10 * s); ctx.quadraticCurveTo(lean + 14 * s - drawAmt, armY, lean + 4 * s, armY + 10 * s); ctx.stroke();
+    ctx.strokeStyle = flash ? '#fff' : '#d8c8a0'; ctx.lineWidth = 1 * s;
+    ctx.beginPath(); ctx.moveTo(lean + 4 * s, armY - 10 * s); ctx.lineTo(lean + 4 * s + drawAmt * 0.5, armY + 10 * s); ctx.stroke();
   } else if (o.weapon === 'club') {
-    // one arm hangs, one arm raised with a spiked club
-    const raise = Math.sin(t * 0.7) * 0.15 - 0.9;
-    ctx.beginPath(); ctx.moveTo(lean, armY); ctx.lineTo(lean - 6 * s, armY + 9 * s + swing * 2); ctx.stroke();
+    // one arm hangs, one arm raised with a spiked club — windup lifts, strike chops
+    const raise = Math.sin(t * 0.7) * 0.12 - 0.85 - windPose * 0.55 + strikePose * 1.35;
+    ctx.beginPath(); ctx.moveTo(lean, armY); ctx.lineTo(lean - 6 * s, armY + 9 * s + armSwing); ctx.stroke();
     ctx.save();
     ctx.translate(lean, armY); ctx.rotate(raise);
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(10 * s, 0); ctx.stroke();
@@ -4711,22 +4776,24 @@ function drawFigure(x, y, o) {
     }
     ctx.restore();
   } else if (o.weapon === 'staff') {
-    ctx.beginPath(); ctx.moveTo(lean, armY); ctx.lineTo(lean + 8 * s, armY + 4 * s); ctx.stroke();
+    const lift = windPose * -8 * s + strikePose * 4 * s;
+    ctx.beginPath(); ctx.moveTo(lean, armY); ctx.lineTo(lean + 8 * s, armY + 4 * s + armSwing * 0.3); ctx.stroke();
     ctx.strokeStyle = flash ? '#fff' : '#5a4634'; ctx.lineWidth = 2.4 * s;
-    ctx.beginPath(); ctx.moveTo(lean + 8 * s, armY + 12 * s); ctx.lineTo(lean + 8 * s, armY - 14 * s); ctx.stroke();
-    const pulse = 0.6 + Math.sin(performance.now() / 200) * 0.4;
+    ctx.beginPath(); ctx.moveTo(lean + 8 * s, armY + 12 * s + lift * 0.2); ctx.lineTo(lean + 8 * s, armY - 14 * s + lift); ctx.stroke();
+    const pulse = 0.6 + Math.sin(performance.now() / 200) * 0.4 + strikePose * 0.35;
     ctx.fillStyle = `rgba(210,77,255,${pulse})`;
-    ctx.shadowColor = '#d24dff'; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.arc(lean + 8 * s, armY - 16 * s, 3.4 * s, 0, TAU); ctx.fill();
+    ctx.shadowColor = '#d24dff'; ctx.shadowBlur = 10 + strikePose * 8;
+    ctx.beginPath(); ctx.arc(lean + 8 * s, armY - 16 * s + lift, 3.4 * s, 0, TAU); ctx.fill();
     ctx.shadowBlur = 0;
   } else {
-    // bare arms — zombies reach forward, others hang
+    // bare arms — zombies reach forward, others hang; swipe adds lunge
     const reach = o.armsForward ? 1 : 0;
+    const lunge = strikePose * 6 * s * reachMul - windPose * 3 * s;
     ctx.beginPath();
     ctx.moveTo(lean, armY);
-    ctx.lineTo(lean + (reach ? 12 * s : -4 * s), armY + (reach ? 2 * s + Math.sin(t * 1.4) * 2 : 10 * s) + swing);
+    ctx.lineTo(lean + (reach ? 12 * s : -4 * s) + lunge, armY + (reach ? 2 * s + Math.sin(t * 1.4) * 2 : 10 * s) + armSwing);
     ctx.moveTo(lean, armY);
-    ctx.lineTo(lean + (reach ? 11 * s : 4 * s), armY + (reach ? 5 * s - Math.sin(t * 1.2) * 2 : 10 * s) - swing);
+    ctx.lineTo(lean + (reach ? 11 * s : 4 * s) + lunge * 0.85, armY + (reach ? 5 * s - Math.sin(t * 1.2) * 2 : 10 * s) - armSwing);
     ctx.stroke();
   }
 
@@ -4811,7 +4878,12 @@ function drawFigure(x, y, o) {
 
 // per-type figure configs
 function enemyFigure(e) {
-  const base = { walk: e.walk, facing: e.facing, flash: e.flash, moving: true };
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  const base = {
+    walk: e.walk, facing: e.facing, flash: e.flash, moving,
+    swipe: e.swipeT || 0,
+    hurtRecoil: e.flash > 0.04,
+  };
   switch (e.type) {
     case 'husk': return { ...base, s: 1, skin: '#8aa06a', cloth: '#55503f', rags: '#3f3a2c',
       legs: '#33302a', hunch: 0.7, armsForward: true, glowEyes: '#ff4d5e', scarDots: true };
@@ -5176,7 +5248,8 @@ function rockSpriteFor(o) {
 }
 
 function gharokSpriteFrame(e) {
-  if (e.clawWind > 0 && gharokSpriteReady(gharokSpr.windup)) return gharokSpr.windup;
+  // Attack: windup sheet during telegraph; keep windup through strike follow-through
+  if ((e.clawWind > 0 || e.clawStrike > 0) && gharokSpriteReady(gharokSpr.windup)) return gharokSpr.windup;
   // Moving: hard alternate idle (plant) ↔ walk (stride) each half-cycle so feet
   // feel like stepping — not a soft sin threshold that barely swaps.
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 14;
@@ -5194,16 +5267,25 @@ function drawWarlordSprite(e, alpha) {
   if (!img) return false;
   const t = e.walk || 0;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 14;
-  // Heavy lumber: vertical bob + plant squash + slight lean toward planted side
-  const bob = moving ? Math.abs(Math.sin(t)) * 5.2 : Math.abs(Math.sin(t * 0.6)) * 1.2;
-  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0; // peaks on footfalls
-  const lean = moving ? Math.sin(t) * 0.045 : 0;
-  const squashY = 1 - plant * 0.04;
-  const squashX = 1 + plant * 0.03;
-  const drawH = 228; // larger readable boss; collision r stays ~54
-  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const wind = e.clawWind > 0 ? clamp(e.clawWind / CLAW_WINDUP, 0, 1) : 0;
-  const flash = e.flash > 0;
+  const strike = e.clawStrike > 0 ? clamp(e.clawStrike / CLAW_STRIKE, 0, 1) : 0;
+  const hurt = e.flash > 0;
+  // Heavy lumber: vertical bob + plant squash + slight lean toward planted side
+  // Idle: soft breath. Strike: forward lunge. Hurt: recoil lean.
+  const bob = moving ? Math.abs(Math.sin(t)) * 5.2
+    : (wind > 0 || strike > 0) ? 2.4
+    : Math.abs(Math.sin(t * 0.55)) * 1.6;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0; // peaks on footfalls
+  const lean = moving ? Math.sin(t) * 0.045
+    : wind > 0 ? -0.08 - (1 - wind) * 0.04
+    : strike > 0 ? 0.16 * (1 - strike * 0.35)
+    : hurt ? -0.1
+    : Math.sin(t * 0.55) * 0.012;
+  const squashY = 1 - plant * 0.04 - (strike > 0 ? 0.03 : 0) + (hurt ? 0.02 : 0);
+  const squashX = 1 + plant * 0.03 + (strike > 0 ? 0.04 : 0) - (hurt ? 0.02 : 0);
+  const drawH = 228; // larger readable boss; collision r stays ~54 — SIZE LOCK
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const flash = hurt;
   const plates = e.maxArmor ? (e.armor > 0 ? e.armorCrack : 0) : 4;
 
   ctx.save();
@@ -5211,7 +5293,7 @@ function drawWarlordSprite(e, alpha) {
   if (alpha !== undefined) ctx.globalAlpha = alpha;
 
   ctx.fillStyle = 'rgba(0,0,0,0.46)';
-  ctx.beginPath(); ctx.ellipse(0, 2, 52 + plant * 4, 18, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 2, 52 + plant * 4 + strike * 6, 18, 0, 0, TAU); ctx.fill();
 
   // purple rift aura (procedural)
   const ar = 50 + Math.sin(performance.now() / 70) * 2.5;
@@ -5225,16 +5307,23 @@ function drawWarlordSprite(e, alpha) {
   ctx.rotate(lean);
   ctx.scale(squashX, squashY);
 
-  // red cleaver telegraph glow
-  if (wind > 0) {
+  // red cleaver telegraph glow (windup) + strike slash arc
+  if (wind > 0 || strike > 0) {
     ctx.save();
-    ctx.globalAlpha *= 0.5 + wind * 0.5;
+    ctx.globalAlpha *= 0.5 + (wind || strike) * 0.5;
     ctx.shadowColor = '#ff3a28';
     ctx.shadowBlur = 24;
-    ctx.fillStyle = `rgba(255,58,40,${0.22 + wind * 0.4})`;
+    ctx.fillStyle = `rgba(255,58,40,${0.22 + (wind || strike) * 0.4})`;
     ctx.beginPath();
-    ctx.ellipse(drawW * 0.16, -drawH * 0.74, 30 + wind * 12, 38 + wind * 14, 0, 0, TAU);
+    ctx.ellipse(drawW * 0.16, -drawH * 0.74, 30 + (wind || strike) * 12, 38 + (wind || strike) * 14, 0, 0, TAU);
     ctx.fill();
+    if (strike > 0) {
+      ctx.strokeStyle = `rgba(255,100,70,${0.55 * strike})`;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(drawW * 0.05, -drawH * 0.55, 70 + (1 - strike) * 30, -1.2, 0.6);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -5620,9 +5709,12 @@ function drawWarlordProcedural(e, alpha) {
 
   // ---- CLEAVER ARM (front / right) — soft limb + red telegraph ----
   const wind = e.clawWind > 0 ? clamp(e.clawWind / CLAW_WINDUP, 0, 1) : 0;
+  const strike = e.clawStrike > 0 ? clamp(e.clawStrike / CLAW_STRIKE, 0, 1) : 0;
   ctx.save();
   ctx.translate(12.5 * s, shY + 4.5 * s);
-  ctx.rotate(wind > 0 ? -1.48 + (1 - wind) * 0.35 : -0.32 + Math.sin(t * 0.7) * 0.08);
+  ctx.rotate(wind > 0 ? -1.48 + (1 - wind) * 0.35
+    : strike > 0 ? 0.55 + (1 - strike) * 0.9
+    : -0.32 + Math.sin(t * 0.7) * 0.08);
   limbSeg(0, 0, 6.2 * s, 0, 4.2 * s, 3.3 * s, skin);
   blob(6.2 * s, 0, 2.5 * s, 2.3 * s, 0, skinMid);
   limbSeg(6.2 * s, 0, 12.2 * s, 0, 3.2 * s, 2.5 * s, skin);
@@ -5632,10 +5724,10 @@ function drawWarlordProcedural(e, alpha) {
     ctx.beginPath();
     ctx.roundRect(8.2 * s, -1.7 * s, 5 * s, 3.4 * s, 1.1);
   });
-  if (wind > 0) { ctx.shadowColor = '#ff3a28'; ctx.shadowBlur = 16; }
-  ctx.fillStyle = wind > 0 ? '#ff4a38' : blade;
-  ctx.strokeStyle = wind > 0 ? '#ff1e14' : outline;
-  ctx.lineWidth = OL + (wind > 0 ? 0.6 : 0);
+  if (wind > 0 || strike > 0) { ctx.shadowColor = '#ff3a28'; ctx.shadowBlur = 16; }
+  ctx.fillStyle = (wind > 0 || strike > 0) ? '#ff4a38' : blade;
+  ctx.strokeStyle = (wind > 0 || strike > 0) ? '#ff1e14' : outline;
+  ctx.lineWidth = OL + ((wind > 0 || strike > 0) ? 0.6 : 0);
   strokeFill(() => {
     ctx.beginPath();
     ctx.moveTo(12.2 * s, -5.4 * s);
@@ -5645,7 +5737,7 @@ function drawWarlordProcedural(e, alpha) {
     ctx.lineTo(12.2 * s, 4.0 * s);
     ctx.closePath();
   });
-  ctx.strokeStyle = wind > 0 ? '#ffc9c4' : bladeEdge;
+  ctx.strokeStyle = (wind > 0 || strike > 0) ? '#ffc9c4' : bladeEdge;
   ctx.lineWidth = 2.2 * s;
   ctx.beginPath();
   ctx.moveTo(13.2 * s, 3.4 * s);
@@ -5746,41 +5838,50 @@ function drawRover(c) {
   const flash = c.hurtT > 0.35;
   const body = flash ? '#fff' : '#8d99ae';
   const dark = flash ? '#fff' : '#5a6478';
+  const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
+  const swipe = c.swipeT || 0;
+  const bite = swipe > 0 ? clamp(1 - swipe / UNIT_SWIPE, 0, 1) : 0;
   ctx.save();
   ctx.translate(c.x, c.y);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(0, 0, 12, 4.5, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 12 + bite, 4.5, 0, 0, TAU); ctx.fill();
   ctx.scale(c.facing, 1);
   if (c.downed) { ctx.globalAlpha = 0.45; ctx.rotate(0.5); }
+  else if (flash) ctx.rotate(-0.08);
+  else if (bite > 0.4) ctx.rotate(0.1);
   const t = c.walk;
+  const amp = moving ? 5.2 : 1.2;
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.4 : Math.abs(Math.sin(t * 0.5)) * 0.4;
+  ctx.translate(0, -bob);
   ctx.lineCap = 'round';
-  // 4 trotting legs (diagonal pairs in phase)
+  // 4 trotting legs (diagonal pairs in phase) — SIZE LOCK chassis
   ctx.strokeStyle = dark; ctx.lineWidth = 2.6;
   ctx.beginPath();
-  ctx.moveTo(-8, -10); ctx.lineTo(-8 + Math.sin(t) * 4, 0);
-  ctx.moveTo(-3, -10); ctx.lineTo(-3 - Math.sin(t) * 4, 0);
-  ctx.moveTo(4, -10);  ctx.lineTo(4 - Math.sin(t) * 4, 0);
-  ctx.moveTo(9, -10);  ctx.lineTo(9 + Math.sin(t) * 4, 0);
+  ctx.moveTo(-8, -10); ctx.lineTo(-8 + Math.sin(t) * amp, 0);
+  ctx.moveTo(-3, -10); ctx.lineTo(-3 - Math.sin(t) * amp, 0);
+  ctx.moveTo(4, -10);  ctx.lineTo(4 - Math.sin(t) * amp, 0);
+  ctx.moveTo(9, -10);  ctx.lineTo(9 + Math.sin(t) * amp, 0);
   ctx.stroke();
   // body chassis
   ctx.fillStyle = body; ctx.strokeStyle = dark; ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.moveTo(-12, -10); ctx.lineTo(10, -11.5); ctx.lineTo(11, -16.5) ; ctx.lineTo(-10, -16);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-  // head block + snout
+  // head block + snout (lunge on bite)
+  const hx = bite * 3;
   ctx.fillStyle = body;
-  ctx.fillRect(8, -21, 9, 7);
-  ctx.fillRect(15, -19, 4.5, 4);
+  ctx.fillRect(8 + hx, -21, 9, 7);
+  ctx.fillRect(15 + hx, -19, 4.5 + bite * 2, 4);
   // cyan visor strip
   ctx.fillStyle = flash ? '#fff' : '#4de1ff';
   ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 7;
-  ctx.fillRect(11, -19.5, 5, 2.6);
+  ctx.fillRect(11 + hx, -19.5, 5, 2.6);
   ctx.shadowBlur = 0;
-  // plasma jaw glow right after a bite
-  if (c.atkCd > compInterval(c) - 0.18 && !c.downed) {
+  // plasma jaw glow on bite / recent atk
+  if ((bite > 0 || c.atkCd > compInterval(c) - 0.18) && !c.downed) {
     ctx.fillStyle = '#9ef0ff';
-    ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.arc(18, -15.5, 2.4, 0, TAU); ctx.fill();
+    ctx.shadowColor = '#4de1ff'; ctx.shadowBlur = 8 + bite * 6;
+    ctx.beginPath(); ctx.arc(18 + hx, -15.5, 2.4 + bite * 1.5, 0, TAU); ctx.fill();
     ctx.shadowBlur = 0;
   }
   // antenna tail
@@ -5796,6 +5897,8 @@ function companionFigure(c) {
     flash: c.hurtT > 0.35 ? 0.1 : 0,
     alpha: c.downed ? 0.45 : 1,
     gunAngle: c.facing === 1 ? c.aim : Math.PI - c.aim,
+    swipe: c.swipeT || 0,
+    hurtRecoil: c.hurtT > 0.35,
   };
   if (c.type === 'warden') return { ...base, s: 1.25, bulk: 1.5, skin: '#9aa7b8', cloth: '#5a6478',
     pauldron: '#7e8ba0', legs: '#3c4454', helmet: '#6b7686', glowEyes: '#3ef0c8', weapon: 'cannon' };
@@ -5833,18 +5936,49 @@ function drawCompanion(c) {
 
 function drawLaborer(L) {
   if (L.insideMine) return; // working underground
+  const t = L.walk || 0;
+  const moving = Math.hypot(L.vx || 0, L.vy || 0) > 8;
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.8 : Math.sin(t * 0.5) * 0.6;
+  const swing = moving ? Math.sin(t) * 3.2 : 0;
+  const chop = (L.order === 'chop' || L.order === 'mine') && L.gatherT > 0
+    ? Math.sin(performance.now() / 90) * 0.5 + 0.5 : 0;
   ctx.save();
   ctx.translate(L.x, L.y);
   ctx.scale(L.facing, 1);
-  const bob = Math.sin(L.walk) * 1.5;
+  // shadow — SIZE LOCK (r≈11 footprint)
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath(); ctx.ellipse(0, 2, 8, 3, 0, 0, TAU); ctx.fill();
+  // swinging legs
+  ctx.strokeStyle = '#5a4030'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-2, -6 + bob); ctx.lineTo(-2 + swing, 2);
+  ctx.moveTo(2, -6 + bob); ctx.lineTo(2 - swing, 2);
+  ctx.stroke();
+  // torso + head (same bounding box as before)
   ctx.fillStyle = L.hurtT > 0.2 ? '#fff' : '#b8895a';
   ctx.fillRect(-5, -16 + bob, 10, 12);
-  ctx.fillStyle = '#5a4030';
-  ctx.fillRect(-6, -6 + bob, 5, 8); ctx.fillRect(1, -6 + bob, 5, 8);
   ctx.fillStyle = '#d2a878';
   ctx.beginPath(); ctx.arc(0, -20 + bob, 5, 0, TAU); ctx.fill();
+  // arms — axe/pick swing when gathering
+  ctx.strokeStyle = L.hurtT > 0.2 ? '#fff' : '#c4a078'; ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(-4, -14 + bob); ctx.lineTo(-6 - swing * 0.4, -6 + bob);
+  ctx.moveTo(4, -14 + bob);
+  if (chop > 0) {
+    const ang = -1.1 + chop * 1.8;
+    ctx.lineTo(4 + Math.cos(ang) * 9, -14 + bob + Math.sin(ang) * 9);
+  } else {
+    ctx.lineTo(6 + swing * 0.4, -6 + bob);
+  }
+  ctx.stroke();
+  if (chop > 0) {
+    ctx.strokeStyle = '#8a7050'; ctx.lineWidth = 2;
+    const ang = -1.1 + chop * 1.8;
+    ctx.beginPath();
+    ctx.moveTo(4 + Math.cos(ang) * 9, -14 + bob + Math.sin(ang) * 9);
+    ctx.lineTo(4 + Math.cos(ang) * 14, -14 + bob + Math.sin(ang) * 14);
+    ctx.stroke();
+  }
   if (L.carry) {
     ctx.fillStyle = L.carry.type === 'wood' ? '#7a9a5a' : '#ffd54a';
     ctx.fillRect(6, -14 + bob, 7, 6);
@@ -5859,25 +5993,22 @@ function drawLaborer(L) {
   ctx.fillText(L.order === 'mine' ? 'Mine' : L.order === 'chop' ? 'Chop' : 'Laborer', L.x, L.y + 12);
 }
 function drawMilitia(m) {
-  const t = MILITIA_TYPES[m.kind];
-  ctx.save();
-  ctx.translate(m.x, m.y);
-  ctx.scale(m.facing, 1);
-  const bob = Math.sin(m.walk) * 1.4;
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath(); ctx.ellipse(0, 2, 9, 3.2, 0, 0, TAU); ctx.fill();
-  ctx.fillStyle = m.hurtT > 0.2 ? '#fff' : (m.kind === 'bow' ? '#6a7a58' : '#5a6878');
-  ctx.fillRect(-6, -18 + bob, 12, 14);
-  ctx.fillStyle = '#c8b090';
-  ctx.beginPath(); ctx.arc(0, -22 + bob, 5.5, 0, TAU); ctx.fill();
-  if (m.kind === 'spear') {
-    ctx.strokeStyle = '#c8a06a'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(8, -28 + bob); ctx.lineTo(8, 2 + bob); ctx.stroke();
-  } else {
-    ctx.strokeStyle = '#8a7050'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(-2, -14 + bob); ctx.lineTo(12, -20 + bob); ctx.stroke();
-  }
-  ctx.restore();
+  const tMeta = MILITIA_TYPES[m.kind];
+  const fig = {
+    walk: m.walk, facing: m.facing,
+    moving: Math.hypot(m.vx || 0, m.vy || 0) > 16,
+    flash: m.hurtT > 0.2 ? 0.1 : 0,
+    swipe: m.swipeT || 0,
+    hurtRecoil: m.hurtT > 0.2,
+    // SIZE LOCK — keep near prior box silhouette (head ~-22 / total ~28px)
+    s: 0.78, skin: '#c8b090',
+    cloth: m.kind === 'bow' ? '#6a7a58' : '#5a6878',
+    legs: '#3a4038',
+    weapon: m.kind === 'bow' ? 'bow' : 'spear',
+    gunAngle: m.facing === 1 ? (m.aim || 0) : Math.PI - (m.aim || 0),
+    alpha: m.downed ? 0.45 : 1,
+  };
+  drawFigure(m.x, m.y, fig);
   if (m.downed) {
     ctx.fillStyle = '#ff8a93';
     ctx.font = 'bold 11px Segoe UI'; ctx.textAlign = 'center';
@@ -5899,7 +6030,7 @@ function drawMilitia(m) {
   }
   ctx.font = '8px Segoe UI'; ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(158,240,255,0.9)';
-  ctx.fillText(t.name.replace('Ashen ', ''), m.x, m.y + 12);
+  ctx.fillText(tMeta.name.replace('Ashen ', ''), m.x, m.y + 12);
 }
 function drawStructure(s) {
   const def = STRUCT_KINDS[s.kind];
@@ -5973,36 +6104,54 @@ function drawForestStand(fs) {
   ctx.setLineDash([]);
 }
 function drawColossus(c) {
-  const t = performance.now() / 1000;
+  const t = c.walk || performance.now() / 1000;
+  const moving = Math.hypot(c.vx || 0, c.vy || 0) > 10;
+  const swipe = c.swipeT || 0;
+  const strike = swipe > 0 && swipe <= UNIT_SWIPE * 0.55 ? 1 - swipe / (UNIT_SWIPE * 0.55) : 0;
+  const wind = swipe > UNIT_SWIPE * 0.55 ? (swipe - UNIT_SWIPE * 0.55) / (UNIT_SWIPE * 0.45) : 0;
+  const bob = moving ? Math.abs(Math.sin(t)) * 4 : Math.abs(Math.sin(t * 0.6)) * 1.2;
+  const lean = strike * 0.12 - wind * 0.06;
   ctx.save();
   ctx.translate(c.x, c.y);
   ctx.scale(c.facing, 1);
-  // Gharok-scale silhouette (collision r=54, tall sprite)
+  ctx.rotate(lean);
+  // Gharok-scale silhouette (collision r=54, tall sprite) — SIZE LOCK
   const H = 210;
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(0, 8, 42, 14, 0, 0, TAU); ctx.fill();
-  const grd = ctx.createLinearGradient(0, -H, 0, 10);
+  ctx.beginPath(); ctx.ellipse(0, 8, 42 + strike * 4, 14, 0, 0, TAU); ctx.fill();
+  const grd = ctx.createLinearGradient(0, -H + bob, 0, 10);
   grd.addColorStop(0, '#e0b8ff');
   grd.addColorStop(0.4, '#7a3db8');
   grd.addColorStop(1, '#2a1840');
   ctx.fillStyle = grd;
   ctx.beginPath();
-  ctx.moveTo(-28, 0); ctx.lineTo(-36, -H * 0.45); ctx.lineTo(-18, -H * 0.72);
-  ctx.lineTo(0, -H); ctx.lineTo(18, -H * 0.72); ctx.lineTo(36, -H * 0.45); ctx.lineTo(28, 0);
+  ctx.moveTo(-28, 0); ctx.lineTo(-36, -H * 0.45 + bob); ctx.lineTo(-18, -H * 0.72 + bob);
+  ctx.lineTo(0, -H + bob); ctx.lineTo(18, -H * 0.72 + bob); ctx.lineTo(36, -H * 0.45 + bob); ctx.lineTo(28, 0);
   ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(176,77,255,0.85)'; ctx.lineWidth = 3;
   ctx.stroke();
+  // swinging arm mass
+  ctx.fillStyle = '#5a3088';
+  const armAng = moving ? Math.sin(t) * 0.35 : Math.sin(t * 0.5) * 0.08;
+  const ax = 30 + Math.cos(-0.4 + armAng - wind * 0.8 + strike * 1.4) * 28;
+  const ay = -H * 0.5 + bob + Math.sin(-0.4 + armAng - wind * 0.8 + strike * 1.4) * 28;
+  ctx.beginPath(); ctx.ellipse(ax, ay, 14, 10, armAng, 0, TAU); ctx.fill();
+  if (strike > 0) {
+    ctx.strokeStyle = `rgba(176,77,255,${0.6 * strike})`;
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(10, -H * 0.4, 55, -0.8, 0.9); ctx.stroke();
+  }
   // visor glow
   ctx.fillStyle = '#9ef0ff';
   ctx.shadowColor = '#b04dff'; ctx.shadowBlur = 16;
-  ctx.fillRect(-14, -H * 0.78, 28, 10);
+  ctx.fillRect(-14, -H * 0.78 + bob, 28, 10);
   ctx.shadowBlur = 0;
   // stomping feet bob
   ctx.fillStyle = '#1a1028';
-  ctx.fillRect(-30, -6 + Math.sin(t * 6) * 2, 18, 12);
-  ctx.fillRect(12, -6 + Math.sin(t * 6 + 1) * 2, 18, 12);
+  ctx.fillRect(-30, -6 + Math.sin(t * 2) * (moving ? 3 : 1), 18, 12);
+  ctx.fillRect(12, -6 + Math.sin(t * 2 + 1) * (moving ? 3 : 1), 18, 12);
   ctx.restore();
-  // bars / name
+  // bars / name — keep HP bar offset consistent with prior layout
   const w = 56;
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(c.x - w / 2, c.y - 58, w, 5);

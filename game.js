@@ -362,7 +362,7 @@ bindHold('btnTalk', () => {
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.13.1';
+const APP_VERSION = '2.13.2';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -1481,11 +1481,12 @@ function directDamage(e, dmg, kbx, kby, kb) {
 // can be downed and revive automatically at wave end. Combined DPS is
 // tuned to ~40-45% of the player's at equal progression.
 const COMP_TYPES = {
-  rover:  { name: 'Rover',  desc: 'Robot dog: plasma-bite melee, fetches loose cores back to you',            cost: 300, hp: 185, spd: 305, range: 480, dmg: 10, atk: 0.9 },
-  warden: { name: 'Warden', desc: 'Combat android: arm pulse-cannon, tanky, nearby enemies attack it first',  cost: 500, hp: 300, spd: 205, range: 430, dmg: 9,  atk: 1.15 },
-  scout:  { name: 'Scout',  desc: 'Ranger: piercing tech-crossbow bolts, periodically drops med/energy packs', cost: 800, hp: 165, spd: 255, range: 540, dmg: 8,  atk: 1.35 },
+  // v2.13.2: smidge HP/dmg buff — still not OP
+  rover:  { name: 'Rover',  desc: 'Robot dog: plasma-bite melee, fetches loose cores back to you',            cost: 300, hp: 210, spd: 305, range: 480, dmg: 11, atk: 0.9 },
+  warden: { name: 'Warden', desc: 'Combat android: arm pulse-cannon, tanky, nearby enemies attack it first',  cost: 500, hp: 340, spd: 205, range: 430, dmg: 10, atk: 1.15 },
+  scout:  { name: 'Scout',  desc: 'Ranger: piercing tech-crossbow bolts, periodically drops med/energy packs', cost: 800, hp: 185, spd: 255, range: 540, dmg: 9,  atk: 1.35 },
   // v2.10 — Muster Hall squad addition (copyright-safe original name)
-  sentinel: { name: 'Ashen Sentinel', desc: 'Rift militia spear: mid-range bolts, sturdy line-holder from the Muster Hall', cost: 650, hp: 240, spd: 230, range: 460, dmg: 11, atk: 1.05 },
+  sentinel: { name: 'Ashen Sentinel', desc: 'Rift militia spear: mid-range bolts, sturdy line-holder from the Muster Hall', cost: 650, hp: 270, spd: 230, range: 460, dmg: 12, atk: 1.05 },
 };
 // mini skill trees — ranks live in skillRanks, so they ride the existing
 // skill-point economy AND the existing save snapshot for free
@@ -1696,14 +1697,14 @@ const CLAW_WINDUP = 0.7, CLAW_STRIKE = 0.28, CLAW_RANGE = 165, CLAW_CD = 5, CLAW
 // Contact-melee swipe telegraph for non-boss figures (visual only — hitbox unchanged)
 const UNIT_SWIPE = 0.32;
 const ETYPES = {
-  // v2.13.1 size pass: modest bump so sprite foes read slightly larger than player (~r=15), not boss-sized
-  husk:     { r: 15, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
-  sprinter: { r: 12, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
-  shaman:   { r: 14, hp: 44,  spd: 55,  dmg: 8,  core: 2,  xp: 12,  ranged: true  },
+  // v2.13.2 size pass: husk/sprinter/bulwark/shaman toward ravager (r=24 / s=1.7); skeleton UNCHANGED from 2.13.1
+  husk:     { r: 21, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
+  sprinter: { r: 18, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
+  shaman:   { r: 20, hp: 44,  spd: 55,  dmg: 8,  core: 2,  xp: 12,  ranged: true  },
   ravager:  { r: 24, hp: 160, spd: 46,  dmg: 22, core: 3,  xp: 18,  ranged: false },
   warlord:  { r: 54, hp: 950, spd: 38,  dmg: 34, core: 25, xp: 120, ranged: true, boss: true, armor: 300 },
-  bulwark:  { r: 22, hp: 90,  spd: 45,  dmg: 16, core: 3,  xp: 16,  ranged: false, kbPlayer: 260 }, // tank > husk, still << Gharok
-  skeleton: { r: 12, hp: 14,  spd: 170, dmg: 6,  core: 1,  xp: 5,   ranged: false },
+  bulwark:  { r: 23, hp: 90,  spd: 45,  dmg: 16, core: 3,  xp: 16,  ranged: false, kbPlayer: 260 }, // near ravager, still << Gharok
+  skeleton: { r: 12, hp: 14,  spd: 170, dmg: 6,  core: 1,  xp: 5,   ranged: false }, // SIZE LOCK 2.13.1 — do not bump
 };
 function hpScale() { return 1 + (wave - 1) * 0.16; }
 
@@ -2923,8 +2924,9 @@ const SENTINEL_TRAIN = { wood: 18, gold: 12, cores: 4 }; // unique named compani
 const COLOSSUS_COST = { wood: 40, gold: 25, cores: 15 };
 const COLOSSUS_DURATION = 48;
 const MILITIA_TYPES = {
-  spear: { name: 'Ashen Spearman', melee: true, hp: 200, spd: 215, range: 70, dmg: 12, atk: 0.95, r: 12 },
-  bow: { name: 'Ashen Bowman', melee: false, hp: 155, spd: 240, range: 480, dmg: 9, atk: 1.15, r: 12 },
+  // v2.13.2: smidge HP/dmg buff
+  spear: { name: 'Ashen Spearman', melee: true, hp: 230, spd: 215, range: 70, dmg: 14, atk: 0.95, r: 12 },
+  bow: { name: 'Ashen Bowman', melee: false, hp: 180, spd: 240, range: 480, dmg: 10, atk: 1.15, r: 12 },
 };
 const UNIT_SKILL_COST = [
   { wood: 10, gold: 6, cores: 2 },
@@ -3235,7 +3237,7 @@ function renderUnitPanel() {
   };
   if (kind === 'laborer') {
     title.textContent = '🪓 Ashen Laborer (worker)';
-    meta.textContent = `HP ${Math.ceil(u.hp)}/${u.maxHp} · Order: ${(u.order || 'auto').toUpperCase()} · Does NOT use squad slots · Revivable · Defends when threatened`;
+    meta.textContent = `HP ${Math.ceil(u.hp)}/${u.maxHp} · Order: ${(u.order || 'auto').toUpperCase()} · Does NOT use squad slots · Revivable · Retaliates only when attacked`;
     addBtn('Chop Lumber', u.order === 'chop' ? 'green' : '', () => {
       u.order = 'chop'; u.task = 'idle'; u.target = null; u.carry = null; u.insideMine = false;
       addFloater(u.x, u.y - 24, 'ORDER: CHOP', '#7a9a5a', false);
@@ -3325,7 +3327,7 @@ function spawnLaborer(x, y) {
     target: null, task: 'idle', order: 'auto',
     gatherT: 0, walk: rand(0, 8), facing: 1, hurtT: 0,
     insideMine: false, mineT: 0,
-    downed: false, atkCd: rand(0.2, 0.6), swipeT: 0, // v2.13.1: field-revivable + defend
+    downed: false, atkCd: rand(0.2, 0.6), swipeT: 0, retaliateT: 0, // v2.13.2: revivable; retaliate-on-hit only
   });
 }
 function nearestDeposit(from, resType) {
@@ -3375,17 +3377,18 @@ function pickMineTarget(L) {
 }
 function updateLaborers(dt) {
   const rate = gatherRateMul();
-  const LABORER_THREAT = 130;
+  const LABORER_RETALIATE_RANGE = 160;
   const LABORER_DMG = 7;
   for (const L of laborers) {
     if (L.downed) { L.vx = 0; L.vy = 0; continue; }
     L.hurtT = Math.max(0, L.hurtT - dt);
+    L.retaliateT = Math.max(0, (L.retaliateT || 0) - dt);
     L.gatherT = Math.max(0, L.gatherT - dt);
     if (L.swipeT > 0) L.swipeT = Math.max(0, L.swipeT - dt);
     L.atkCd = (L.atkCd || 0) - dt;
-    // v2.13.1: defend when threatened (flee-to-fight if low HP), else keep working
-    if (!L.insideMine) {
-      let foe = null, fd2 = LABORER_THREAT * LABORER_THREAT;
+    // v2.13.2: retaliate ONLY after being hit (no proactive threaten-engage / flee-to-fight)
+    if (!L.insideMine && (L.retaliateT || 0) > 0) {
+      let foe = null, fd2 = LABORER_RETALIATE_RANGE * LABORER_RETALIATE_RANGE;
       for (const e of enemies) {
         if (e.dead || e.spawnT > 0.3 || (e.emergeT || 0) > 0) continue;
         const d2 = dist2(e.x, e.y, L.x, L.y);
@@ -3393,14 +3396,8 @@ function updateLaborers(dt) {
       }
       if (foe) {
         L.task = 'defend';
-        const low = L.hp < L.maxHp * 0.35;
-        let gx = foe.x, gy = foe.y;
-        // low HP: break toward player first, then re-engage (flee-to-fight)
-        if (low && dist2(L.x, L.y, player.x, player.y) > 90 * 90) {
-          gx = player.x; gy = player.y;
-        }
-        const dx = gx - L.x, dy = gy - L.y, gd = Math.hypot(dx, dy) || 1;
-        const spd = low ? 195 : 175;
+        const dx = foe.x - L.x, dy = foe.y - L.y, gd = Math.hypot(dx, dy) || 1;
+        const spd = 175;
         L.vx = lerp(L.vx, dx / gd * spd, dt * 5);
         L.vy = lerp(L.vy, dy / gd * spd, dt * 5);
         L.x = clamp(L.x + L.vx * dt, L.r, WORLD.w - L.r);
@@ -3419,6 +3416,7 @@ function updateLaborers(dt) {
         }
         continue;
       }
+      // no foe in range while retaliating — resume work (timer still ticks down)
     }
     // inside mine: work then exit with gold
     if (L.insideMine && L.target) {
@@ -3510,6 +3508,7 @@ function hurtLaborer(L, dmg) {
   if (L.insideMine || L.downed) return; // safe while in mine shaft
   L.hp -= dmg;
   L.hurtT = 0.5;
+  L.retaliateT = 6; // v2.13.2: only fight back after taking a hit
   if (L.hp <= 0) {
     L.hp = 0;
     L.downed = true;
@@ -3517,6 +3516,7 @@ function hurtLaborer(L, dmg) {
     L.insideMine = false;
     L.carry = null;
     L.task = 'idle';
+    L.retaliateT = 0;
     spawnParticles(L.x, L.y, 12, '#c8a06a', 3);
     addFloater(L.x, L.y - 28, 'LABORER DOWN', '#ff8a93', false);
   }
@@ -5143,22 +5143,22 @@ function enemyFigure(e) {
     hurtRecoil: e.flash > 0.04,
   };
   switch (e.type) {
-    // v2.13.1 — figure s matches sprite drawH / 36 (player ~1.06 / r=15)
-    case 'husk': return { ...base, s: 1.17, skin: '#8aa06a', cloth: '#55503f', rags: '#3f3a2c',
+    // v2.13.2 — figure s ≈ sprite drawH/36; toward ravager s=1.7; skeleton UNCHANGED
+    case 'husk': return { ...base, s: 1.56, skin: '#8aa06a', cloth: '#55503f', rags: '#3f3a2c',
       legs: '#33302a', hunch: 0.7, armsForward: true, glowEyes: '#ff4d5e', scarDots: true };
-    case 'sprinter': return { ...base, s: 1.02, skin: '#9db07a', cloth: '#4a4438', rags: '#37321f',
+    case 'sprinter': return { ...base, s: 1.35, skin: '#9db07a', cloth: '#4a4438', rags: '#37321f',
       legs: '#2c2a20', hunch: 0.9, armsForward: true, glowEyes: '#ffb02e' };
-    case 'shaman': return { ...base, s: 1.17, skin: '#7a8f5a', cloth: '#4a2f63', hood: '#3a2350',
+    case 'shaman': return { ...base, s: 1.56, skin: '#7a8f5a', cloth: '#4a2f63', hood: '#3a2350',
       legs: '#31264a', hunch: 0.3, weapon: 'staff', glowEyes: '#d24dff' };
     case 'ravager': return { ...base, s: 1.7, bulk: 1.35, headScale: 1.1, skin: '#5f8f3a', cloth: '#4c3a26',
       pauldron: '#6b7686', legs: '#3a3026', tusks: true, ears: true, weapon: 'club', glowEyes: '#ffd54a' };
     case 'warlord': return { ...base, s: 3.2, bulk: 1.55, headScale: 1.15, skin: '#4ecf3a', cloth: '#5a2f78',
       pauldron: '#9aa8bc', legs: '#2f9a28', tusks: true, ears: true, horns: true, helmet: '#3a3f4c',
       weapon: 'club', glowEyes: '#ff2d55', aura: '#b04dff' };
-    // tank — larger than husk, still far below Gharok
-    case 'bulwark': return { ...base, s: 1.61, bulk: 1.6, headScale: 1.05, skin: '#5f7a44', cloth: '#3f4a33',
+    // tank — near ravager, still far below Gharok
+    case 'bulwark': return { ...base, s: 1.72, bulk: 1.6, headScale: 1.05, skin: '#5f7a44', cloth: '#3f4a33',
       rags: '#2e3626', legs: '#2a3022', hunch: 0.8, armsForward: true, glowEyes: '#ff2d55' };
-    // bony pale runner, thin limbs, cold glowing sockets
+    // bony pale runner — SIZE LOCK 2.13.1 (unchanged in 2.13.2)
     case 'skeleton': return { ...base, s: 1.055, bulk: 0.62, skin: '#ddd6c0', cloth: '#b8b09a',
       rags: '#8a8272', legs: '#c9c2ac', hunch: 0.55, armsForward: true, glowEyes: '#9ef0ff' };
   }
@@ -5463,10 +5463,10 @@ function gharokSpriteReady(img) {
   return !!(img && img.complete && img.naturalWidth > 0);
 }
 
-// ============ ASHEN HUSK SPRITES (v2.12.1 / size pass 2.13.1) ============
+// ============ ASHEN HUSK SPRITES (v2.12.1 / size pass 2.13.2) ============
 // assets/zombie/{idle,walk,windup}.png — Gharok-quality detail, NOT Gharok size.
-// Modest bump vs player (~r=15): husk r=15 drawH=42; sprinter r=12 ×0.87. NOT boss 228.
-const HUSK_SPRITE_DRAWH = 42; // == drawFigure H at s=1.17 — SIZE LOCK (2.13.1)
+// Toward ravager (~r=24 / s=1.7): husk r=21 drawH=56; sprinter r=18 ×0.87. NOT boss 228.
+const HUSK_SPRITE_DRAWH = 56; // == drawFigure H at s=1.56 — SIZE LOCK (2.13.2)
 const zombieSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadZombieSprites() {
   const keys = ['idle', 'walk', 'windup'];
@@ -5502,8 +5502,8 @@ function zombieSpriteFrame(e) {
 function drawHuskSprite(e, alpha) {
   const img = zombieSpriteFrame(e);
   if (!img) return false;
-  const s = e.type === 'sprinter' ? 0.87 : 1.0; // UNIT_SIZES draw scales (2.13.1)
-  const drawH = HUSK_SPRITE_DRAWH * s; // husk ~42, sprinter ~36.5 — NOT 228
+  const s = e.type === 'sprinter' ? 0.87 : 1.0; // UNIT_SIZES draw scales (2.13.2)
+  const drawH = HUSK_SPRITE_DRAWH * s; // husk ~56, sprinter ~48.7 — toward ravager, NOT 228
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = e.walk || 0;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
@@ -5651,11 +5651,11 @@ function drawSkeletonSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN BULWARK SPRITES (v2.13.0 APPLIED / size 2.13.1) ============
-// assets/bulwark/{idle,walk,windup}.png — husk/Gharok quality, tank scale (NOT boss).
-// Collision r=22. drawH = 58 (tank > husk 42). NOT Gharok 228.
+// ============ ASHEN BULWARK SPRITES (v2.13.0 APPLIED / size 2.13.2) ============
+// assets/bulwark/{idle,walk,windup}.png — husk/Gharok quality, near ravager (NOT boss).
+// Collision r=23. drawH = 62 (near ravager ~61). NOT Gharok 228.
 const BULWARK_SPRITE_ENABLED = true;
-const BULWARK_SPRITE_DRAWH = 58; // SIZE LOCK (2.13.1; was 52.2)
+const BULWARK_SPRITE_DRAWH = 62; // SIZE LOCK (2.13.2; was 58) — near ravager ~61, not Gharok 228
 const bulwarkSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadBulwarkSprites() {
   if (!BULWARK_SPRITE_ENABLED) return; // soft-load only when enabled
@@ -5692,7 +5692,7 @@ function drawBulwarkSprite(e, alpha) {
   const img = bulwarkSpriteFrame(e);
   if (!img) return false;
   const s = 1.45; // UNIT_SIZES bulwark figure s
-  const drawH = BULWARK_SPRITE_DRAWH; // 58 — tank > husk, not boss 228
+  const drawH = BULWARK_SPRITE_DRAWH; // 62 — near ravager, not boss 228
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = e.walk || 0;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
@@ -5745,11 +5745,11 @@ function drawBulwarkSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN SHAMAN SPRITES (v2.13.0 APPLIED / size 2.13.1) ============
-// assets/shaman/{idle,walk,windup}.png — husk/Gharok quality, caster scale (NOT boss).
-// Collision r=14. drawH = 42 (matches husk baseline). NOT boss 228.
+// ============ ASHEN SHAMAN SPRITES (v2.13.0 APPLIED / size 2.13.2) ============
+// assets/shaman/{idle,walk,windup}.png — husk/Gharok quality, toward ravager (NOT boss).
+// Collision r=20. drawH = 56 (matches husk). NOT boss 228.
 const SHAMAN_SPRITE_ENABLED = true;
-const SHAMAN_SPRITE_DRAWH = 42; // SIZE LOCK (2.13.1; was 36)
+const SHAMAN_SPRITE_DRAWH = 56; // SIZE LOCK (2.13.2; was 42) — matches husk toward ravager
 const shamanSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadShamanSprites() {
   if (!SHAMAN_SPRITE_ENABLED) return; // soft-load only when enabled
@@ -5786,7 +5786,7 @@ function drawShamanSprite(e, alpha) {
   const img = shamanSpriteFrame(e);
   if (!img) return false;
   const s = 1.0; // UNIT_SIZES shaman figure s (same as husk)
-  const drawH = SHAMAN_SPRITE_DRAWH; // 42 — husk baseline, not boss 228
+  const drawH = SHAMAN_SPRITE_DRAWH; // 56 — toward ravager with husk, not boss 228
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = e.walk || 0;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
@@ -7062,13 +7062,13 @@ function render() {
       if (e.type === 'warlord') {
         drawWarlord(e, emerge); // v2.8.6 sprite boss + gait bob + stomps (fallback: drawWarlordProcedural)
       } else if ((e.type === 'husk' || e.type === 'sprinter') && drawHuskSprite(e, emerge)) {
-        // v2.12.1 Ashen Husk sheets — small drawH (36*s), collision r unchanged; procedural if load fails
+        // v2.13.2 Ashen Husk sheets — drawH=56 (sprinter ×0.87), r=21/18 toward ravager
       } else if (e.type === 'skeleton' && drawSkeletonSprite(e, emerge)) {
-        // Ashen Skeleton sheets — drawH=38, r=12; SKELETON_SPRITE_ENABLED (2.13.1 size)
+        // Ashen Skeleton sheets — drawH=38, r=12; UNCHANGED from 2.13.1
       } else if (e.type === 'bulwark' && drawBulwarkSprite(e, emerge)) {
-        // Ashen Bulwark sheets — drawH=58, r=22; BULWARK_SPRITE_ENABLED (2.13.1 size)
+        // Ashen Bulwark sheets — drawH=62, r=23; toward ravager (2.13.2)
       } else if (e.type === 'shaman' && drawShamanSprite(e, emerge)) {
-        // Ashen Shaman sheets — drawH=42, r=14; SHAMAN_SPRITE_ENABLED (2.13.1 size)
+        // Ashen Shaman sheets — drawH=56, r=20; toward ravager (2.13.2)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

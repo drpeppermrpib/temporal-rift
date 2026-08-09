@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — SHIPPED — v2.13.1 enemy size + militia engage + laborer revive/defend
+- Version / commit / APK: 2.13.1 (versionCode 45) / (pending commit) / BETA `TemporalRift-BETA-2.13.1.apk`
+- User intent: Bad guys a bit bigger than player (not boss); spear/militia actually attack; peasants revivable + defend; keep rest intact
+- Agent action: Modest drawH/r bumps (husk/sprinter/skel/bulwark/shaman); militia aggro near self OR player + spear reach; laborers downed+Talk revive + flee-to-fight; workers≠squad kept; UNIT_SIZES + CHANGE_MEMORY updated; REMOVED list intact
+- Notes: Gharok/RTS/sprites/barks left intact. Old→new sizes documented in UNIT_SIZES.md.
+
 ### 2026-08-09 — SHIPPED — v2.13.0 sprites APPLIED + enemy barks
 - Version / commit / APK: 2.13.0 (versionCode 44) / `2ec64a1` / BETA `TemporalRift-BETA-2.13.0.apk`
 - User intent: Articulate enemy walk; orc talk/barks with different voices; apply deferred skeleton/bulwark/shaman sprites; ship BETA; leave Gharok movement intact

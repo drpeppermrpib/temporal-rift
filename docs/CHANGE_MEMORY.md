@@ -36,7 +36,7 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 
 | Feature / version | Master (repo) | BETA APK | GitHub Release | Play Closed |
 |---|---|---|---|---|
-| **App version** | **2.13.0** (versionCode 44) | Through `TemporalRift-BETA-2.13.0.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
+| **App version** | **2.13.1** (versionCode 45) | Through `TemporalRift-BETA-2.13.1.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
 | Package | `com.drpep.temporalrift` (prod) | `com.drpep.temporalrift.beta` | Sideload / release assets | Store-signed prod |
 | Update banner → GitHub | GitHub channel only | Per build channel | Yes (github) | Must stay **off** (`UPDATE_CHANNEL !== 'github'`) |
 | Learning engine + adapt panel | Yes (+ settings hide toggle) | Yes (2.9.3+) | No (stuck ~2.6) | No if still on 2.6 |
@@ -46,11 +46,12 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 | RTS build picker / wood-gold / laborers | Yes (2.10.0+) | Yes | No | No if still on 2.6 |
 | WC2-style town / mines / worker≠squad / +3 train | Yes (2.11.0+) | Yes | No | No if still on 2.6 |
 | In-engine unit anim finish (Gharok + all figures) | Yes (2.12.0+) | Yes (2.12.0+) | No | No if still on 2.6 |
-| Ashen Husk detailed sprites (idle/walk/windup, r=14) | Yes (2.12.1) | Yes (2.12.1) | No | No if still on 2.6 |
-| Ashen Skeleton sprites (idle/walk/windup, r=10) | Yes (2.13.0) | Yes (2.13.0) | No | No |
-| Ashen Bulwark sprites (idle/walk/windup, r=20) | Yes (2.13.0) | Yes (2.13.0) | No | No |
-| Ashen Shaman sprites (idle/walk/windup, r=13) | Yes (2.13.0) | Yes (2.13.0) | No | No |
+| Ashen Husk detailed sprites (idle/walk/windup, r=15 drawH=42) | Yes (2.12.1; size 2.13.1) | Yes (2.13.1) | No | No if still on 2.6 |
+| Ashen Skeleton sprites (idle/walk/windup, r=12 drawH=38) | Yes (2.13.0; size 2.13.1) | Yes (2.13.1) | No | No |
+| Ashen Bulwark sprites (idle/walk/windup, r=22 drawH=58) | Yes (2.13.0; size 2.13.1) | Yes (2.13.1) | No | No |
+| Ashen Shaman sprites (idle/walk/windup, r=14 drawH=42) | Yes (2.13.0; size 2.13.1) | Yes (2.13.1) | No | No |
 | Enemy combat barks (synth + lines) | Yes (2.13.0) | Yes (2.13.0) | No | No |
+| Muster militia WC2 engage + laborer revive/defend | Yes (2.13.1) | Yes (2.13.1) | No | No |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | No | No if still on 2.6 |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **No** | **No** |
@@ -92,7 +93,7 @@ Hard constraints. Agents must check before reintroducing UI or features.
 | Field hold-Talk revive + PeerJS downed/revive | 2.9.2 |
 | BETA package `com.drpep.temporalrift.beta` | Side-by-side installs |
 | RTS build picker + wood/gold + Ashen Laborers + upgradable halls + Aether Colossus | 2.10.0 — additive city pathway started; deepened in 2.11.0 |
-| WC2-style Rift Keep town + forest stands + gold mines + Muster militia | 2.11.0 — workers≠squad; +3 combat train/wave |
+| WC2-style Rift Keep town + forest stands + gold mines + Muster militia | 2.11.0 — workers≠squad; +3 combat train/wave; militia engage fixed 2.13.1; laborers revivable+defend 2.13.1 |
 
 ### Discoverability risk (not removed — easy to feel “gone”)
 
@@ -135,8 +136,13 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 
 Append new versions at the top of this list when shipping.
 
+### 2.13.1
+- **Enemy size pass (modest):** husk/sprinter/skeleton/bulwark/shaman slightly larger than player visual — not boss-sized. drawH/r: husk 36/14→42/15, sprinter ~30.6/11→~36.5/12, skeleton 32.4/10→38/12, bulwark 52.2/20→58/22, shaman 36/13→42/14. Gharok untouched.
+- **Muster militia combat:** spears/bows engage foes near self **or** near player (was melee aggro=90 → follow-only). Spear poke uses type.range; bow still range-gated. Companion AI unchanged.
+- **Ashen Laborers:** field hold-Talk revive (+ wave-end auto) like militia; flee-to-fight melee when threatened; still workers≠squad (no squad slots). Colossus merge no longer wipes downed workers.
+
 ### 2.13.0
-- Applied deferred sprite sets: Skeleton / Bulwark / Shaman flags **on** (size locks intact: r=10/20/13, drawH=32.4/52.2/36). Husk still on from 2.12.1.
+- Applied deferred sprite sets: Skeleton / Bulwark / Shaman flags **on** (size locks intact at ship: r=10/20/13, drawH=32.4/52.2/36 — superseded by 2.13.1 size pass). Husk still on from 2.12.1.
 - Articulate walk polish: clearer gait cadence + plant squash/bob on sprite units; procedural types keep 2.12 limb stride.
 - Enemy bark system SHIPPED: per-type synth grunts + original orc float lines (aggro / attack / combat rate-limit); respects mute SFX.
 - Gharok walk/idle/windup/stomp left as-is (shipped 2.12.x) — no regression.

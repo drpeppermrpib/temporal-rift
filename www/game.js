@@ -275,7 +275,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyT') {
     talkHeld = true;
     // tap Talk for NPCs; hold Talk near a downed squadmate / co-op ally to channel revive
-    if (!nearestDownedCompanion() && !nearestDownedMilitia() && !nearestDownedAlly()) tryTalk();
+    if (!nearestDownedCompanion() && !nearestDownedMilitia() && !nearestDownedLaborer() && !nearestDownedAlly()) tryTalk();
   }
   if (e.code === 'KeyB') openBuildPick();
   if (e.code === 'KeyH') tryAetherMend();
@@ -357,12 +357,12 @@ bindHold('btnMend', () => tryAetherMend());
 bindHold('btnColossus', () => trySummonColossus());
 bindHold('btnTalk', () => {
   talkHeld = true;
-  if (!nearestDownedCompanion() && !nearestDownedMilitia() && !nearestDownedAlly()) tryTalk();
+  if (!nearestDownedCompanion() && !nearestDownedMilitia() && !nearestDownedLaborer() && !nearestDownedAlly()) tryTalk();
 }, () => { talkHeld = false; });
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.13.0';
+const APP_VERSION = '2.13.1';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -1247,6 +1247,7 @@ let structures = [];     // Rift Keep / camps / halls
 let laborers = [];       // Ashen Laborers — workers ONLY (never squad slots)
 let militia = [];        // Muster combat squad (grows +3/wave)
 let waveTrainLeft = 3;
+let laborerIdSeq = 1;
 let militiaIdSeq = 1;
 let colossus = null;     // temporary Aether Colossus ally
 let buildPickOpen = false, structPanelOpen = false, selectedStructure = null;
@@ -1695,13 +1696,14 @@ const CLAW_WINDUP = 0.7, CLAW_STRIKE = 0.28, CLAW_RANGE = 165, CLAW_CD = 5, CLAW
 // Contact-melee swipe telegraph for non-boss figures (visual only — hitbox unchanged)
 const UNIT_SWIPE = 0.32;
 const ETYPES = {
-  husk:     { r: 14, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
-  sprinter: { r: 11, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
-  shaman:   { r: 13, hp: 44,  spd: 55,  dmg: 8,  core: 2,  xp: 12,  ranged: true  },
+  // v2.13.1 size pass: modest bump so sprite foes read slightly larger than player (~r=15), not boss-sized
+  husk:     { r: 15, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
+  sprinter: { r: 12, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
+  shaman:   { r: 14, hp: 44,  spd: 55,  dmg: 8,  core: 2,  xp: 12,  ranged: true  },
   ravager:  { r: 24, hp: 160, spd: 46,  dmg: 22, core: 3,  xp: 18,  ranged: false },
   warlord:  { r: 54, hp: 950, spd: 38,  dmg: 34, core: 25, xp: 120, ranged: true, boss: true, armor: 300 },
-  bulwark:  { r: 20, hp: 90,  spd: 45,  dmg: 16, core: 3,  xp: 16,  ranged: false, kbPlayer: 260 }, // 2.5x husk hp, slow, heavy
-  skeleton: { r: 10, hp: 14,  spd: 170, dmg: 6,  core: 1,  xp: 5,   ranged: false },
+  bulwark:  { r: 22, hp: 90,  spd: 45,  dmg: 16, core: 3,  xp: 16,  ranged: false, kbPlayer: 260 }, // tank > husk, still << Gharok
+  skeleton: { r: 12, hp: 14,  spd: 170, dmg: 6,  core: 1,  xp: 5,   ranged: false },
 };
 function hpScale() { return 1 + (wave - 1) * 0.16; }
 
@@ -1982,14 +1984,14 @@ function questEvent(kind, data) {
 function tryTalk() {
   if (state !== 'playing' || dialogOpen || vendorOpen || settingsOpen || riftNetOpen || player.downed) return;
   // Prefer field revive prompt if standing on a downed squadmate (tap still opens nothing — hold channels)
-  if (nearestDownedCompanion() || nearestDownedAlly()) return;
+  if (nearestDownedCompanion() || nearestDownedMilitia() || nearestDownedLaborer() || nearestDownedAlly()) return;
   const npc = nearestNpc();
   if (!npc) return;
   if (npc.role === 'vendor') { openVendor(); return; }
   if (npc.role === 'lore') { talkMira(); return; }
   if (npc.role === 'riftnet') { openRiftNet(); return; }
   // Bramm: if wounded / squad downed, offer aether infirmary first (mid-run recovery)
-  if (npc.role === 'quest' && (player.hp < maxHp() * 0.92 || companions.some(c => c.downed) || militia.some(m => m.downed))) {
+  if (npc.role === 'quest' && (player.hp < maxHp() * 0.92 || companions.some(c => c.downed) || militia.some(m => m.downed) || laborers.some(L => L.downed))) {
     openInfirmary();
     return;
   }
@@ -2150,6 +2152,15 @@ function nearestDownedMilitia() {
   }
   return best;
 }
+function nearestDownedLaborer() {
+  let best = null, bd = REVIVE_RANGE * REVIVE_RANGE;
+  for (const L of laborers) {
+    if (!L.downed) continue;
+    const d2 = dist2(L.x, L.y, player.x, player.y);
+    if (d2 < bd) { bd = d2; best = L; }
+  }
+  return best;
+}
 function nearestDownedAlly() {
   if (!riftNetLinked()) return null;
   let best = null, bestId = null, bd = REVIVE_RANGE * REVIVE_RANGE;
@@ -2186,6 +2197,11 @@ function completeFieldRevive(kind, target, cost) {
     addFloater(player.x, player.y - 52, `−${cost} aether`, '#4de1ff', false);
     return true;
   }
+  if (kind === 'laborer') {
+    finishLaborerRevive(target);
+    addFloater(player.x, player.y - 52, `−${cost} aether`, '#4de1ff', false);
+    return true;
+  }
   if (kind === 'ally') {
     try {
       riftNet.conn.send({ t: 'reviveDone', hpFrac: 0.65, from: riftNet.role, cost });
@@ -2213,10 +2229,12 @@ function updateReviveChannel(dt) {
   }
   const ally = nearestDownedAlly();
   const mil = nearestDownedMilitia();
+  const lab = nearestDownedLaborer();
   const comp = nearestDownedCompanion();
   let kind = null, target = null, cost = 0, id = null;
   if (ally) { kind = 'ally'; target = ally; cost = ALLY_REVIVE_COST; id = ally.id; }
   else if (mil) { kind = 'militia'; target = mil; cost = Math.max(12, 10 + Math.floor(mil.maxHp / 40)); id = mil.id; }
+  else if (lab) { kind = 'laborer'; target = lab; cost = Math.max(10, 8 + Math.floor(lab.maxHp / 45)); id = lab.id; }
   else if (comp) { kind = 'comp'; target = comp; cost = aetherReviveCost(comp.type); id = comp.type; }
 
   const holding = talkHeld || !!keys.KeyT;
@@ -2635,6 +2653,13 @@ function endWave() {
     m.hp = m.maxHp;
     spawnParticles(m.x, m.y, 14, '#7CFC00', 3);
     addFloater(m.x, m.y - 28, militiaName(m).toUpperCase() + ' BACK UP!', '#7CFC00', false);
+  }
+  for (const L of laborers) {
+    if (!L.downed) continue;
+    L.downed = false;
+    L.hp = L.maxHp;
+    spawnParticles(L.x, L.y, 12, '#7CFC00', 3);
+    addFloater(L.x, L.y - 28, 'LABORER BACK UP!', '#7CFC00', false);
   }
   // co-op: free wave-break stand-up if you were bleeding out
   if (player.downed) {
@@ -3210,7 +3235,7 @@ function renderUnitPanel() {
   };
   if (kind === 'laborer') {
     title.textContent = '🪓 Ashen Laborer (worker)';
-    meta.textContent = `HP ${Math.ceil(u.hp)}/${u.maxHp} · Order: ${(u.order || 'auto').toUpperCase()} · Does NOT use squad slots`;
+    meta.textContent = `HP ${Math.ceil(u.hp)}/${u.maxHp} · Order: ${(u.order || 'auto').toUpperCase()} · Does NOT use squad slots · Revivable · Defends when threatened`;
     addBtn('Chop Lumber', u.order === 'chop' ? 'green' : '', () => {
       u.order = 'chop'; u.task = 'idle'; u.target = null; u.carry = null; u.insideMine = false;
       addFloater(u.x, u.y - 24, 'ORDER: CHOP', '#7a9a5a', false);
@@ -3294,11 +3319,13 @@ function tryTrainMilitia(kind, atStruct) {
 
 function spawnLaborer(x, y) {
   laborers.push({
+    id: laborerIdSeq++,
     x, y, vx: 0, vy: 0, r: 11, hp: 90, maxHp: 90,
     carry: null, // {type:'wood'|'gold', amt}
     target: null, task: 'idle', order: 'auto',
     gatherT: 0, walk: rand(0, 8), facing: 1, hurtT: 0,
     insideMine: false, mineT: 0,
+    downed: false, atkCd: rand(0.2, 0.6), swipeT: 0, // v2.13.1: field-revivable + defend
   });
 }
 function nearestDeposit(from, resType) {
@@ -3348,10 +3375,51 @@ function pickMineTarget(L) {
 }
 function updateLaborers(dt) {
   const rate = gatherRateMul();
+  const LABORER_THREAT = 130;
+  const LABORER_DMG = 7;
   for (const L of laborers) {
-    if (L.hp <= 0) continue;
+    if (L.downed) { L.vx = 0; L.vy = 0; continue; }
     L.hurtT = Math.max(0, L.hurtT - dt);
     L.gatherT = Math.max(0, L.gatherT - dt);
+    if (L.swipeT > 0) L.swipeT = Math.max(0, L.swipeT - dt);
+    L.atkCd = (L.atkCd || 0) - dt;
+    // v2.13.1: defend when threatened (flee-to-fight if low HP), else keep working
+    if (!L.insideMine) {
+      let foe = null, fd2 = LABORER_THREAT * LABORER_THREAT;
+      for (const e of enemies) {
+        if (e.dead || e.spawnT > 0.3 || (e.emergeT || 0) > 0) continue;
+        const d2 = dist2(e.x, e.y, L.x, L.y);
+        if (d2 < fd2) { fd2 = d2; foe = e; }
+      }
+      if (foe) {
+        L.task = 'defend';
+        const low = L.hp < L.maxHp * 0.35;
+        let gx = foe.x, gy = foe.y;
+        // low HP: break toward player first, then re-engage (flee-to-fight)
+        if (low && dist2(L.x, L.y, player.x, player.y) > 90 * 90) {
+          gx = player.x; gy = player.y;
+        }
+        const dx = gx - L.x, dy = gy - L.y, gd = Math.hypot(dx, dy) || 1;
+        const spd = low ? 195 : 175;
+        L.vx = lerp(L.vx, dx / gd * spd, dt * 5);
+        L.vy = lerp(L.vy, dy / gd * spd, dt * 5);
+        L.x = clamp(L.x + L.vx * dt, L.r, WORLD.w - L.r);
+        L.y = clamp(L.y + L.vy * dt, L.r, WORLD.h - L.r);
+        collideObstacles(L);
+        L.walk += dt * Math.hypot(L.vx, L.vy) * 0.05;
+        if (Math.abs(L.vx) > 4) L.facing = L.vx >= 0 ? 1 : -1;
+        const reach = L.r + foe.r + 12;
+        if (L.atkCd <= 0 && fd2 < reach * reach) {
+          L.atkCd = 1.05;
+          L.swipeT = UNIT_SWIPE;
+          const d = Math.sqrt(fd2) || 1;
+          directDamage(foe, LABORER_DMG, (foe.x - L.x) / d, (foe.y - L.y) / d, 90);
+          zap(L.x, L.y - 6, foe.x, foe.y - 8);
+          spawnParticles(foe.x, foe.y - 6, 3, '#c8a06a', 2);
+        }
+        continue;
+      }
+    }
     // inside mine: work then exit with gold
     if (L.insideMine && L.target) {
       L.mineT = (L.mineT || 0) - dt;
@@ -3435,17 +3503,32 @@ function updateLaborers(dt) {
     L.walk += dt * Math.hypot(L.vx, L.vy) * 0.05;
     if (Math.abs(L.vx) > 4) L.facing = L.vx >= 0 ? 1 : -1;
   }
-  laborers = laborers.filter(L => L.hp > 0);
+  // keep downed bodies for field revive (never consume squad slots)
   if (selectedUnit && selectedUnit.kind === 'laborer' && !laborers.includes(selectedUnit.ref)) closeUnitPanel();
 }
 function hurtLaborer(L, dmg) {
-  if (L.insideMine) return; // safe while in mine shaft
+  if (L.insideMine || L.downed) return; // safe while in mine shaft
   L.hp -= dmg;
   L.hurtT = 0.5;
   if (L.hp <= 0) {
+    L.hp = 0;
+    L.downed = true;
+    L.vx = 0; L.vy = 0;
+    L.insideMine = false;
+    L.carry = null;
+    L.task = 'idle';
     spawnParticles(L.x, L.y, 12, '#c8a06a', 3);
     addFloater(L.x, L.y - 28, 'LABORER DOWN', '#ff8a93', false);
   }
+}
+function finishLaborerRevive(L) {
+  L.downed = false;
+  L.hp = Math.ceil(L.maxHp * 0.65);
+  L.hurtT = 0.8;
+  L.task = 'idle';
+  spawnParticles(L.x, L.y, 14, '#4de1ff', 4);
+  addFloater(L.x, L.y - 32, 'LABORER REVIVED', '#4de1ff', true);
+  sfx.play('click');
 }
 function updateStructures(dt) {
   for (const s of structures) {
@@ -3489,7 +3572,7 @@ function collideStructures(e, dt) {
     }
   }
   for (const L of laborers) {
-    if (L.insideMine) continue;
+    if (L.insideMine || L.downed) continue;
     if (dist2(e.x, e.y, L.x, L.y) < (e.r + L.r) ** 2) {
       if ((L.hurtT || 0) <= 0) hurtLaborer(L, e.dmg * 0.35);
     }
@@ -3544,10 +3627,15 @@ function updateMilitia(dt) {
     if (m.swipeT > 0) m.swipeT = Math.max(0, m.swipeT - dt);
     m.atkCd -= dt;
     const t = MILITIA_TYPES[m.kind];
-    let foe = null, fd2 = (t.melee ? 90 : t.range) ** 2;
+    // v2.13.1 WC2-style engage: acquire foes near self OR near player (old melee aggro=90 never left follow)
+    const aggro = t.melee ? 380 : t.range;
+    const protectR2 = 440 * 440;
+    let foe = null, fd2 = Infinity;
     for (const e of enemies) {
-      if (e.dead || e.spawnT > 0.3 || e.emergeT > 0) continue;
+      if (e.dead || e.spawnT > 0.3 || (e.emergeT || 0) > 0) continue;
       const d2 = dist2(e.x, e.y, m.x, m.y);
+      const nearPlayer = dist2(e.x, e.y, player.x, player.y) < protectR2;
+      if (d2 > aggro * aggro && !nearPlayer) continue;
       if (d2 < fd2) { fd2 = d2; foe = e; }
     }
     const slotA = (companions.length + idx) * 2.2 + 1.8;
@@ -3587,7 +3675,9 @@ function updateMilitia(dt) {
       m.aim = Math.atan2(foe.y - m.y, foe.x - m.x);
       m.facing = Math.cos(m.aim) >= 0 ? 1 : -1;
       if (t.melee) {
-        if (m.atkCd <= 0 && fd2 < (m.r + foe.r + 14) ** 2) {
+        // spear reach uses type.range (70) so they poke instead of needing body contact
+        const reach = Math.max(m.r + foe.r + 14, t.range);
+        if (m.atkCd <= 0 && fd2 < reach * reach) {
           m.atkCd = t.atk;
           m.swipeT = UNIT_SWIPE;
           const d = Math.sqrt(fd2) || 1;
@@ -3595,7 +3685,7 @@ function updateMilitia(dt) {
           zap(m.x, m.y - 8, foe.x, foe.y - 10);
           spawnParticles(foe.x, foe.y - 8, 4, '#c8a06a', 2);
         }
-      } else if (m.atkCd <= 0) {
+      } else if (m.atkCd <= 0 && fd2 < t.range * t.range) {
         m.atkCd = t.atk;
         m.swipeT = UNIT_SWIPE * 0.65;
         const a = m.aim + rand(-0.05, 0.05);
@@ -3620,8 +3710,8 @@ function trySummonColossus() {
   if (!canAffordCosts(COLOSSUS_COST)) {
     addFloater(player.x, player.y - 40, 'NEED ' + costLabel(COLOSSUS_COST), '#ffd54a', false); return;
   }
-  // fodder: nearby laborers + living companions within 200
-  const fodderL = laborers.filter(L => dist2(L.x, L.y, player.x, player.y) < 200 * 200);
+  // fodder: nearby living laborers + living companions within 200 (downed workers stay for revive)
+  const fodderL = laborers.filter(L => !L.downed && dist2(L.x, L.y, player.x, player.y) < 200 * 200);
   const fodderC = companions.filter(c => !c.downed && dist2(c.x, c.y, player.x, player.y) < 200 * 200);
   if (fodderL.length + fodderC.length < 2) {
     addFloater(player.x, player.y - 40, 'NEED 2 NEARBY ALLIES TO MERGE', '#ff8a93', false); return;
@@ -3631,10 +3721,11 @@ function trySummonColossus() {
   let need = 2;
   for (const L of fodderL) {
     if (need <= 0) break;
-    L.hp = 0; need--;
     spawnParticles(L.x, L.y, 16, '#b04dff', 3);
+    const ix = laborers.indexOf(L);
+    if (ix >= 0) laborers.splice(ix, 1);
+    need--;
   }
-  laborers = laborers.filter(L => L.hp > 0);
   if (need > 0 && fodderC.length) {
     const c = fodderC[0];
     c.downed = true; c.hp = 0;
@@ -4298,13 +4389,14 @@ function update(dt) {
   const npcNear = nearestNpc();
   const downComp = nearestDownedCompanion();
   const downMil = nearestDownedMilitia();
+  const downLab = nearestDownedLaborer();
   const downAlly = nearestDownedAlly();
   const talkBtn = $('btnTalk');
   const showTalk = state === 'playing' && !dialogOpen && !vendorOpen && !infirmaryOpen && !riftNetOpen &&
-    (npcNear || downComp || downMil || downAlly || player.downed);
+    (npcNear || downComp || downMil || downLab || downAlly || player.downed);
   talkBtn.classList.toggle('hidden', !showTalk);
   if (player.downed) talkBtn.textContent = '✚ PING';
-  else if (downAlly || downComp || downMil) talkBtn.textContent = '✚ HOLD REVIVE';
+  else if (downAlly || downComp || downMil || downLab) talkBtn.textContent = '✚ HOLD REVIVE';
   else if (npcNear) talkBtn.textContent = npcNear.role === 'vendor' ? '🜚 TRADE' : '💬 TALK';
   // when downed, tap Talk = revive ping
   if (player.downed && talkHeld && !reviveChan.kind) {
@@ -5051,22 +5143,23 @@ function enemyFigure(e) {
     hurtRecoil: e.flash > 0.04,
   };
   switch (e.type) {
-    case 'husk': return { ...base, s: 1, skin: '#8aa06a', cloth: '#55503f', rags: '#3f3a2c',
+    // v2.13.1 — figure s matches sprite drawH / 36 (player ~1.06 / r=15)
+    case 'husk': return { ...base, s: 1.17, skin: '#8aa06a', cloth: '#55503f', rags: '#3f3a2c',
       legs: '#33302a', hunch: 0.7, armsForward: true, glowEyes: '#ff4d5e', scarDots: true };
-    case 'sprinter': return { ...base, s: 0.85, skin: '#9db07a', cloth: '#4a4438', rags: '#37321f',
+    case 'sprinter': return { ...base, s: 1.02, skin: '#9db07a', cloth: '#4a4438', rags: '#37321f',
       legs: '#2c2a20', hunch: 0.9, armsForward: true, glowEyes: '#ffb02e' };
-    case 'shaman': return { ...base, s: 1, skin: '#7a8f5a', cloth: '#4a2f63', hood: '#3a2350',
+    case 'shaman': return { ...base, s: 1.17, skin: '#7a8f5a', cloth: '#4a2f63', hood: '#3a2350',
       legs: '#31264a', hunch: 0.3, weapon: 'staff', glowEyes: '#d24dff' };
     case 'ravager': return { ...base, s: 1.7, bulk: 1.35, headScale: 1.1, skin: '#5f8f3a', cloth: '#4c3a26',
       pauldron: '#6b7686', legs: '#3a3026', tusks: true, ears: true, weapon: 'club', glowEyes: '#ffd54a' };
     case 'warlord': return { ...base, s: 3.2, bulk: 1.55, headScale: 1.15, skin: '#4ecf3a', cloth: '#5a2f78',
       pauldron: '#9aa8bc', legs: '#2f9a28', tusks: true, ears: true, horns: true, helmet: '#3a3f4c',
       weapon: 'club', glowEyes: '#ff2d55', aura: '#b04dff' };
-    // scaled-up husk rig with a heavier, darker tint — two shamblers in one skin
-    case 'bulwark': return { ...base, s: 1.45, bulk: 1.6, headScale: 1.05, skin: '#5f7a44', cloth: '#3f4a33',
+    // tank — larger than husk, still far below Gharok
+    case 'bulwark': return { ...base, s: 1.61, bulk: 1.6, headScale: 1.05, skin: '#5f7a44', cloth: '#3f4a33',
       rags: '#2e3626', legs: '#2a3022', hunch: 0.8, armsForward: true, glowEyes: '#ff2d55' };
     // bony pale runner, thin limbs, cold glowing sockets
-    case 'skeleton': return { ...base, s: 0.9, bulk: 0.62, skin: '#ddd6c0', cloth: '#b8b09a',
+    case 'skeleton': return { ...base, s: 1.055, bulk: 0.62, skin: '#ddd6c0', cloth: '#b8b09a',
       rags: '#8a8272', legs: '#c9c2ac', hunch: 0.55, armsForward: true, glowEyes: '#9ef0ff' };
   }
 }
@@ -5370,10 +5463,10 @@ function gharokSpriteReady(img) {
   return !!(img && img.complete && img.naturalWidth > 0);
 }
 
-// ============ ASHEN HUSK SPRITES (v2.12.1) — detailed art, SMALL footprint ============
+// ============ ASHEN HUSK SPRITES (v2.12.1 / size pass 2.13.1) ============
 // assets/zombie/{idle,walk,windup}.png — Gharok-quality detail, NOT Gharok size.
-// Collision husk r=14 / sprinter r=11 unchanged. drawH matches figure H (36*s), not boss 228.
-const HUSK_SPRITE_DRAWH = 36; // == drawFigure H at s=1.0 — SIZE LOCK
+// Modest bump vs player (~r=15): husk r=15 drawH=42; sprinter r=12 ×0.87. NOT boss 228.
+const HUSK_SPRITE_DRAWH = 42; // == drawFigure H at s=1.17 — SIZE LOCK (2.13.1)
 const zombieSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadZombieSprites() {
   const keys = ['idle', 'walk', 'windup'];
@@ -5409,8 +5502,8 @@ function zombieSpriteFrame(e) {
 function drawHuskSprite(e, alpha) {
   const img = zombieSpriteFrame(e);
   if (!img) return false;
-  const s = e.type === 'sprinter' ? 0.85 : 1.0; // UNIT_SIZES draw scales
-  const drawH = HUSK_SPRITE_DRAWH * s; // husk ~36, sprinter ~30.6 — NOT 228
+  const s = e.type === 'sprinter' ? 0.87 : 1.0; // UNIT_SIZES draw scales (2.13.1)
+  const drawH = HUSK_SPRITE_DRAWH * s; // husk ~42, sprinter ~36.5 — NOT 228
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = e.walk || 0;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
@@ -5464,11 +5557,11 @@ function drawHuskSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN SKELETON SPRITES (v2.13.0 APPLIED) ============
-// assets/skeleton/{idle,walk,windup}.png — husk/Gharok quality, SMALLER than husk.
-// Collision r=10 unchanged. drawH = 36 * 0.9 = 32.4 (matches figure s). NOT husk-36 / NOT 228.
+// ============ ASHEN SKELETON SPRITES (v2.13.0 APPLIED / size 2.13.1) ============
+// assets/skeleton/{idle,walk,windup}.png — husk/Gharok quality, slightly > player visual.
+// Collision r=12. drawH = 38. NOT boss 228.
 const SKELETON_SPRITE_ENABLED = true;
-const SKELETON_SPRITE_DRAWH = 36 * 0.9; // 32.4 — SIZE LOCK
+const SKELETON_SPRITE_DRAWH = 38; // SIZE LOCK (2.13.1; was 32.4)
 const skeletonSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadSkeletonSprites() {
   if (!SKELETON_SPRITE_ENABLED) return; // soft-load only when enabled
@@ -5505,7 +5598,7 @@ function drawSkeletonSprite(e, alpha) {
   const img = skeletonSpriteFrame(e);
   if (!img) return false;
   const s = 0.9; // UNIT_SIZES skeleton figure s
-  const drawH = SKELETON_SPRITE_DRAWH; // 32.4 — not husk 36, not boss 228
+  const drawH = SKELETON_SPRITE_DRAWH; // 38 — slight > player, not boss 228
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = e.walk || 0;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
@@ -5558,11 +5651,11 @@ function drawSkeletonSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN BULWARK SPRITES (v2.13.0 APPLIED) ============
+// ============ ASHEN BULWARK SPRITES (v2.13.0 APPLIED / size 2.13.1) ============
 // assets/bulwark/{idle,walk,windup}.png — husk/Gharok quality, tank scale (NOT boss).
-// Collision r=20 unchanged. drawH = 36 * 1.45 = 52.2 (matches figure s). NOT husk-36 / NOT 228.
+// Collision r=22. drawH = 58 (tank > husk 42). NOT Gharok 228.
 const BULWARK_SPRITE_ENABLED = true;
-const BULWARK_SPRITE_DRAWH = 36 * 1.45; // 52.2 — SIZE LOCK (matches drawFigure H)
+const BULWARK_SPRITE_DRAWH = 58; // SIZE LOCK (2.13.1; was 52.2)
 const bulwarkSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadBulwarkSprites() {
   if (!BULWARK_SPRITE_ENABLED) return; // soft-load only when enabled
@@ -5599,7 +5692,7 @@ function drawBulwarkSprite(e, alpha) {
   const img = bulwarkSpriteFrame(e);
   if (!img) return false;
   const s = 1.45; // UNIT_SIZES bulwark figure s
-  const drawH = BULWARK_SPRITE_DRAWH; // 52.2 — not husk 36, not boss 228
+  const drawH = BULWARK_SPRITE_DRAWH; // 58 — tank > husk, not boss 228
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = e.walk || 0;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
@@ -5652,11 +5745,11 @@ function drawBulwarkSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN SHAMAN SPRITES (v2.13.0 APPLIED) ============
+// ============ ASHEN SHAMAN SPRITES (v2.13.0 APPLIED / size 2.13.1) ============
 // assets/shaman/{idle,walk,windup}.png — husk/Gharok quality, caster scale (NOT boss).
-// Collision r=13 unchanged. drawH = 36 * 1.0 = 36 (matches figure s). Same as husk baseline.
+// Collision r=14. drawH = 42 (matches husk baseline). NOT boss 228.
 const SHAMAN_SPRITE_ENABLED = true;
-const SHAMAN_SPRITE_DRAWH = 36 * 1.0; // 36 — SIZE LOCK (matches drawFigure H / husk baseline)
+const SHAMAN_SPRITE_DRAWH = 42; // SIZE LOCK (2.13.1; was 36)
 const shamanSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadShamanSprites() {
   if (!SHAMAN_SPRITE_ENABLED) return; // soft-load only when enabled
@@ -5693,7 +5786,7 @@ function drawShamanSprite(e, alpha) {
   const img = shamanSpriteFrame(e);
   if (!img) return false;
   const s = 1.0; // UNIT_SIZES shaman figure s (same as husk)
-  const drawH = SHAMAN_SPRITE_DRAWH; // 36 — husk baseline, not boss 228
+  const drawH = SHAMAN_SPRITE_DRAWH; // 42 — husk baseline, not boss 228
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = e.walk || 0;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
@@ -6482,11 +6575,13 @@ function drawLaborer(L) {
   const moving = Math.hypot(L.vx || 0, L.vy || 0) > 8;
   const bob = moving ? Math.abs(Math.sin(t)) * 1.8 : Math.sin(t * 0.5) * 0.6;
   const swing = moving ? Math.sin(t) * 3.2 : 0;
-  const chop = (L.order === 'chop' || L.order === 'mine') && L.gatherT > 0
+  const chop = !L.downed && (L.order === 'chop' || L.order === 'mine') && L.gatherT > 0
     ? Math.sin(performance.now() / 90) * 0.5 + 0.5 : 0;
+  const defendSwing = !L.downed && (L.swipeT || 0) > 0 ? (1 - L.swipeT / UNIT_SWIPE) : 0;
   ctx.save();
   ctx.translate(L.x, L.y);
   ctx.scale(L.facing, 1);
+  ctx.globalAlpha = L.downed ? 0.45 : 1;
   // shadow — SIZE LOCK (r≈11 footprint)
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath(); ctx.ellipse(0, 2, 8, 3, 0, 0, TAU); ctx.fill();
@@ -6501,21 +6596,21 @@ function drawLaborer(L) {
   ctx.fillRect(-5, -16 + bob, 10, 12);
   ctx.fillStyle = '#d2a878';
   ctx.beginPath(); ctx.arc(0, -20 + bob, 5, 0, TAU); ctx.fill();
-  // arms — axe/pick swing when gathering
+  // arms — axe/pick swing when gathering / defend swipe
   ctx.strokeStyle = L.hurtT > 0.2 ? '#fff' : '#c4a078'; ctx.lineWidth = 2.2;
   ctx.beginPath();
   ctx.moveTo(-4, -14 + bob); ctx.lineTo(-6 - swing * 0.4, -6 + bob);
   ctx.moveTo(4, -14 + bob);
-  if (chop > 0) {
-    const ang = -1.1 + chop * 1.8;
+  if (chop > 0 || defendSwing > 0) {
+    const ang = -1.1 + (chop || defendSwing) * 1.8;
     ctx.lineTo(4 + Math.cos(ang) * 9, -14 + bob + Math.sin(ang) * 9);
   } else {
     ctx.lineTo(6 + swing * 0.4, -6 + bob);
   }
   ctx.stroke();
-  if (chop > 0) {
+  if (chop > 0 || defendSwing > 0) {
     ctx.strokeStyle = '#8a7050'; ctx.lineWidth = 2;
-    const ang = -1.1 + chop * 1.8;
+    const ang = -1.1 + (chop || defendSwing) * 1.8;
     ctx.beginPath();
     ctx.moveTo(4 + Math.cos(ang) * 9, -14 + bob + Math.sin(ang) * 9);
     ctx.lineTo(4 + Math.cos(ang) * 14, -14 + bob + Math.sin(ang) * 14);
@@ -6526,13 +6621,28 @@ function drawLaborer(L) {
     ctx.fillRect(6, -14 + bob, 7, 6);
   }
   ctx.restore();
+  if (L.downed) {
+    ctx.fillStyle = '#ff8a93';
+    ctx.font = 'bold 10px Segoe UI'; ctx.textAlign = 'center';
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 3;
+    ctx.strokeText('✚ DOWN', L.x, L.y - 34);
+    ctx.fillText('✚ DOWN', L.x, L.y - 34);
+    if (reviveChan.kind === 'laborer' && reviveChan.id === L.id)
+      drawReviveProgress(L.x, L.y, reviveChan.t / REVIVE_HOLD_SEC);
+  } else if (L.hp < L.maxHp) {
+    const w = 22;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(L.x - w / 2, L.y - 32, w, 3);
+    ctx.fillStyle = '#c8a06a';
+    ctx.fillRect(L.x - w / 2, L.y - 32, w * clamp(L.hp / L.maxHp, 0, 1), 3);
+  }
   if (selectedUnit && selectedUnit.kind === 'laborer' && selectedUnit.ref === L) {
     ctx.strokeStyle = 'rgba(124,252,0,0.85)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(L.x, L.y, 16, 0, TAU); ctx.stroke();
   }
   ctx.font = '8px Segoe UI'; ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(200,160,106,0.9)';
-  ctx.fillText(L.order === 'mine' ? 'Mine' : L.order === 'chop' ? 'Chop' : 'Laborer', L.x, L.y + 12);
+  ctx.fillText(L.downed ? 'Laborer' : L.order === 'mine' ? 'Mine' : L.order === 'chop' ? 'Chop' : 'Laborer', L.x, L.y + 12);
 }
 function drawMilitia(m) {
   const tMeta = MILITIA_TYPES[m.kind];
@@ -6954,11 +7064,11 @@ function render() {
       } else if ((e.type === 'husk' || e.type === 'sprinter') && drawHuskSprite(e, emerge)) {
         // v2.12.1 Ashen Husk sheets — small drawH (36*s), collision r unchanged; procedural if load fails
       } else if (e.type === 'skeleton' && drawSkeletonSprite(e, emerge)) {
-        // Ashen Skeleton sheets — drawH=32.4, r=10; SKELETON_SPRITE_ENABLED (2.13.0 APPLIED)
+        // Ashen Skeleton sheets — drawH=38, r=12; SKELETON_SPRITE_ENABLED (2.13.1 size)
       } else if (e.type === 'bulwark' && drawBulwarkSprite(e, emerge)) {
-        // Ashen Bulwark sheets — drawH=52.2, r=20; BULWARK_SPRITE_ENABLED (2.13.0 APPLIED)
+        // Ashen Bulwark sheets — drawH=58, r=22; BULWARK_SPRITE_ENABLED (2.13.1 size)
       } else if (e.type === 'shaman' && drawShamanSprite(e, emerge)) {
-        // Ashen Shaman sheets — drawH=36, r=13; SHAMAN_SPRITE_ENABLED (2.13.0 APPLIED)
+        // Ashen Shaman sheets — drawH=42, r=14; SHAMAN_SPRITE_ENABLED (2.13.1 size)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

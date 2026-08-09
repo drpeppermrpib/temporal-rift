@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — Ashen Skeleton art drafted (APK apply later)
+- Version / commit / APK: assets+docs only (no APP_VERSION / versionCode bump) / pending commit / **no BETA APK**
+- User intent: Mesh 3 skeleton refs into detailed sprites like Ashen Husk / Gharok; art for NPCs first; no new APK this pass
+- Agent action: Generated original Ashen Skeleton idle/walk/windup; size lock `r=10` / `drawH=32.4` (36×0.9); soft-wire behind `SKELETON_SPRITE_ENABLED=false`; docs + Desktop preview; CHANGE_MEMORY append
+- Notes: Ready for next NPC refs. Flip flag + BETA when applying. No WoW/Blizzard/InkWell IP.
+
 ### 2026-08-09 — SHIPPED — v2.12.1 Ashen Husk detailed sprites (small footprint)
 - Version / commit / APK: 2.12.1 (versionCode 43) / `2454291` / BETA `TemporalRift-BETA-2.12.1.apk`
 - User intent: Make zombies the same way as Gharok (detailed sprite art from refs); rest of zombie polish next part; **CRITICAL:** keep current small husk size — Gharok pipeline = quality only, not boss `r=54` / `drawH=228`

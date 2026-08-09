@@ -3,6 +3,7 @@
 **Do not enlarge or shrink collision radii or draw scales** without an explicit size-pass decision.
 In-engine animation (limb swing / windup / strike / hurt lean) must stay additive on top of these footprints.
 **Ashen Husk sprite art (2.12.1) upgrades detail only — keep husk `r=14` and `drawH=36`, never Gharok `drawH=228`.**
+**Ashen Skeleton art drafted — collision `r=10`, sprite `drawH=32.4` (36×0.9); APK apply deferred.**
 
 ## Collision radii (`r`)
 
@@ -15,7 +16,7 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Ravager | **24** | orc brute |
 | Warlord (Gharok) | **54** | boss — locked |
 | Bulwark | **20** | fused husks |
-| Skeleton | **10** | grave emergers |
+| Skeleton | **10** | grave emergers — SIZE LOCK (sprite art must not enlarge) |
 | Companion (rover) | **11** | |
 | Companion (warden/scout/sentinel) | **13** | |
 | Ashen Laborer | **11** | |
@@ -31,6 +32,7 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Gharok procedural fallback | `s = 3.2` | |
 | Ashen Husk sprite | `drawH = 36` | `assets/zombie/*.png` — matches figure `H`; **not** boss scale |
 | Sprinter sprite | `drawH = 36 * 0.85` | same sheets, scaled |
+| Ashen Skeleton sprite | `drawH = 32.4` | `assets/skeleton/*.png` — `36 * 0.9`; smaller than husk; APK flag-gated |
 | Figure `H` | `36 * s` | shared humanoid rig |
 | Husk / shaman figure `s` | **1.0** | procedural fallback |
 | Sprinter `s` | **0.85** | |
@@ -45,4 +47,5 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 - **Primary:** in-engine additive poses (walk plant/squash, opposite-limb swing, swipe windup→strike, hurt lean).
 - **Gharok:** existing `assets/gharok/{idle,walk,windup}.png` + bob/lean/strike arc; Pixelorama drop path optional later — not required.
 - **Ashen Husk (2.12.1):** `assets/zombie/{idle,walk,windup}.png` on husk/sprinter at `drawH=36*s`; procedural fallback. See `docs/zombie-art-plan.md`.
+- **Ashen Skeleton (art drafted):** `assets/skeleton/{idle,walk,windup}.png` at `drawH=32.4`; soft-load behind `SKELETON_SPRITE_ENABLED` (default off — APK apply deferred). See `docs/skeleton-art-plan.md`.
 - **Death:** particle/decal burst (no lingering corpse sheet yet).

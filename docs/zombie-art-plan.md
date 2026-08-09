@@ -24,7 +24,8 @@ Source PNGs are 512×512 (same sheet resolution as Gharok) but drawn at husk sca
 Loaded like Gharok: idle ↔ walk by gait phase; `windup` while `swipeT > 0`.
 Procedural `drawFigure` remains the fallback if images fail.
 
-Wired to **husk** and **sprinter** (same family). Bulwark / skeleton stay procedural this pass.
+Wired to **husk** and **sprinter** (same family). Bulwark stays procedural this pass.
+Skeleton: see `docs/skeleton-art-plan.md` (art drafted; APK flag-gated).
 
 ## References (inspiration only)
 
@@ -39,6 +40,7 @@ No Warhammer / Blizzard / Valve character names or assets shipped.
 ## Next part (deferred)
 
 - More walk frames / hurt / death sheets
-- Bulwark / skeleton / fusion variants
+- Bulwark / fusion variants
 - Optional palette variants
 - Full in-game polish beyond frame-swap + bob/lean
+- Skeleton APK apply (flag on) — see `docs/skeleton-art-plan.md`

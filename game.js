@@ -5298,6 +5298,101 @@ function drawHuskSprite(e, alpha) {
   return true;
 }
 
+// ============ ASHEN SKELETON SPRITES — art drafted; APK apply deferred ============
+// assets/skeleton/{idle,walk,windup}.png — husk/Gharok quality, SMALLER than husk.
+// Collision r=10 unchanged. drawH = 36 * 0.9 = 32.4 (matches figure s). NOT husk-36 / NOT 228.
+// Flag off by default so live/BETA look unchanged until user applies NPC art pass.
+const SKELETON_SPRITE_ENABLED = false;
+const SKELETON_SPRITE_DRAWH = 36 * 0.9; // 32.4 — SIZE LOCK
+const skeletonSpr = { idle: null, walk: null, windup: null, ok: false };
+(function loadSkeletonSprites() {
+  if (!SKELETON_SPRITE_ENABLED) return; // soft-load only when enabled
+  const keys = ['idle', 'walk', 'windup'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) skeletonSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) skeletonSpr.ok = good > 0; };
+    img.src = 'assets/skeleton/' + k + '.png';
+    skeletonSpr[k] = img;
+  }
+})();
+
+function skeletonSpriteReady(img) {
+  return !!(SKELETON_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+
+function skeletonSpriteFrame(e) {
+  if ((e.swipeT || 0) > 0 && skeletonSpriteReady(skeletonSpr.windup)) return skeletonSpr.windup;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  if (moving && skeletonSpriteReady(skeletonSpr.walk) && skeletonSpriteReady(skeletonSpr.idle)) {
+    return (Math.floor((e.walk || 0) / Math.PI) & 1) ? skeletonSpr.walk : skeletonSpr.idle;
+  }
+  if (skeletonSpriteReady(skeletonSpr.idle)) return skeletonSpr.idle;
+  if (skeletonSpriteReady(skeletonSpr.walk)) return skeletonSpr.walk;
+  if (skeletonSpriteReady(skeletonSpr.windup)) return skeletonSpr.windup;
+  return null;
+}
+
+function drawSkeletonSprite(e, alpha) {
+  if (!SKELETON_SPRITE_ENABLED) return false;
+  const img = skeletonSpriteFrame(e);
+  if (!img) return false;
+  const s = 0.9; // UNIT_SIZES skeleton figure s
+  const drawH = SKELETON_SPRITE_DRAWH; // 32.4 — not husk 36, not boss 228
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const t = e.walk || 0;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  const swipe = e.swipeT || 0;
+  const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
+  const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
+  const hurt = e.flash > 0;
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.4 * s
+    : (swipe > 0) ? 0.8 * s
+    : Math.abs(Math.sin(t * 0.55)) * 0.4 * s;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
+  const lean = moving ? Math.sin(t) * 0.045
+    : windPose > 0 ? -0.08 - windPose * 0.03
+    : strikePose > 0 ? 0.13 * (1 - strikePose * 0.3)
+    : hurt ? -0.09
+    : Math.sin(t * 0.55) * 0.012;
+  const squashY = 1 - plant * 0.03 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.015 : 0);
+  const squashX = 1 + plant * 0.025 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.015 : 0);
+
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.32)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 8 * s * (1 + plant * 0.04), 3.6 * s, 0, 0, TAU); ctx.fill();
+
+  ctx.scale(e.facing || 1, 1);
+  ctx.translate(0, -bob);
+  ctx.rotate(lean);
+  ctx.scale(squashX, squashY);
+
+  if (windPose > 0 || strikePose > 0) {
+    ctx.save();
+    const glow = windPose || strikePose;
+    ctx.globalAlpha *= 0.35 + glow * 0.4;
+    ctx.shadowColor = '#4de1ff';
+    ctx.shadowBlur = 9 * s;
+    ctx.fillStyle = `rgba(77,225,255,${0.12 + glow * 0.22})`;
+    ctx.beginPath();
+    ctx.ellipse(drawW * 0.16, -drawH * 0.58, 7 * s + glow * 3.5, 9 * s + glow * 4.5, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (hurt) ctx.filter = 'brightness(2.5) saturate(0.15)';
+  ctx.drawImage(img, -drawW / 2, -drawH + 2, drawW, drawH);
+  ctx.filter = 'none';
+
+  ctx.restore();
+  return true;
+}
+
 // ============ WORLD SPRITES (v2.8.7) — pine trees + rocks ============
 // assets/world/trees|rocks/*.png — drawImage when ready, procedural fallback otherwise.
 const worldSpr = {
@@ -6505,6 +6600,8 @@ function render() {
         drawWarlord(e, emerge); // v2.8.6 sprite boss + gait bob + stomps (fallback: drawWarlordProcedural)
       } else if ((e.type === 'husk' || e.type === 'sprinter') && drawHuskSprite(e, emerge)) {
         // v2.12.1 Ashen Husk sheets — small drawH (36*s), collision r unchanged; procedural if load fails
+      } else if (e.type === 'skeleton' && drawSkeletonSprite(e, emerge)) {
+        // Ashen Skeleton sheets — drawH=32.4, r=10; gated by SKELETON_SPRITE_ENABLED (APK apply deferred)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

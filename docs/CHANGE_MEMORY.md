@@ -47,6 +47,7 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 | WC2-style town / mines / worker≠squad / +3 train | Yes (2.11.0+) | Yes | No | No if still on 2.6 |
 | In-engine unit anim finish (Gharok + all figures) | Yes (2.12.0+) | Yes (2.12.0+) | No | No if still on 2.6 |
 | Ashen Husk detailed sprites (idle/walk/windup, r=14) | Yes (2.12.1) | Yes (2.12.1) | No | No if still on 2.6 |
+| Ashen Skeleton sprites (idle/walk/windup, r=10) | Art in repo; flag **off** (APK deferred) | No | No | No |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | No | No if still on 2.6 |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **No** | **No** |
@@ -132,6 +133,7 @@ Append new versions at the top of this list when shipping.
 
 ### 2.12.1
 - Ashen Husk detailed sprite sheets (`assets/zombie/{idle,walk,windup}.png`) wired to husk/sprinter like Gharok frame-swap; **size lock:** husk `r=14`, sprite `drawH=36` (sprinter `×0.85`) — art upgrade only, not boss footprint. Procedural fallback kept. Refs inspiration-only under `_refs/` (stripped from APK). See `docs/zombie-art-plan.md`.
+- **Ashen Skeleton art drafted (same day, no version bump):** `assets/skeleton/{idle,walk,windup}.png` — `r=10`, `drawH=32.4`; soft-wire `SKELETON_SPRITE_ENABLED=false`; **APK apply deferred**. See `docs/skeleton-art-plan.md`.
 
 ### 2.12.0
 - In-engine animation finish (no Pixelorama required): Gharok idle/walk/windup+strike/hurt lean at locked `r=54` / `drawH=228`; additive walk/attack/hurt for husks, sprinters, shamans, ravagers, bulwarks, skeletons, companions, militia, laborers, Colossus. Sizes locked in `docs/UNIT_SIZES.md`. Pixelorama drop path optional later.

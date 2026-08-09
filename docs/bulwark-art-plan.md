@@ -3,8 +3,7 @@
 Original Temporal Rift **Ashen Bulwark** (aka **Rift Brute**) sheets — same Gharok /
 Ashen Husk / Ashen Skeleton **art quality / process**, tank footprint (not boss).
 
-**Status (2026-08-09):** art drafted + committed. **APK apply deferred** — enable
-in-game when ready (`BULWARK_SPRITE_ENABLED` in `game.js`).
+**Status (2026-08-09):** **APPLIED in v2.13.0** — `BULWARK_SPRITE_ENABLED=true` in BETA.
 
 ## Size lock (enforced)
 
@@ -55,6 +54,5 @@ for Photos review (chat may not show PNGs).
 
 ## Next
 
-- Flip `BULWARK_SPRITE_ENABLED` + BETA APK when applying to game
-- NPC **#3** shaman done (see `docs/shaman-art-plan.md`); next: ravager when refs ready
 - Optional more walk / hurt / fusion-emerge frames
+- Ravager (#4) still procedural until art pass

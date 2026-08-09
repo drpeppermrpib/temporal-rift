@@ -362,7 +362,7 @@ bindHold('btnTalk', () => {
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.12.1';
+const APP_VERSION = '2.13.0';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -779,6 +779,110 @@ const sfx = (() => {
       o.start(now); o.stop(now + 0.34);
       src.start(now); src.stop(now + 0.24);
     },
+    // Enemy combat barks — pitch/timbre via opts.voice
+    bark(ctx, dest, now, opts) {
+      const v = (opts && opts.voice) || 'husk';
+      const src = ctx.createBufferSource(); src.buffer = noise(ctx);
+      const og = ctx.createGain();
+      const ng = ctx.createGain();
+      const osc = ctx.createOscillator();
+      if (v === 'skeleton') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(620, now);
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.09);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.exponentialRampToValueAtTime(0.07, now + 0.01);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 6;
+        bp.frequency.setValueAtTime(2800, now);
+        bp.frequency.exponentialRampToValueAtTime(900, now + 0.12);
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.exponentialRampToValueAtTime(0.11, now + 0.015);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+        osc.connect(og).connect(dest);
+        src.connect(bp).connect(ng).connect(dest);
+        osc.start(now); osc.stop(now + 0.13);
+        src.start(now); src.stop(now + 0.15);
+      } else if (v === 'bulwark' || v === 'warlord') {
+        const base = v === 'warlord' ? 72 : 95;
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(base, now);
+        osc.frequency.exponentialRampToValueAtTime(base * 0.45, now + 0.28);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.exponentialRampToValueAtTime(v === 'warlord' ? 0.16 : 0.13, now + 0.04);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.exponentialRampToValueAtTime(0.1, now + 0.03);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+        osc.connect(og).connect(dest);
+        src.connect(lp).connect(ng).connect(dest);
+        osc.start(now); osc.stop(now + 0.34);
+        src.start(now); src.stop(now + 0.28);
+      } else if (v === 'shaman') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(210, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.2);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.exponentialRampToValueAtTime(0.08, now + 0.03);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+        const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1400;
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.exponentialRampToValueAtTime(0.09, now + 0.02);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+        osc.connect(og).connect(dest);
+        src.connect(hp).connect(ng).connect(dest);
+        osc.start(now); osc.stop(now + 0.24);
+        src.start(now); src.stop(now + 0.22);
+      } else if (v === 'sprinter') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.exponentialRampToValueAtTime(0.1, now + 0.015);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.2;
+        bp.frequency.value = 900;
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.exponentialRampToValueAtTime(0.07, now + 0.01);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+        osc.connect(og).connect(dest);
+        src.connect(bp).connect(ng).connect(dest);
+        osc.start(now); osc.stop(now + 0.16);
+        src.start(now); src.stop(now + 0.12);
+      } else if (v === 'ravager') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(130, now);
+        osc.frequency.exponentialRampToValueAtTime(55, now + 0.22);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.exponentialRampToValueAtTime(0.14, now + 0.03);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.exponentialRampToValueAtTime(0.09, now + 0.02);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        osc.connect(og).connect(dest);
+        src.connect(lp).connect(ng).connect(dest);
+        osc.start(now); osc.stop(now + 0.28);
+        src.start(now); src.stop(now + 0.2);
+      } else {
+        // husk — wet moan / uuhh
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(118, now);
+        osc.frequency.exponentialRampToValueAtTime(48, now + 0.32);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.exponentialRampToValueAtTime(0.09, now + 0.05);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 480;
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.exponentialRampToValueAtTime(0.08, now + 0.04);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+        osc.connect(og).connect(dest);
+        src.connect(lp).connect(ng).connect(dest);
+        osc.start(now); osc.stop(now + 0.38);
+        src.start(now); src.stop(now + 0.32);
+      }
+    },
   };
   const meta = {
     whoosh: { cat: 'sfx', throttle: 0.09 },
@@ -792,6 +896,7 @@ const sfx = (() => {
     click: { cat: 'ui', throttle: 0.04 },
     fire: { cat: 'sfx', throttle: 0.055 },
     cleaver: { cat: 'sfx', throttle: 0.2 },
+    bark: { cat: 'sfx', throttle: 0.12 },
   };
 
   const api = {
@@ -833,6 +938,44 @@ function playWhoosh() { sfx.play('whoosh'); }
 function playZapThump() { sfx.play('zap'); }
 function playCracklePop() { sfx.play('crackle'); }
 function playStomp() { sfx.play('stomp'); }
+
+// ============ ENEMY BARKS (v2.13.0) — synth grunts + original orc lines ============
+// Respects muteMaster / muteSfx via sfx.play. Rate-limited per-enemy + global.
+const ENEMY_BARK_LINES = {
+  husk:     ['uuhh…', 'grr', 'hunger…', 'flesh…', 'moorr'],
+  sprinter: ['rar!', 'get them!', 'yargh!', 'fast kill!'],
+  skeleton: ['click…', 'hss', 'bones…', 'rattle!', 'clack'],
+  bulwark:  ['GRR', 'RAAR', 'crush!', 'hold the line!', 'smash'],
+  shaman:   ['hex…', 'hss', 'rift take you', 'curse!', 'ash bind'],
+  ravager:  ['rar', 'smash!', 'kill!', 'break them', 'GRRAH'],
+  warlord:  ['kneel!', 'ash claims you', 'GRRRAH', 'no mercy'],
+};
+const ENEMY_BARK_COLORS = {
+  husk: '#9aaa88', sprinter: '#c8a070', skeleton: '#a8d8e8',
+  bulwark: '#ff6a4d', shaman: '#b08cff', ravager: '#e07040', warlord: '#ff4d5e',
+};
+let _barkGlobalT = 0;
+function tryEnemyBark(e, reason) {
+  if (!e || e.dead || e.boss && reason === 'idle') return;
+  const now = performance.now() / 1000;
+  const minGap = reason === 'aggro' ? 0.2 : reason === 'attack' ? 1.4 : 4.5;
+  if ((e._barkAt || 0) + minGap > now) return;
+  if (now - _barkGlobalT < 0.35) return; // global anti-spam
+  // combat idle barks only when reasonably near the fight
+  if (reason === 'combat') {
+    const d2p = dist2(e.x, e.y, player.x, player.y);
+    if (d2p > 520 * 520) return;
+    if (Math.random() > 0.35) return;
+  }
+  if (reason === 'attack' && Math.random() > 0.45) return;
+  const lines = ENEMY_BARK_LINES[e.type] || ENEMY_BARK_LINES.husk;
+  const line = lines[(Math.random() * lines.length) | 0];
+  e._barkAt = now;
+  _barkGlobalT = now;
+  sfx.play('bark', { voice: e.type, throttle: 0.08 });
+  const col = ENEMY_BARK_COLORS[e.type] || '#c8d0b8';
+  addFloater(e.x, e.y - (e.r * 2.2 + 8), line, col, !!e.boss || e.type === 'bulwark' || e.type === 'ravager');
+}
 
 // Unlock AudioContext on first user gesture (desktop autoplay policies).
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => {
@@ -3868,7 +4011,24 @@ function update(dt) {
       if (Math.random() < dt * 24) spawnParticles(e.x + rand(-8, 8), e.y, 1, '#6b5636', 2);
       continue;
     }
-    if (e.spawnT > 0) { e.spawnT -= dt; continue; }
+    if (e.spawnT > 0) {
+      e.spawnT -= dt;
+      if (e.spawnT <= 0 && !e._barkedAggro) {
+        e._barkedAggro = true;
+        tryEnemyBark(e, 'aggro');
+      }
+      continue;
+    }
+    if (!e._barkedAggro) { // graves / fusion may skip spawnT path
+      e._barkedAggro = true;
+      tryEnemyBark(e, 'aggro');
+    }
+    // occasional combat bark while engaged
+    e._barkCombatCd = (e._barkCombatCd || rand(3.5, 6.5)) - dt;
+    if (e._barkCombatCd <= 0) {
+      e._barkCombatCd = rand(4.5, 7.5);
+      tryEnemyBark(e, 'combat');
+    }
     // taunt: a standing Warden pulls nearby non-boss enemies onto itself
     let tgt = player;
     if (warden && !e.boss && dist2(e.x, e.y, warden.x, warden.y) < tauntRadius() ** 2) tgt = warden;
@@ -3910,6 +4070,7 @@ function update(dt) {
       } else if (e.clawCd <= 0 && dist2(e.x, e.y, player.x, player.y) < (CLAW_RANGE * 0.9) ** 2) {
         e.clawWind = CLAW_WINDUP;
         addFloater(e.x, e.y - e.r * 2.4, '⚠ CLEAVER WIND-UP', '#ff8a93', true);
+        tryEnemyBark(e, 'attack');
         buzz(20);
       }
     }
@@ -3931,7 +4092,7 @@ function update(dt) {
     collideObstacles(e);
     collideBarricades(e, dt);
     collideStructures(e, dt);
-    e.walk += dt * (Math.hypot(e.vx, e.vy) * 0.075);
+    e.walk += dt * (Math.hypot(e.vx, e.vy) * 0.085); // clearer gait cadence (visual only)
     e.facing = e.vx >= 0 ? 1 : -1;
     // Gharok footfalls — stomp on each plant while lumbering
     if (e.boss) {
@@ -3946,7 +4107,11 @@ function update(dt) {
     // melee swipes hit whatever is in reach: the player or a companion
     const pd2c = dist2(e.x, e.y, player.x, player.y);
     if (pd2c < (e.r + player.r + 6) ** 2 && player.hurtT <= 0) {
-      if (!e.boss) e.swipeT = UNIT_SWIPE;
+      if (!e.boss) {
+        const wasSwipe = (e.swipeT || 0) <= 0;
+        e.swipeT = UNIT_SWIPE;
+        if (wasSwipe) tryEnemyBark(e, 'attack');
+      }
       hurtPlayer(e.dmg);
       if (e.kbPlayer) { // bulwark slam shoves the player back
         const pd = Math.sqrt(pd2c) || 1;
@@ -3984,6 +4149,7 @@ function update(dt) {
         const rapid = !!e.boltMode && !e.boss;
         e.atkCd = e.boss ? 1.1 : rapid ? rand(1.0, 1.6) : rand(1.6, 2.6);
         if (!e.boss) e.swipeT = UNIT_SWIPE; // staff cast pose
+        tryEnemyBark(e, 'attack');
         const a = Math.atan2(ey, ex) + rand(-0.05, 0.05);
         const n = e.boss ? 3 : 1;
         if (!rapid) playWhoosh();
@@ -5252,17 +5418,17 @@ function drawHuskSprite(e, alpha) {
   const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
   const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
   const hurt = e.flash > 0;
-  const bob = moving ? Math.abs(Math.sin(t)) * 1.6 * s
+  const bob = moving ? Math.abs(Math.sin(t)) * 2.0 * s
     : (swipe > 0) ? 0.9 * s
     : Math.abs(Math.sin(t * 0.55)) * 0.45 * s;
   const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
-  const lean = moving ? Math.sin(t) * 0.04
+  const lean = moving ? Math.sin(t) * 0.05
     : windPose > 0 ? -0.07 - windPose * 0.03
     : strikePose > 0 ? 0.12 * (1 - strikePose * 0.3)
     : hurt ? -0.09
     : Math.sin(t * 0.55) * 0.01;
-  const squashY = 1 - plant * 0.03 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.015 : 0);
-  const squashX = 1 + plant * 0.025 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.015 : 0);
+  const squashY = 1 - plant * 0.05 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.015 : 0);
+  const squashX = 1 + plant * 0.04 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.015 : 0);
 
   ctx.save();
   ctx.translate(e.x, e.y);
@@ -5298,11 +5464,10 @@ function drawHuskSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN SKELETON SPRITES — art drafted; APK apply deferred ============
+// ============ ASHEN SKELETON SPRITES (v2.13.0 APPLIED) ============
 // assets/skeleton/{idle,walk,windup}.png — husk/Gharok quality, SMALLER than husk.
 // Collision r=10 unchanged. drawH = 36 * 0.9 = 32.4 (matches figure s). NOT husk-36 / NOT 228.
-// Flag off by default so live/BETA look unchanged until user applies NPC art pass.
-const SKELETON_SPRITE_ENABLED = false;
+const SKELETON_SPRITE_ENABLED = true;
 const SKELETON_SPRITE_DRAWH = 36 * 0.9; // 32.4 — SIZE LOCK
 const skeletonSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadSkeletonSprites() {
@@ -5348,17 +5513,17 @@ function drawSkeletonSprite(e, alpha) {
   const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
   const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
   const hurt = e.flash > 0;
-  const bob = moving ? Math.abs(Math.sin(t)) * 1.4 * s
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.8 * s
     : (swipe > 0) ? 0.8 * s
     : Math.abs(Math.sin(t * 0.55)) * 0.4 * s;
   const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
-  const lean = moving ? Math.sin(t) * 0.045
+  const lean = moving ? Math.sin(t) * 0.055
     : windPose > 0 ? -0.08 - windPose * 0.03
     : strikePose > 0 ? 0.13 * (1 - strikePose * 0.3)
     : hurt ? -0.09
     : Math.sin(t * 0.55) * 0.012;
-  const squashY = 1 - plant * 0.03 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.015 : 0);
-  const squashX = 1 + plant * 0.025 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.015 : 0);
+  const squashY = 1 - plant * 0.05 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.015 : 0);
+  const squashX = 1 + plant * 0.04 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.015 : 0);
 
   ctx.save();
   ctx.translate(e.x, e.y);
@@ -5393,11 +5558,10 @@ function drawSkeletonSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN BULWARK SPRITES — art drafted; APK apply deferred ============
+// ============ ASHEN BULWARK SPRITES (v2.13.0 APPLIED) ============
 // assets/bulwark/{idle,walk,windup}.png — husk/Gharok quality, tank scale (NOT boss).
 // Collision r=20 unchanged. drawH = 36 * 1.45 = 52.2 (matches figure s). NOT husk-36 / NOT 228.
-// Flag off by default so live/BETA look unchanged until user applies NPC art pass.
-const BULWARK_SPRITE_ENABLED = false;
+const BULWARK_SPRITE_ENABLED = true;
 const BULWARK_SPRITE_DRAWH = 36 * 1.45; // 52.2 — SIZE LOCK (matches drawFigure H)
 const bulwarkSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadBulwarkSprites() {
@@ -5443,17 +5607,17 @@ function drawBulwarkSprite(e, alpha) {
   const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
   const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
   const hurt = e.flash > 0;
-  const bob = moving ? Math.abs(Math.sin(t)) * 1.6 * s
+  const bob = moving ? Math.abs(Math.sin(t)) * 2.0 * s
     : (swipe > 0) ? 0.9 * s
     : Math.abs(Math.sin(t * 0.55)) * 0.45 * s;
   const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
-  const lean = moving ? Math.sin(t) * 0.04
+  const lean = moving ? Math.sin(t) * 0.05
     : windPose > 0 ? -0.09 - windPose * 0.035
     : strikePose > 0 ? 0.14 * (1 - strikePose * 0.3)
     : hurt ? -0.1
     : Math.sin(t * 0.55) * 0.01;
-  const squashY = 1 - plant * 0.035 - (strikePose > 0 ? 0.03 : 0) + (hurt ? 0.015 : 0);
-  const squashX = 1 + plant * 0.03 + (strikePose > 0 ? 0.035 : 0) - (hurt ? 0.015 : 0);
+  const squashY = 1 - plant * 0.055 - (strikePose > 0 ? 0.03 : 0) + (hurt ? 0.015 : 0);
+  const squashX = 1 + plant * 0.045 + (strikePose > 0 ? 0.035 : 0) - (hurt ? 0.015 : 0);
 
   ctx.save();
   ctx.translate(e.x, e.y);
@@ -5488,11 +5652,10 @@ function drawBulwarkSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN SHAMAN SPRITES — art drafted; APK apply deferred ============
+// ============ ASHEN SHAMAN SPRITES (v2.13.0 APPLIED) ============
 // assets/shaman/{idle,walk,windup}.png — husk/Gharok quality, caster scale (NOT boss).
 // Collision r=13 unchanged. drawH = 36 * 1.0 = 36 (matches figure s). Same as husk baseline.
-// Flag off by default so live/BETA look unchanged until user applies NPC art pass.
-const SHAMAN_SPRITE_ENABLED = false;
+const SHAMAN_SPRITE_ENABLED = true;
 const SHAMAN_SPRITE_DRAWH = 36 * 1.0; // 36 — SIZE LOCK (matches drawFigure H / husk baseline)
 const shamanSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadShamanSprites() {
@@ -5538,17 +5701,17 @@ function drawShamanSprite(e, alpha) {
   const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
   const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
   const hurt = e.flash > 0;
-  const bob = moving ? Math.abs(Math.sin(t)) * 1.2 * s
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.6 * s
     : (swipe > 0) ? 0.7 * s
     : Math.abs(Math.sin(t * 0.55)) * 0.4 * s;
   const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
-  const lean = moving ? Math.sin(t) * 0.035
+  const lean = moving ? Math.sin(t) * 0.045
     : windPose > 0 ? -0.08 - windPose * 0.04
     : strikePose > 0 ? 0.1 * (1 - strikePose * 0.3)
     : hurt ? -0.09
     : Math.sin(t * 0.55) * 0.01;
-  const squashY = 1 - plant * 0.03 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.012 : 0);
-  const squashX = 1 + plant * 0.025 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.012 : 0);
+  const squashY = 1 - plant * 0.05 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.012 : 0);
+  const squashX = 1 + plant * 0.04 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.012 : 0);
 
   ctx.save();
   ctx.translate(e.x, e.y);
@@ -6791,11 +6954,11 @@ function render() {
       } else if ((e.type === 'husk' || e.type === 'sprinter') && drawHuskSprite(e, emerge)) {
         // v2.12.1 Ashen Husk sheets — small drawH (36*s), collision r unchanged; procedural if load fails
       } else if (e.type === 'skeleton' && drawSkeletonSprite(e, emerge)) {
-        // Ashen Skeleton sheets — drawH=32.4, r=10; gated by SKELETON_SPRITE_ENABLED (APK apply deferred)
+        // Ashen Skeleton sheets — drawH=32.4, r=10; SKELETON_SPRITE_ENABLED (2.13.0 APPLIED)
       } else if (e.type === 'bulwark' && drawBulwarkSprite(e, emerge)) {
-        // Ashen Bulwark sheets — drawH=52.2, r=20; gated by BULWARK_SPRITE_ENABLED (APK apply deferred)
+        // Ashen Bulwark sheets — drawH=52.2, r=20; BULWARK_SPRITE_ENABLED (2.13.0 APPLIED)
       } else if (e.type === 'shaman' && drawShamanSprite(e, emerge)) {
-        // Ashen Shaman sheets — drawH=36, r=13; gated by SHAMAN_SPRITE_ENABLED (APK apply deferred)
+        // Ashen Shaman sheets — drawH=36, r=13; SHAMAN_SPRITE_ENABLED (2.13.0 APPLIED)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

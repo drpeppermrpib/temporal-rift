@@ -3,8 +3,7 @@
 Original Temporal Rift **Ashen Skeleton** sheets — same Gharok / Ashen Husk
 **art quality / process**, **not** boss or husk footprint.
 
-**Status (2026-08-09):** art drafted + committed. **APK apply deferred** — enable
-in-game when ready (`SKELETON_SPRITE_ENABLED` in `game.js`).
+**Status (2026-08-09):** **APPLIED in v2.13.0** — `SKELETON_SPRITE_ENABLED=true` in BETA.
 
 ## Size lock (enforced)
 
@@ -54,5 +53,5 @@ for Photos review (chat may not show PNGs).
 ## Next
 
 - User may send more skeleton NPC refs → additional mesh sets
-- Flip `SKELETON_SPRITE_ENABLED` + BETA APK when applying to game
 - Optional more walk / hurt / emerge frames
+- Ravager (#4) still procedural until art pass

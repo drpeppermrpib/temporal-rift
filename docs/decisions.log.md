@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — SHIPPED — v2.13.0 sprites APPLIED + enemy barks
+- Version / commit / APK: 2.13.0 (versionCode 44) / (pending) / BETA `TemporalRift-BETA-2.13.0.apk`
+- User intent: Articulate enemy walk; orc talk/barks with different voices; apply deferred skeleton/bulwark/shaman sprites; ship BETA; leave Gharok movement intact
+- Agent action: Enabled `SKELETON_SPRITE_ENABLED` / `BULWARK_SPRITE_ENABLED` / `SHAMAN_SPRITE_ENABLED`; verified husk still on; gait plant/squash polish; bark synth + original lines (rate-limited, mute-aware); Gharok left as-is from 2.12.x; size locks untouched
+- Notes: Ravager still procedural. No Play upload. Copyright-safe lines only.
+
 ### 2026-08-09 — DEFERRED — Ashen Shaman art drafted (APK apply later)
 - Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / ccefeae / **no BETA APK**
 - User intent: Mesh 4 shaman/mage refs into detailed caster sprites like Husk/Skeleton/Bulwark; art for NPCs; no new APK this pass

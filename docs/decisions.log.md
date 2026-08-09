@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — OPS — Public channel ship: GitHub v2.13.2 + Play AAB handoff
+- Version / commit / APK: 2.13.2 (versionCode 46) / tag `v2.13.2` / GitHub `TemporalRift.apk` (TR_CHANNEL=github) / Play `playstore/TemporalRift-2.13.2.aab` + `rollouts/rollout-4-v2.13.2/` (TR_CHANNEL=play, verified)
+- User intent: Roll 2.13.2 as a real update (not BETA sideload); user at Play Console with only ≤2.8 available — need 2.13.2 Play AAB ASAP
+- Agent action: Verified existing play AAB (TR_CHANNEL=play); opened Explorer on `rollouts/rollout-4-v2.13.2/TemporalRift-2.13.2.aab`; created GitHub Release 8 tag `v2.13.2` with github-channel APK; updated channel matrix (GitHub=2.13.2; Play=AAB ready, upload pending)
+- Notes: Do **not** upload `TemporalRift-2.8.aab`. Play Closed status flips to 2.13.2 only after Console upload. REMOVED list intact (no ENTERING popup, no GitHub banner on Play, no IP names). No stronghold / no ravager art this ship.
+
 ### 2026-08-09 — SHIPPED — v2.13.2 enemy→ravager size + laborer retaliate + squad buff
 - Version / commit / APK: 2.13.2 (versionCode 46) / `f921eca` / BETA `TemporalRift-BETA-2.13.2.apk`
 - User intent: Sprite foes nearly ravager-sized (skeleton unchanged); laborers attack back only if hit; companions+militia smidge stronger; skip stronghold/brick walls
@@ -189,3 +195,6 @@
 - User intent: Play update banner must not send users to GitHub sideload
 - Agent action: `checkForUpdate()` only when `UPDATE_CHANNEL === 'github'`
 - Notes: True regression-class bug if this gate breaks — keep gated
+
+## 2026-08-09 15:45 — SHIPPED (Play AAB staged)
+- **2.13.2** Play AAB ready for Closed testing upload: `playstore\TemporalRift-2.13.2.aab` (+ `rollouts\TemporalRift-2.13.2.aab`), package `com.drpep.temporalrift`, versionCode **46**, `TR_CHANNEL=play` (GitHub updater off).

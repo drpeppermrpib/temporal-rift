@@ -126,6 +126,7 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Backlog | Skill-tree polish | Called backlog in 2.8.3 notes |
 | Backlog | Music bus / full soundtrack | Largely stubbed |
 | Backlog | RTS AI polish / more buildings / Colossus merge FX | 2.11.0 deepened town slice; pathfinding / true WC2 sim still thin |
+| Backlog | **Ashen Ravager** sprite art (NPC #4) | Next after Shaman; wait for refs — same soft-wire / APK-deferred pattern as Skeleton/Bulwark/Shaman |
 
 ---
 

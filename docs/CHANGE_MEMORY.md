@@ -36,7 +36,7 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 
 | Feature / version | Master (repo) | BETA APK | GitHub Release | Play Closed |
 |---|---|---|---|---|
-| **App version** | **2.12.0** (versionCode 42) | Through `TemporalRift-BETA-2.12.0.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
+| **App version** | **2.12.1** (versionCode 43) | Through `TemporalRift-BETA-2.12.1.apk` | **v2.6** latest | Last confirmed **2.6**; 2.7+ shelf not confirmed live |
 | Package | `com.drpep.temporalrift` (prod) | `com.drpep.temporalrift.beta` | Sideload / release assets | Store-signed prod |
 | Update banner → GitHub | GitHub channel only | Per build channel | Yes (github) | Must stay **off** (`UPDATE_CHANNEL !== 'github'`) |
 | Learning engine + adapt panel | Yes (+ settings hide toggle) | Yes (2.9.3+) | No (stuck ~2.6) | No if still on 2.6 |
@@ -45,7 +45,8 @@ Update when any channel ships. Audit snapshot as of 2026-08-08:
 | One-tap Aether Mend + wall ghost | Yes (2.9.3) | Yes | No | No if still on 2.6 |
 | RTS build picker / wood-gold / laborers | Yes (2.10.0+) | Yes | No | No if still on 2.6 |
 | WC2-style town / mines / worker≠squad / +3 train | Yes (2.11.0+) | Yes | No | No if still on 2.6 |
-| In-engine unit anim finish (Gharok + all figures) | Yes (2.12.0) | Yes (2.12.0) | No | No if still on 2.6 |
+| In-engine unit anim finish (Gharok + all figures) | Yes (2.12.0+) | Yes (2.12.0+) | No | No if still on 2.6 |
+| Ashen Husk detailed sprites (idle/walk/windup, r=14) | Yes (2.12.1) | Yes (2.12.1) | No | No if still on 2.6 |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | No | No if still on 2.6 |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **No** | **No** |
@@ -128,6 +129,9 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 ## Changelog by version (seed — brief)
 
 Append new versions at the top of this list when shipping.
+
+### 2.12.1
+- Ashen Husk detailed sprite sheets (`assets/zombie/{idle,walk,windup}.png`) wired to husk/sprinter like Gharok frame-swap; **size lock:** husk `r=14`, sprite `drawH=36` (sprinter `×0.85`) — art upgrade only, not boss footprint. Procedural fallback kept. Refs inspiration-only under `_refs/` (stripped from APK). See `docs/zombie-art-plan.md`.
 
 ### 2.12.0
 - In-engine animation finish (no Pixelorama required): Gharok idle/walk/windup+strike/hurt lean at locked `r=54` / `drawH=228`; additive walk/attack/hurt for husks, sprinters, shamans, ravagers, bulwarks, skeletons, companions, militia, laborers, Colossus. Sizes locked in `docs/UNIT_SIZES.md`. Pixelorama drop path optional later.

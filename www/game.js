@@ -362,7 +362,7 @@ bindHold('btnTalk', () => {
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
-const APP_VERSION = '2.12.0';
+const APP_VERSION = '2.12.1';
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -5204,6 +5204,100 @@ function gharokSpriteReady(img) {
   return !!(img && img.complete && img.naturalWidth > 0);
 }
 
+// ============ ASHEN HUSK SPRITES (v2.12.1) — detailed art, SMALL footprint ============
+// assets/zombie/{idle,walk,windup}.png — Gharok-quality detail, NOT Gharok size.
+// Collision husk r=14 / sprinter r=11 unchanged. drawH matches figure H (36*s), not boss 228.
+const HUSK_SPRITE_DRAWH = 36; // == drawFigure H at s=1.0 — SIZE LOCK
+const zombieSpr = { idle: null, walk: null, windup: null, ok: false };
+(function loadZombieSprites() {
+  const keys = ['idle', 'walk', 'windup'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) zombieSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) zombieSpr.ok = good > 0; };
+    img.src = 'assets/zombie/' + k + '.png';
+    zombieSpr[k] = img;
+  }
+})();
+
+function zombieSpriteReady(img) {
+  return !!(img && img.complete && img.naturalWidth > 0);
+}
+
+function zombieSpriteFrame(e) {
+  // Attack: windup sheet while swipe telegraphs / strikes (husks use swipeT, not clawWind)
+  if ((e.swipeT || 0) > 0 && zombieSpriteReady(zombieSpr.windup)) return zombieSpr.windup;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  if (moving && zombieSpriteReady(zombieSpr.walk) && zombieSpriteReady(zombieSpr.idle)) {
+    return (Math.floor((e.walk || 0) / Math.PI) & 1) ? zombieSpr.walk : zombieSpr.idle;
+  }
+  if (zombieSpriteReady(zombieSpr.idle)) return zombieSpr.idle;
+  if (zombieSpriteReady(zombieSpr.walk)) return zombieSpr.walk;
+  if (zombieSpriteReady(zombieSpr.windup)) return zombieSpr.windup;
+  return null;
+}
+
+// Returns true if sprite drew; false → caller falls back to procedural drawFigure.
+function drawHuskSprite(e, alpha) {
+  const img = zombieSpriteFrame(e);
+  if (!img) return false;
+  const s = e.type === 'sprinter' ? 0.85 : 1.0; // UNIT_SIZES draw scales
+  const drawH = HUSK_SPRITE_DRAWH * s; // husk ~36, sprinter ~30.6 — NOT 228
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const t = e.walk || 0;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  const swipe = e.swipeT || 0;
+  const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
+  const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
+  const hurt = e.flash > 0;
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.6 * s
+    : (swipe > 0) ? 0.9 * s
+    : Math.abs(Math.sin(t * 0.55)) * 0.45 * s;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
+  const lean = moving ? Math.sin(t) * 0.04
+    : windPose > 0 ? -0.07 - windPose * 0.03
+    : strikePose > 0 ? 0.12 * (1 - strikePose * 0.3)
+    : hurt ? -0.09
+    : Math.sin(t * 0.55) * 0.01;
+  const squashY = 1 - plant * 0.03 - (strikePose > 0 ? 0.025 : 0) + (hurt ? 0.015 : 0);
+  const squashX = 1 + plant * 0.025 + (strikePose > 0 ? 0.03 : 0) - (hurt ? 0.015 : 0);
+
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+
+  // shadow — match procedural husk footprint (not boss ellipse)
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 11 * s * (1 + plant * 0.04), 4.5 * s, 0, 0, TAU); ctx.fill();
+
+  ctx.scale(e.facing || 1, 1);
+  ctx.translate(0, -bob);
+  ctx.rotate(lean);
+  ctx.scale(squashX, squashY);
+
+  if (windPose > 0 || strikePose > 0) {
+    ctx.save();
+    const glow = windPose || strikePose;
+    ctx.globalAlpha *= 0.35 + glow * 0.4;
+    ctx.shadowColor = '#ff4d5e';
+    ctx.shadowBlur = 10 * s;
+    ctx.fillStyle = `rgba(255,77,94,${0.15 + glow * 0.25})`;
+    ctx.beginPath();
+    ctx.ellipse(drawW * 0.18, -drawH * 0.55, 8 * s + glow * 4, 10 * s + glow * 5, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (hurt) ctx.filter = 'brightness(2.5) saturate(0.15)';
+  ctx.drawImage(img, -drawW / 2, -drawH + 2, drawW, drawH);
+  ctx.filter = 'none';
+
+  ctx.restore();
+  return true;
+}
+
 // ============ WORLD SPRITES (v2.8.7) — pine trees + rocks ============
 // assets/world/trees|rocks/*.png — drawImage when ready, procedural fallback otherwise.
 const worldSpr = {
@@ -6409,6 +6503,8 @@ function render() {
       }
       if (e.type === 'warlord') {
         drawWarlord(e, emerge); // v2.8.6 sprite boss + gait bob + stomps (fallback: drawWarlordProcedural)
+      } else if ((e.type === 'husk' || e.type === 'sprinter') && drawHuskSprite(e, emerge)) {
+        // v2.12.1 Ashen Husk sheets — small drawH (36*s), collision r unchanged; procedural if load fails
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

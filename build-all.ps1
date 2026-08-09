@@ -37,8 +37,8 @@ function Set-Channel([string]$channel) {
         Get-ChildItem "$root\assets" -File | ForEach-Object {
             Copy-Item $_.FullName "$root\www\assets\" -Force
         }
-        # nested _raw under character folders is for regenerating art — omit from APK
-        Get-ChildItem "$root\www\assets" -Directory -Recurse | Where-Object { $_.Name -eq '_raw' } |
+        # nested _raw / _refs under character folders — omit from APK (regen + inspiration only)
+        Get-ChildItem "$root\www\assets" -Directory -Recurse | Where-Object { $_.Name -eq '_raw' -or $_.Name -eq '_refs' } |
             Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
     # -Encoding UTF8 is required: PS5 otherwise decodes BOM-less UTF-8 as ANSI (mojibake)

@@ -65,7 +65,7 @@ try {
         Get-ChildItem "$root\assets" -File | ForEach-Object {
             Copy-Item $_.FullName "$root\www\assets\" -Force
         }
-        Get-ChildItem "$root\www\assets" -Directory -Recurse | Where-Object { $_.Name -eq '_raw' } |
+        Get-ChildItem "$root\www\assets" -Directory -Recurse | Where-Object { $_.Name -eq '_raw' -or $_.Name -eq '_refs' } |
             Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
     $html = Get-Content "$root\www\index.html" -Raw -Encoding UTF8

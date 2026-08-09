@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — SHIPPED — v2.12.1 Ashen Husk detailed sprites (small footprint)
+- Version / commit / APK: 2.12.1 (versionCode 43) / (pending) / BETA `TemporalRift-BETA-2.12.1.apk`
+- User intent: Make zombies the same way as Gharok (detailed sprite art from refs); rest of zombie polish next part; **CRITICAL:** keep current small husk size — Gharok pipeline = quality only, not boss `r=54` / `drawH=228`
+- Agent action: Generated original Ashen Husk idle/walk/windup PNGs; wired husk+sprinter frame-swap with `HUSK_SPRITE_DRAWH=36` (matches figure H); collision `r=14`/`11` untouched; procedural fallback; `docs/zombie-art-plan.md` + UNIT_SIZES note; strip `_refs` from APK
+- Notes: Refs = inspiration (cartoon shamble + forest creep vibe); no Valve/L4D Creep IP / Warhammer / Blizzard. Next part: more frames, bulwark/skeleton variants, fuller polish. No Pixelorama. No Play upload.
+
 ### 2026-08-08 — SHIPPED — v2.12.0 in-engine unit animation finish (sizes locked)
 - Version / commit / APK: 2.12.0 (versionCode 42) / `a15fa7d` / BETA `TemporalRift-BETA-2.12.0.apk`
 - User intent: Can't use Pixelorama (SplashTop); do Gharok-style finished movements for all units; keep current sizes; no Pixelorama workflow push

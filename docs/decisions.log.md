@@ -17,7 +17,7 @@
 ---
 
 ### 2026-08-08 — SHIPPED — Windows character-drop pipeline (docs + folder)
-- Version / commit / APK: docs only (no APP_VERSION bump) / pending commit
+- Version / commit / APK: docs only (no APP_VERSION bump) / `526f9ac`
 - User intent: Rift Forge APK too hard for skins; want limb-flowing enemies/allies + moving textures via easy Windows tools; drop files for agent; AI-smart tooling wish
 - Agent action: Researched FOSS Windows 2D tools; scaffolded `content/character-drops/` + `docs/CHARACTER_DROP_FORMAT.md`; copied ash-scout metadata example; recommended Pixelorama primary / LibreSprite backup; **no** in-engine skeletal/sheet loader this pass (procedural draw still default)
 - Notes: **Rift Forge APK deferred for ease** — Windows drop pipeline preferred for v3 art. ComfyUI/AnimateDiff optional drafts only. Next: artist drops sheets → agent wires one unit sheet player.

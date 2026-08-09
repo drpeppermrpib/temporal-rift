@@ -17,7 +17,7 @@
 ---
 
 ### 2026-08-08 — SHIPPED — v2.11.0 WC2-inspired RTS overhaul slice
-- Version / commit / APK: 2.11.0 (versionCode 41) / (pending commit) / BETA `TemporalRift-BETA-2.11.0.apk`
+- Version / commit / APK: 2.11.0 (versionCode 41) / `740e93a` / BETA `TemporalRift-BETA-2.11.0.apk`
 - User intent: Warcraft-2–inspired additive overhaul (~2hr playable slice): town buildings, choppable forests, gold mines, workers≠squad, Muster +3/wave fighters, click orders/skills, expanded map; original names only; keep wave survival
 - Agent action: Map 3600→4800; forest stands + gold mine buildings; Rift Keep / Supply Camp / Gold Vault + existing halls; Ashen Laborers worker-only with Chop/Mine/Follow orders; Muster Spearmen/Bowmen (+3 train/wave, revivable); light fighter skill nodes; starter Keep+2 laborers + tips; HUD worker/squad counts; kept companions/barricades/mend/revive/learning/BETA id; no Play Console; no Rift Forge v3
 - Notes: discoverability_risk reduced (starter Keep + tip banner + clearer BUILD hint). Pathfinding/AI polish still thin vs full WC2. No copyrighted names.

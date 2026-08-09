@@ -17,7 +17,7 @@
 ---
 
 ### 2026-08-09 — SHIPPED — v2.13.2 enemy→ravager size + laborer retaliate + squad buff
-- Version / commit / APK: 2.13.2 (versionCode 46) / `PENDING` / BETA `TemporalRift-BETA-2.13.2.apk`
+- Version / commit / APK: 2.13.2 (versionCode 46) / `f921eca` / BETA `TemporalRift-BETA-2.13.2.apk`
 - User intent: Sprite foes nearly ravager-sized (skeleton unchanged); laborers attack back only if hit; companions+militia smidge stronger; skip stronghold/brick walls
 - Agent action: Size pass husk/sprinter/bulwark/shaman toward ravager; skeleton left at 2.13.1; laborer `retaliateT` on-damage only (removed threaten engage + flee-to-fight); slight companion/militia HP+dmg; UNIT_SIZES + CHANGE_MEMORY; stronghold skipped
 - Notes: Gharok/ravager/sprites/barks/RTS core intact. Old→new sizes in UNIT_SIZES.md.

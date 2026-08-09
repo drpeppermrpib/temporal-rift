@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — Ashen Bulwark art drafted (APK apply later)
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / pending / **no BETA APK**
+- User intent: Mesh 4 orc/brute refs into detailed tank sprites like Ashen Husk / Skeleton; art for NPCs; no new APK this pass
+- Agent action: Generated original Ashen Bulwark / Rift Brute idle/walk/windup; size lock `r=20` / `drawH=52.2` (36×1.45); soft-wire behind `BULWARK_SPRITE_ENABLED=false`; docs + Desktop preview; CHANGE_MEMORY append
+- Notes: Ready for NPC #3 shaman/ravager. Flip flag + BETA when applying. No WoW/Blizzard/Warhammer IP.
+
 ### 2026-08-09 — DEFERRED — Ashen Skeleton art drafted (APK apply later)
 - Version / commit / APK: assets+docs only (no APP_VERSION / versionCode bump) / `24c4c31` / **no BETA APK**
 - User intent: Mesh 3 skeleton refs into detailed sprites like Ashen Husk / Gharok; art for NPCs first; no new APK this pass

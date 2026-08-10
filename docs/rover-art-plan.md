@@ -3,16 +3,17 @@
 Original Temporal Rift **Ashen Rover** (aka **Rift Hound**, shop name **Rover**) sheets —
 same pipeline as enemy / building soft-wire art. Companion footprint (not boss).
 
-**Status (2026-08-09):** **Drafted, flag OFF** — `ROVER_SPRITE_ENABLED=false`.
-Live game still uses procedural `drawRover`. No APK / no version bump / no live enable.
-This pass = **dog only** (ally batch **#3a**). Warden / Scout / Sentinel = later.
+**Status (2026-08-09):** **Articulation + barks on master** — `ROVER_SPRITE_ENABLED=true`
+for Continuity / source testing (like Cloister Wall). **Store ship deferred** with peer
+batch — **no APK / no version bump / no Play**. Ally batch **#3a** dog only; Warden /
+Scout / Sentinel = later.
 
 ## Size lock (enforced)
 
 | Field | Value | Notes |
 |-------|-------|--------|
 | Rover collision `r` | **11** | Unchanged — `docs/UNIT_SIZES.md` / `syncCompanions` |
-| Procedural chassis | ~21 px tall | Visor/snout ~y−21 → feet at 0 |
+| Procedural chassis | ~21 px tall | Visor/snout ~y−21 → feet at 0 (fallback) |
 | Sprite `drawH` | **26** | Matches procedural footprint + pad — **not** husk `56`, **not** Gharok `228` |
 | On-screen | companion dog | Keep current Rover footprint; do not boss-size |
 
@@ -26,12 +27,37 @@ but drawn at companion scale (`drawH=26`).
 - `assets/allies/rover/attack.png` (plasma-bite windup / lunge)
 - `assets/allies/rover/death.png` (downed)
 
-Transparent background. Soft-load path mirrors husk/shaman frame-swap when
-`ROVER_SPRITE_ENABLED === true`; procedural `drawRover` remains default / fallback.
+Transparent background. Soft-load path mirrors husk/shaman/ravager frame-swap when
+`ROVER_SPRITE_ENABLED === true`; procedural `drawRover` remains fallback.
 Attack frame maps to `swipeT` plasma-bite telegraph; death when `downed`.
 
 Process: `node scripts/process-rover-sprites.mjs` (light/grey flood-key → 512).
 www sync sheets only (no `_refs` / `_raw`).
+
+## Articulation (in-engine)
+
+Same sheet gait pattern as husk / ravager:
+
+| Pose | Trigger |
+|------|---------|
+| idle ↔ walk | gait half-cycle while moving (`walk` / π) |
+| attack | `swipeT` plasma-bite windup / strike |
+| death | `downed` |
+| plant squash / bob / lean | moving plant + bite wind/strike poses + hurt flash |
+
+## Barks (aether-hound)
+
+Distinct from orc enemy barks — higher/shorter synth `voice: 'rover'`, cyan floaters:
+
+| Reason | When | Sample lines |
+|--------|------|--------------|
+| alert | first engage foe | woof! / alert! / here! |
+| attack | plasma-bite | grr! / SNAP / rrarf! |
+| combat | occasional while fighting | woof / hunt! / arf! |
+| hurt | takes damage | yelp! / rrf! |
+| fetch | picks up loose core | fetch! / got it! |
+
+Mute-aware via `sfx.play('bark')` + shared global anti-spam with enemy barks.
 
 ## Design (original — mesh of cybernetic dog refs)
 
@@ -62,8 +88,8 @@ Under `assets/allies/rover/_refs/` (stripped from APK — not copied to `www/`):
 ## Soft-wire
 
 ```js
-ROVER_SPRITE_ENABLED = false   // live procedural drawRover
-ROVER_SPRITE_DRAWH = 26        // flag ON draw height
+ROVER_SPRITE_ENABLED = true    // master Continuity testing; store ship deferred
+ROVER_SPRITE_DRAWH = 26        // size lock
 // collision r=11 always
 ```
 
@@ -75,5 +101,4 @@ for Photos review (chat may not show PNGs).
 ## Next
 
 - **#3b** skill-tree squad (Warden / Scout / Sentinel) when user sends photos or says go
-- Optional articulation / barks later (art first; user can request motion next)
-- Flip `ROVER_SPRITE_ENABLED` with peer ally/building batch — not this pass
+- Store ship with Continuity + peer art batch (no APK this pass)

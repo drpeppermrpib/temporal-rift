@@ -868,6 +868,24 @@ const sfx = (() => {
         src.connect(lp).connect(ng).connect(dest);
         osc.start(now); osc.stop(now + 0.42);
         src.start(now); src.stop(now + 0.32);
+      } else if (v === 'rover') {
+        // Aether-hound yip/woof — higher + shorter than orc barks (not husk/ravager sawtooth)
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(240, now + 0.11);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.exponentialRampToValueAtTime(0.1, now + 0.012);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 3.2;
+        bp.frequency.setValueAtTime(1600, now);
+        bp.frequency.exponentialRampToValueAtTime(700, now + 0.12);
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+        osc.connect(og).connect(dest);
+        src.connect(bp).connect(ng).connect(dest);
+        osc.start(now); osc.stop(now + 0.15);
+        src.start(now); src.stop(now + 0.13);
       } else {
         // husk — wet moan / uuhh
         osc.type = 'sawtooth';
@@ -979,6 +997,30 @@ function tryEnemyBark(e, reason) {
   sfx.play('bark', { voice: e.type, throttle: 0.08 });
   const col = ENEMY_BARK_COLORS[e.type] || '#c8d0b8';
   addFloater(e.x, e.y - (e.r * 2.2 + 8), line, col, !!e.boss || e.type === 'bulwark' || e.type === 'ravager');
+}
+
+// ============ ASHEN ROVER BARKS — aether-hound woof/grr (ally; mute-aware) ============
+const ROVER_BARK_LINES = {
+  alert:  ['woof!', 'rrf?', 'alert!', 'here!'],
+  attack: ['grr!', 'SNAP', 'rrarf!', 'bite!'],
+  combat: ['woof', 'grr…', 'arf!', 'hunt!', 'rrf'],
+  hurt:   ['yelp!', 'rrf!', 'hurt…'],
+  fetch:  ['fetch!', 'got it!', 'arf!'],
+};
+function tryRoverBark(c, reason) {
+  if (!c || c.type !== 'rover' || c.downed) return;
+  const now = performance.now() / 1000;
+  const minGap = reason === 'alert' ? 0.25 : reason === 'attack' ? 1.2 : reason === 'hurt' ? 1.6 : reason === 'fetch' ? 2.2 : 4.2;
+  if ((c._barkAt || 0) + minGap > now) return;
+  if (now - _barkGlobalT < 0.3) return;
+  if (reason === 'combat' && Math.random() > 0.4) return;
+  if (reason === 'attack' && Math.random() > 0.5) return;
+  const lines = ROVER_BARK_LINES[reason] || ROVER_BARK_LINES.combat;
+  const line = lines[(Math.random() * lines.length) | 0];
+  c._barkAt = now;
+  _barkGlobalT = now;
+  sfx.play('bark', { voice: 'rover', throttle: 0.07 });
+  addFloater(c.x, c.y - 28, line, '#4de1ff', false);
 }
 
 // Unlock AudioContext on first user gesture (desktop autoplay policies).
@@ -1708,6 +1750,7 @@ function hurtCompanion(c, dmg) {
   c.hp -= dmg;
   c.hurtT = 0.72;
   spawnParticles(c.x, c.y - 10, 6, '#ff8a93', 3);
+  if (c.type === 'rover') tryRoverBark(c, 'hurt');
   if (c.hp <= 0) {
     c.hp = 0;
     c.downed = true;
@@ -1750,6 +1793,7 @@ function updateCompanions(dt) {
               pk.fetched = true; // flies to the player from here (pickup update)
               c.fetchCd = 1.2;
               addFloater(c.x, c.y - 24, '⬡ fetch!', '#4de1ff', false);
+              tryRoverBark(c, 'fetch');
             }
           }
         }
@@ -1785,9 +1829,19 @@ function updateCompanions(dt) {
       c.aim = Math.atan2(foe.y - c.y, foe.x - c.x);
       c.facing = Math.cos(c.aim) >= 0 ? 1 : -1;
       if (c.type === 'rover') {
+        if (!c._barkedAlert) {
+          c._barkedAlert = true;
+          tryRoverBark(c, 'alert');
+        }
+        c._barkCombatCd = (c._barkCombatCd || rand(3.2, 5.8)) - dt;
+        if (c._barkCombatCd <= 0) {
+          c._barkCombatCd = rand(4.0, 6.5);
+          tryRoverBark(c, 'combat');
+        }
         if (c.atkCd <= 0 && fd2 < (c.r + foe.r + 12) ** 2) {
           c.atkCd = compInterval(c);
           c.swipeT = UNIT_SWIPE;
+          tryRoverBark(c, 'attack');
           const d = Math.sqrt(fd2) || 1;
           directDamage(foe, compDamage(c), (foe.x - c.x) / d, (foe.y - c.y) / d, 140);
           zap(c.x, c.y - 8, foe.x, foe.y - 10); // plasma-bite arc
@@ -6927,10 +6981,11 @@ function drawWarlordProcedural(e, alpha) {
 // Rover: quadruped robot dog with a cyan visor. Warden/Scout reuse the
 // shared humanoid rig with cannon/crossbow arms.
 //
-// ============ ASHEN ROVER / RIFT HOUND SPRITES (drafted; flag OFF) ============
+// ============ ASHEN ROVER / RIFT HOUND SPRITES (articulation+barks ON for Continuity; store deferred) ============
 // assets/allies/rover/{idle,walk,attack,death}.png — companion footprint, NOT boss.
-// Flag OFF: live procedural drawRover. Flag ON: sheets at drawH=26, collision r=11 unchanged.
-const ROVER_SPRITE_ENABLED = false;
+// Flag ON for master Continuity testing (like Cloister Wall). Store ship deferred with peer batch.
+// Size lock: collision r=11 always; drawH=26. Procedural drawRover remains fallback.
+const ROVER_SPRITE_ENABLED = true;
 const ROVER_SPRITE_DRAWH = 26; // SIZE LOCK — matches procedural ~21 chassis + pad; << husk 56 / Gharok 228
 const roverSpr = { idle: null, walk: null, attack: null, death: null, ok: false };
 (function loadRoverSprites() {
@@ -6952,6 +7007,7 @@ function roverSpriteReady(img) {
 }
 
 function roverSpriteFrame(c) {
+  // idle↔walk by gait half-cycle; attack on swipeT plasma-bite; death when downed
   if (c.downed && roverSpriteReady(roverSpr.death)) return roverSpr.death;
   if ((c.swipeT || 0) > 0 && roverSpriteReady(roverSpr.attack)) return roverSpr.attack;
   const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
@@ -6973,36 +7029,45 @@ function drawRoverSprite(c) {
   const t = c.walk || 0;
   const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
   const swipe = c.swipeT || 0;
+  const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
+  const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
   const bite = swipe > 0 ? clamp(1 - swipe / UNIT_SWIPE, 0, 1) : 0;
   const flash = c.hurtT > 0.35;
-  const bob = moving ? Math.abs(Math.sin(t)) * 1.2
-    : (swipe > 0) ? 0.5
+  // Compact hound gait — plant squash/bob like husk/ravager sheet path (small footprint)
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.35
+    : (swipe > 0) ? 0.55
     : Math.abs(Math.sin(t * 0.5)) * 0.35;
-  const lean = moving ? Math.sin(t) * 0.04
-    : bite > 0.4 ? 0.08
-    : flash ? -0.06
-    : 0;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
+  const lean = moving ? Math.sin(t) * 0.05
+    : windPose > 0 ? -0.06 - windPose * 0.04
+    : strikePose > 0 ? 0.1 * (1 - strikePose * 0.3)
+    : flash ? -0.07
+    : Math.sin(t * 0.5) * 0.012;
+  const squashY = 1 - plant * 0.055 - (strikePose > 0 ? 0.03 : 0) + (flash ? 0.015 : 0);
+  const squashX = 1 + plant * 0.045 + (strikePose > 0 ? 0.035 : 0) - (flash ? 0.015 : 0);
 
   ctx.save();
   ctx.translate(c.x, c.y);
   if (c.downed) ctx.globalAlpha = 0.55;
 
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(0, 0, 12 + bite * 2, 4.5, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 12 * (1 + plant * 0.04) + bite * 2, 4.5, 0, 0, TAU); ctx.fill();
 
   ctx.scale(c.facing || 1, 1);
   ctx.translate(0, -bob);
   if (c.downed) ctx.rotate(0.15);
   else ctx.rotate(lean);
+  ctx.scale(squashX, squashY);
 
-  if (bite > 0.25 && !c.downed) {
+  if ((windPose > 0 || strikePose > 0) && !c.downed) {
     ctx.save();
-    ctx.globalAlpha *= 0.35 + bite * 0.35;
+    const glow = windPose || strikePose;
+    ctx.globalAlpha *= 0.35 + glow * 0.4;
     ctx.shadowColor = '#4de1ff';
-    ctx.shadowBlur = 8 + bite * 6;
-    ctx.fillStyle = `rgba(158,240,255,${0.12 + bite * 0.2})`;
+    ctx.shadowBlur = 8 + glow * 6;
+    ctx.fillStyle = `rgba(158,240,255,${0.12 + glow * 0.22})`;
     ctx.beginPath();
-    ctx.ellipse(drawW * 0.22, -drawH * 0.45, 5 + bite * 3, 4 + bite * 2, 0, 0, TAU);
+    ctx.ellipse(drawW * 0.22, -drawH * 0.45, 5 + glow * 3, 4 + glow * 2.5, 0, 0, TAU);
     ctx.fill();
     ctx.restore();
   }

@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #3a Ashen Rover articulation+barks (flag ON Continuity; no APK)
+- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; `ROVER_SPRITE_ENABLED=true` for Continuity/source testing
+- User intent: Art approved — add articulate move + bark like ravager after art; flag ON for master Continuity testing; still no APK / no version bump / no Play; store ship deferred with batch
+- Agent action: Gait idle↔walk + attack on swipeT + death sheet; plant squash/bob/lean on sprite path; aether-hound bark voice (`voice:'rover'`) + original woof/grr/alert lines (alert/attack/combat/hurt/fetch); size lock `r=11` / `drawH=26` unchanged; docs rover-art-plan + CHANGE_MEMORY + decisions; www sync game.js
+- Notes: **Not store-shipped.** Distinct from orc enemy barks (higher/shorter synth). Procedural `drawRover` remains fallback. Ally #3b Warden/Scout/Sentinel still pending. REMOVED list intact.
+
 ### 2026-08-09 — DEFERRED — #3a Ashen Rover post-ship confirm (cd8a042; flag OFF; no APK)
 - Version / commit / APK: **2.13.2** / vc46 unchanged / commit **`cd8a042`** pushed `origin/master` / **no BETA APK** / **no version bump** / **no live enable**
 - User intent: Record post-ship change memory after ally #3a dog art draft; do not mark shipped/live; do not re-add REMOVED

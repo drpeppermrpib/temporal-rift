@@ -43,7 +43,7 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Skeleton `s` | **1.055** | **UNCHANGED** from 2.13.1 |
 | Militia figure `s` | **0.78** | matches prior box height |
 | Colossus silhouette `H` | **210** | |
-| Ashen Rover sprite | `drawH = 26` when flag ON | companion dog  **not** husk 56 / Gharok 228; collision `r=11` unchanged |
+| Ashen Rover sprite | `drawH = 26` | companion dog — **not** husk 56 / Gharok 228; collision `r=11` unchanged; `ROVER_SPRITE_ENABLED=true` Continuity |
 
 ## Animation path (v2.13)
 
@@ -61,4 +61,4 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 - **Muster Hall (art drafted, flag OFF 2026-08-09):** `assets/buildings/hall/{idle,damaged}.png`; `HALL_SPRITE_ENABLED=false` (live procedural muster). Flip flag -> `drawH=60`, collision `r=46` unchanged (between camp ~50 and Keep 72; training hall, not cathedral). See `docs/hall-art-plan.md`.
 - **Gold Vault (mine-mouth remesh, flag OFF 2026-08-09):** `assets/buildings/vault/{idle,damaged}.png`; hillside bunker / timber-framed entrance + aether-gold glow (not freestanding stronghouse). `VAULT_SPRITE_ENABLED=false` (live procedural golddepot). Flip flag -> `drawH=52`, collision `r=40` unchanged (stockier than hall 60). See `docs/vault-art-plan.md`.
 - **Aether Pit (art drafted, flag OFF 2026-08-09):** `assets/buildings/pit/{idle,damaged}.png`; stone/earth/quarry dug crater + cyan?teal / purple aether glow in hole (lamp ref = glow mood only). `PIT_SPRITE_ENABLED=false` (live procedural aetherpit). Flip flag -> `drawH=48`, collision `r=38` unchanged (between supply 46 and vault 52). See `docs/pit-art-plan.md`.
-- **Ashen Rover / Rift Hound (art drafted, flag OFF 2026-08-09):** `assets/allies/rover/{idle,walk,attack,death}.png`; gunmetal cyber-dog + aether cyan accents (original mesh — not Boston Dynamics / branded IP). `ROVER_SPRITE_ENABLED=false` (live procedural `drawRover`). Flip flag -> `drawH=26`, collision `r=11` unchanged. Ally batch **#3a dog only**; Warden/Scout/Sentinel next. See `docs/rover-art-plan.md`.
+- **Ashen Rover / Rift Hound (articulation+barks ON Continuity 2026-08-09):** `assets/allies/rover/{idle,walk,attack,death}.png`; gunmetal cyber-dog + aether cyan accents. `ROVER_SPRITE_ENABLED=true` for master Continuity testing (store ship deferred). Collision `r=11` / `drawH=26` locked. Idle?walk gait + attack swipe + death + plant squash; aether-hound barks. See `docs/rover-art-plan.md`.

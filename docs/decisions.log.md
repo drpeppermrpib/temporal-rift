@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #2c Muster Hall + #2d Gold Vault art drafted (pit pending; apply later)
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK**
+- User intent: Mesh town-hall / half-timber / gothic / arcade refs into Muster Hall (#2c) then Gold Vault (#2d); soft-wire flags OFF; Desktop photos; no APK / no live enable / no stronghold this pass
+- Agent action: Generated original Muster Hall + Gold Vault idle/damaged (512×512 transparent); refs under `assets/buildings/hall/_refs/` + `vault/_refs/`; size locks muster `r=46`/`drawH=60`, vault `r=40`/`drawH=52` (collision r unchanged); soft-wire `HALL_SPRITE_ENABLED=false` / `VAULT_SPRITE_ENABLED=false`; docs `hall-art-plan.md` + `vault-art-plan.md` + UNIT_SIZES + CHANGE_MEMORY; Desktop `TemporalRift-Hall-Sprites` + `TemporalRift-Vault-Sprites`; www sync sheets (no `_refs`)
+- Notes: Keep/camp already drafted flag OFF. Aether Pit still pending. Flip hall/vault flags + apply with Keep/camp/ravager + stronghold + town-save batch. REMOVED list intact. Original Ashen/Rift naming — inspiration only.
+
 ### 2026-08-09 — DEFERRED — #2b Camp art drafted (halls pending; apply later)
 - Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / `0484c67` / **no BETA APK**
 - User intent: Mesh medieval camp refs into Timber Camp / Supply Camp building art (#2b); soft-wire flags OFF; Desktop photos; no APK / no live enable / no halls / no stronghold this pass

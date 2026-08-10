@@ -6993,6 +6993,74 @@ function drawCampSprite(s) {
   ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
   return drawH;
 }
+// Muster Hall sheets — soft-wire OFF until building-art ship batch.
+// Collision r stays STRUCT_KINDS.muster.r (46). Flag ON → drawH=60 (between camp ~50 and Keep 72).
+const HALL_SPRITE_ENABLED = false;
+const HALL_SPRITE_DRAWH = 60; // SIZE LOCK — training hall, not cathedral / Keep
+const hallSpr = { idle: null, damaged: null, ok: false };
+(function loadHallSprites() {
+  if (!HALL_SPRITE_ENABLED) return;
+  const keys = ['idle', 'damaged'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) hallSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) hallSpr.ok = good > 0; };
+    img.src = 'assets/buildings/hall/' + k + '.png';
+    hallSpr[k] = img;
+  }
+})();
+function hallSpriteReady(img) {
+  return !!(HALL_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+function drawHallSprite(s) {
+  if (!HALL_SPRITE_ENABLED || s.kind !== 'muster') return false;
+  const hurt = s.hp < s.maxHp * 0.45;
+  const img = (hurt && hallSpriteReady(hallSpr.damaged)) ? hallSpr.damaged
+    : hallSpriteReady(hallSpr.idle) ? hallSpr.idle
+    : hallSpriteReady(hallSpr.damaged) ? hallSpr.damaged
+    : null;
+  if (!img) return false;
+  const drawH = HALL_SPRITE_DRAWH;
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
+  return true;
+}
+// Gold Vault sheets — soft-wire OFF until building-art ship batch.
+// Collision r stays STRUCT_KINDS.golddepot.r (40). Flag ON → drawH=52 (stockier than hall 60).
+const VAULT_SPRITE_ENABLED = false;
+const VAULT_SPRITE_DRAWH = 52; // SIZE LOCK — fortified storehouse, << hall / Keep
+const vaultSpr = { idle: null, damaged: null, ok: false };
+(function loadVaultSprites() {
+  if (!VAULT_SPRITE_ENABLED) return;
+  const keys = ['idle', 'damaged'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) vaultSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) vaultSpr.ok = good > 0; };
+    img.src = 'assets/buildings/vault/' + k + '.png';
+    vaultSpr[k] = img;
+  }
+})();
+function vaultSpriteReady(img) {
+  return !!(VAULT_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+function drawVaultSprite(s) {
+  if (!VAULT_SPRITE_ENABLED || s.kind !== 'golddepot') return false;
+  const hurt = s.hp < s.maxHp * 0.45;
+  const img = (hurt && vaultSpriteReady(vaultSpr.damaged)) ? vaultSpr.damaged
+    : vaultSpriteReady(vaultSpr.idle) ? vaultSpr.idle
+    : vaultSpriteReady(vaultSpr.damaged) ? vaultSpr.damaged
+    : null;
+  if (!img) return false;
+  const drawH = VAULT_SPRITE_DRAWH;
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
+  return true;
+}
 function drawStructure(s) {
   const def = STRUCT_KINDS[s.kind];
   const pulse = 0.7 + Math.sin(performance.now() / 280 + s.x) * 0.2;
@@ -7006,12 +7074,14 @@ function drawStructure(s) {
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.stroke();
   ctx.fillStyle = `rgba(${col},0.1)`;
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
-  // Keep / camp sheets when flags ON; other kinds / fallback stay procedural
+  // Keep / camp / hall / vault sheets when flags ON; other kinds / fallback stay procedural
   const usedKeepSpr = drawKeepSprite(s);
   const usedCampH = usedKeepSpr ? false : drawCampSprite(s);
-  // building body — Keep is taller (skipped when keep/camp sprite draws)
+  const usedHallSpr = (usedKeepSpr || usedCampH) ? false : drawHallSprite(s);
+  const usedVaultSpr = (usedKeepSpr || usedCampH || usedHallSpr) ? false : drawVaultSprite(s);
+  // building body — Keep is taller (skipped when building sprite draws)
   const bw = s.kind === 'keep' ? 42 : 32, bh = s.kind === 'keep' ? 40 : 28;
-  if (!usedKeepSpr && !usedCampH) {
+  if (!usedKeepSpr && !usedCampH && !usedHallSpr && !usedVaultSpr) {
     ctx.fillStyle = '#2a2218';
     ctx.fillRect(s.x - bw / 2, s.y - bh, bw, bh);
     ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2;
@@ -7029,7 +7099,10 @@ function drawStructure(s) {
       ctx.fillRect(s.x - 10, s.y - bh - 12, 20, 12);
     }
   }
-  const barH = usedKeepSpr ? KEEP_SPRITE_DRAWH : (usedCampH || bh);
+  const barH = usedKeepSpr ? KEEP_SPRITE_DRAWH
+    : usedHallSpr ? HALL_SPRITE_DRAWH
+    : usedVaultSpr ? VAULT_SPRITE_DRAWH
+    : (usedCampH || bh);
   const w = 34;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(s.x - w / 2, s.y - barH - 20, w, 3.5);

@@ -886,6 +886,24 @@ const sfx = (() => {
         src.connect(bp).connect(ng).connect(dest);
         osc.start(now); osc.stop(now + 0.15);
         src.start(now); src.stop(now + 0.13);
+      } else if (v === 'warden') {
+        // Armored robot guardian — deep metallic square (not orc sawtooth, not dog yip)
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(155, now);
+        osc.frequency.exponentialRampToValueAtTime(78, now + 0.22);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.exponentialRampToValueAtTime(0.11, now + 0.025);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 4.5;
+        bp.frequency.setValueAtTime(980, now);
+        bp.frequency.exponentialRampToValueAtTime(420, now + 0.24);
+        ng.gain.setValueAtTime(0.0001, now);
+        ng.gain.exponentialRampToValueAtTime(0.09, now + 0.02);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+        osc.connect(og).connect(dest);
+        src.connect(bp).connect(ng).connect(dest);
+        osc.start(now); osc.stop(now + 0.28);
+        src.start(now); src.stop(now + 0.24);
       } else {
         // husk — wet moan / uuhh
         osc.type = 'sawtooth';
@@ -1021,6 +1039,30 @@ function tryRoverBark(c, reason) {
   _barkGlobalT = now;
   sfx.play('bark', { voice: 'rover', throttle: 0.07 });
   addFloater(c.x, c.y - 28, line, '#4de1ff', false);
+}
+
+// ============ ASHEN WARDEN BARKS — deep armored robot guardian (ally; mute-aware) ============
+// Original lines — not orc snarls, not dog woofs. Metallic vox / seal-protocol tone.
+const WARDEN_BARK_LINES = {
+  alert:  ['CONTACT', 'HOLD', 'SEALED', 'WARDEN'],
+  attack: ['FIRE', 'PULSE', 'ENGAGE', 'CANNON'],
+  combat: ['HOLD LINE', 'STANDING', 'LOCKED', 'SHIELD', 'AEGIS'],
+  hurt:   ['BREACH', 'ARMOR HIT', 'DAMAGE'],
+};
+function tryWardenBark(c, reason) {
+  if (!c || c.type !== 'warden' || c.downed) return;
+  const now = performance.now() / 1000;
+  const minGap = reason === 'alert' ? 0.3 : reason === 'attack' ? 1.35 : reason === 'hurt' ? 1.8 : 4.5;
+  if ((c._barkAt || 0) + minGap > now) return;
+  if (now - _barkGlobalT < 0.32) return;
+  if (reason === 'combat' && Math.random() > 0.38) return;
+  if (reason === 'attack' && Math.random() > 0.48) return;
+  const lines = WARDEN_BARK_LINES[reason] || WARDEN_BARK_LINES.combat;
+  const line = lines[(Math.random() * lines.length) | 0];
+  c._barkAt = now;
+  _barkGlobalT = now;
+  sfx.play('bark', { voice: 'warden', throttle: 0.08 });
+  addFloater(c.x, c.y - 42, line, '#e8c84a', false);
 }
 
 // Unlock AudioContext on first user gesture (desktop autoplay policies).
@@ -1751,6 +1793,7 @@ function hurtCompanion(c, dmg) {
   c.hurtT = 0.72;
   spawnParticles(c.x, c.y - 10, 6, '#ff8a93', 3);
   if (c.type === 'rover') tryRoverBark(c, 'hurt');
+  if (c.type === 'warden') tryWardenBark(c, 'hurt');
   if (c.hp <= 0) {
     c.hp = 0;
     c.downed = true;
@@ -1847,18 +1890,32 @@ function updateCompanions(dt) {
           zap(c.x, c.y - 8, foe.x, foe.y - 10); // plasma-bite arc
           spawnParticles(foe.x, foe.y - 8, 5, '#4de1ff', 3);
         }
-      } else if (c.atkCd <= 0) {
-        c.atkCd = compInterval(c);
-        c.swipeT = UNIT_SWIPE * 0.7;
-        const a = c.aim + rand(-0.04, 0.04);
-        const spd = c.type === 'scout' ? 820 : 620;
-        cbolts.push({
-          x: c.x + Math.cos(a) * 16, y: c.y - 12 + Math.sin(a) * 16,
-          vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
-          life: 1.0, r: c.type === 'scout' ? 3 : 4,
-          dmg: compDamage(c), pierce: c.type === 'scout' ? scoutPierce() : 1,
-          hit: [], scout: c.type === 'scout',
-        });
+      } else {
+        if (c.type === 'warden') {
+          if (!c._barkedAlert) {
+            c._barkedAlert = true;
+            tryWardenBark(c, 'alert');
+          }
+          c._barkCombatCd = (c._barkCombatCd || rand(3.5, 6.2)) - dt;
+          if (c._barkCombatCd <= 0) {
+            c._barkCombatCd = rand(4.2, 7.0);
+            tryWardenBark(c, 'combat');
+          }
+        }
+        if (c.atkCd <= 0) {
+          c.atkCd = compInterval(c);
+          c.swipeT = UNIT_SWIPE * 0.7;
+          if (c.type === 'warden') tryWardenBark(c, 'attack');
+          const a = c.aim + rand(-0.04, 0.04);
+          const spd = c.type === 'scout' ? 820 : 620;
+          cbolts.push({
+            x: c.x + Math.cos(a) * 16, y: c.y - 12 + Math.sin(a) * 16,
+            vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+            life: 1.0, r: c.type === 'scout' ? 3 : 4,
+            dmg: compDamage(c), pierce: c.type === 'scout' ? scoutPierce() : 1,
+            hit: [], scout: c.type === 'scout',
+          });
+        }
       }
     }
     // ---- scout support packs ----
@@ -6978,8 +7035,8 @@ function drawWarlordProcedural(e, alpha) {
 }
 
 // ================== COMPANION SPRITES (v2.8) ======================
-// Rover: quadruped robot dog with a cyan visor. Warden/Scout reuse the
-// shared humanoid rig with cannon/crossbow arms (Warden sheets drafted, flag OFF).
+// Rover: quadruped robot dog with a cyan visor (sheets ON Continuity).
+// Warden: yellow knight-robot tank (sheets ON Continuity). Scout/Sentinel still procedural.
 //
 // ============ ASHEN ROVER / RIFT HOUND SPRITES (articulation+barks ON for Continuity; store deferred) ============
 // assets/allies/rover/{idle,walk,attack,death}.png — companion footprint, NOT boss.
@@ -7080,11 +7137,11 @@ function drawRoverSprite(c) {
   return true;
 }
 
-// ============ ASHEN WARDEN SPRITES (art drafted, flag OFF; articulate later like Rover) ============
+// ============ ASHEN WARDEN SPRITES (articulation+barks ON for Continuity; store deferred) ============
 // assets/allies/warden/{idle,walk,attack,death}.png — tank companion footprint, NOT boss.
-// Soft-wire OFF: procedural companionFigure (cannon) stays live. Flip flag when user says go.
+// Flag ON for master Continuity testing. Store ship deferred with peer batch.
 // Size lock: collision r=13 always; drawH=48 (= 36*s1.25 + pad). No Warframe/Destiny IP.
-const WARDEN_SPRITE_ENABLED = false;
+const WARDEN_SPRITE_ENABLED = true;
 const WARDEN_SPRITE_DRAWH = 48; // SIZE LOCK — matches procedural H=36*1.25≈45 + pad; << husk 56 / Gharok 228
 const wardenSpr = { idle: null, walk: null, attack: null, death: null, ok: false };
 (function loadWardenSprites() {
@@ -7106,7 +7163,7 @@ function wardenSpriteReady(img) {
 }
 
 function wardenSpriteFrame(c) {
-  // Basic frame pick only — full articulation (plant squash / lean) deferred until user says go
+  // idle↔walk by gait half-cycle; attack on swipeT pulse-cannon; death when downed
   if (c.downed && wardenSpriteReady(wardenSpr.death)) return wardenSpr.death;
   if ((c.swipeT || 0) > 0 && wardenSpriteReady(wardenSpr.attack)) return wardenSpr.attack;
   const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
@@ -7125,17 +7182,56 @@ function drawWardenSprite(c) {
   if (!img) return false;
   const drawH = WARDEN_SPRITE_DRAWH; // 48 — tank companion, not boss
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const t = c.walk || 0;
+  const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
+  const swipe = c.swipeT || 0;
+  const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
+  const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
+  const fire = swipe > 0 ? clamp(1 - swipe / UNIT_SWIPE, 0, 1) : 0;
   const flash = c.hurtT > 0.35;
+  // Heavy tank plant — deeper squash / slower bob than Rover hound gait
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.05
+    : (swipe > 0) ? 0.7
+    : Math.abs(Math.sin(t * 0.4)) * 0.28;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
+  const lean = moving ? Math.sin(t) * 0.032
+    : windPose > 0 ? -0.04 - windPose * 0.035
+    : strikePose > 0 ? 0.07 * (1 - strikePose * 0.25)
+    : flash ? -0.055
+    : Math.sin(t * 0.4) * 0.01;
+  const squashY = 1 - plant * 0.085 - (strikePose > 0 ? 0.04 : 0) + (flash ? 0.018 : 0);
+  const squashX = 1 + plant * 0.07 + (strikePose > 0 ? 0.045 : 0) - (flash ? 0.018 : 0);
+
   ctx.save();
   ctx.translate(c.x, c.y);
   if (c.downed) ctx.globalAlpha = 0.55;
+
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(0, 0, 13, 4.8, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 13 * (1 + plant * 0.05) + fire * 1.5, 4.8, 0, 0, TAU); ctx.fill();
+
   ctx.scale(c.facing || 1, 1);
+  ctx.translate(0, -bob);
   if (c.downed) ctx.rotate(0.12);
+  else ctx.rotate(lean);
+  ctx.scale(squashX, squashY);
+
+  if ((windPose > 0 || strikePose > 0) && !c.downed) {
+    ctx.save();
+    const glow = windPose || strikePose;
+    ctx.globalAlpha *= 0.32 + glow * 0.38;
+    ctx.shadowColor = '#3ef0c8';
+    ctx.shadowBlur = 10 + glow * 7;
+    ctx.fillStyle = `rgba(62,240,200,${0.1 + glow * 0.2})`;
+    ctx.beginPath();
+    ctx.ellipse(drawW * 0.28, -drawH * 0.52, 6 + glow * 3.5, 4.5 + glow * 2.8, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
   if (flash) ctx.filter = 'brightness(2.5) saturate(0.15)';
   ctx.drawImage(img, -drawW / 2, -drawH + 2, drawW, drawH);
   ctx.filter = 'none';
+
   ctx.restore();
   return true;
 }

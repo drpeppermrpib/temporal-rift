@@ -5,8 +5,8 @@ same pipeline as enemy / building soft-wire art. Companion footprint (not boss).
 
 **Status (2026-08-09):** **Articulation + barks on master** — `ROVER_SPRITE_ENABLED=true`
 for Continuity / source testing (like Cloister Wall). **Store ship deferred** with peer
-batch — **no APK / no version bump / no Play**. Ally batch **#3a** dog only; Warden /
-Scout / Sentinel = later.
+batch — **no APK / no version bump / no Play**. Ally batch **#3a** dog done; **#3b** Warden
+articulation+barks also ON Continuity; Scout / Sentinel = later.
 
 ## Size lock (enforced)
 
@@ -100,5 +100,5 @@ for Photos review (chat may not show PNGs).
 
 ## Next
 
-- **#3b** skill-tree squad (Warden / Scout / Sentinel) when user sends photos or says go
+- Scout / Sentinel (#3b remainder) when user sends photos or says go
 - Store ship with Continuity + peer art batch (no APK this pass)

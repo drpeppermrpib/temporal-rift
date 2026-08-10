@@ -4,22 +4,22 @@ Original Temporal Rift **Ashen Warden** (shop name **Warden**) sheets —
 tank companion soft-wire pipeline (same as Rover / buildings). Companion footprint
 (not boss).
 
-**Status (2026-08-09):** **Art drafted, soft-wire OFF** — `WARDEN_SPRITE_ENABLED=false`.
-Procedural `companionFigure` (cannon arm) stays live. **No APK / no version bump /
-no live enable / no articulation yet.** Ally batch **#3b** Warden art; Scout /
-Sentinel still pending. Say “next” (like Rover) for articulation + flag ON Continuity.
+**Status (2026-08-09):** **Articulation + barks on master** — `WARDEN_SPRITE_ENABLED=true`
+for Continuity / source testing (like Rover / Cloister Wall). **Store ship deferred** with peer
+batch — **no APK / no version bump / no Play**. Ally batch **#3b** Warden; Scout /
+Sentinel still pending.
 
 ## Size lock (enforced)
 
 | Field | Value | Notes |
 |-------|-------|--------|
 | Warden collision `r` | **13** | Unchanged — `docs/UNIT_SIZES.md` / `syncCompanions` (`rover` 11, others 13) |
-| Procedural figure | `s=1.25`, `H=36*s≈45` | Tank bulk `1.5`, pulse cannon weapon |
+| Procedural figure | `s=1.25`, `H=36*s≈45` | Tank bulk `1.5`, pulse cannon weapon (fallback) |
 | Sprite `drawH` | **48** | Matches procedural ≈45 + pad — **not** husk `56`, **not** Gharok `228` |
 | On-screen | tank companion | Keep current Warden footprint; do not boss-size |
 
 Source PNGs are 512×512 transparent (same sheet resolution as unit/building art)
-but drawn at companion scale (`drawH=48` when flag ON).
+but drawn at companion scale (`drawH=48`).
 
 ## Assets
 
@@ -29,12 +29,35 @@ but drawn at companion scale (`drawH=48` when flag ON).
 - `assets/allies/warden/death.png` (downed / powered-down)
 
 Transparent background. Soft-load path mirrors Rover frame-swap when
-`WARDEN_SPRITE_ENABLED === true`; procedural figure remains fallback.
-Attack frame maps to `swipeT`; death when `downed`. Full plant squash /
-lean articulation **deferred**.
+`WARDEN_SPRITE_ENABLED === true`; procedural `companionFigure` (cannon) remains fallback.
+Attack frame maps to `swipeT`; death when `downed`.
 
 Process: `node scripts/process-warden-sprites.mjs` (mid-grey studio flood-key → 512).
 www sync sheets only (no `_refs` / `_raw`).
+
+## Articulation (in-engine)
+
+Same sheet gait pattern as Rover / husk / ravager — heavier plant for tank feel:
+
+| Pose | Trigger |
+|------|---------|
+| idle ↔ walk | gait half-cycle while moving (`walk` / π) |
+| attack | `swipeT` pulse-cannon windup / fire |
+| death | `downed` |
+| plant squash / bob / lean | heavy plant (deeper squash, slower bob) + cannon wind/strike + hurt flash |
+
+## Barks (armored robot guardian)
+
+Distinct from orc enemy barks and Rover dog woofs — deep metallic square `voice: 'warden'`, ochre floaters:
+
+| Reason | When | Sample lines |
+|--------|------|--------------|
+| alert | first engage foe | CONTACT / HOLD / SEALED / WARDEN |
+| attack | pulse-cannon fire | FIRE / PULSE / ENGAGE / CANNON |
+| combat | occasional while fighting | HOLD LINE / STANDING / LOCKED / SHIELD / AEGIS |
+| hurt | takes damage | BREACH / ARMOR HIT / DAMAGE |
+
+Mute-aware via `sfx.play('bark')` + shared global anti-spam with enemy/Rover barks.
 
 ## Design (original — mesh of knight + robotics armor refs)
 
@@ -67,8 +90,8 @@ Under `assets/allies/warden/_refs/` (stripped from APK — not copied to `www/`)
 ## Soft-wire
 
 ```js
-WARDEN_SPRITE_ENABLED = false  // art draft; procedural live
-WARDEN_SPRITE_DRAWH = 48       // size lock
+WARDEN_SPRITE_ENABLED = true    // master Continuity testing; store ship deferred
+WARDEN_SPRITE_DRAWH = 48        // size lock
 // collision r=13 always
 ```
 
@@ -79,6 +102,5 @@ for Photos review (chat may not show PNGs).
 
 ## Next
 
-- Articulation + Continuity flag ON when user says go (Rover pattern)
 - Scout / Sentinel (#3b remainder)
 - Store ship with peer Continuity batch (no APK this pass)

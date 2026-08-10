@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #3b Ashen Warden post-ship docs pins (2114ce3 / a55db1e)
+- Version / commit / APK: **2.13.2** / vc46 unchanged / code **`abe9e02`** + docs pins **`2114ce3`** / **`a55db1e`** / **no BETA APK** / **no version bump** / **no Play** / **not store-shipped**
+- User intent: Append CHANGE_MEMORY after Ashen Warden articulation+barks ship on master Continuity; do not mark store-shipped; REMOVED untouched; only fix gaps
+- Agent action: Confirmed channel matrix / pending / changelog / batch order already matched (flag ON Continuity, size lock r=13/drawH=48, #3b done, Scout/Sentinel pending, store deferred, no APK); appended missing docs pins **2114ce3** / **a55db1e** + fuller articulation/bark detail on pending+changelog rows; REMOVED list untouched
+- Notes: Articulation: idle↔walk gait, attack on swipeT, death when downed, heavy plant squash/bob/lean. Barks: voice `warden` deep metallic armored robot guardian — CONTACT/FIRE/HOLD LINE etc (not orc, not dog). Ally #3b Warden done; Scout/Sentinel still pending.
+
 ### 2026-08-09 — DEFERRED — #3b Ashen Warden articulation+barks post-ship confirm (abe9e02; flag ON Continuity; no APK)
 - Version / commit / APK: **2.13.2** / vc46 unchanged / commit **`abe9e02`** pushed `origin/master` / **no BETA APK** / **no version bump** / **no Play**
 - User intent: Append post-ship change memory after Warden articulation+barks; do not mark store-shipped; REMOVED untouched; Scout/Sentinel still next

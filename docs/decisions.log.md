@@ -16,8 +16,14 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #3b Ashen Warden articulation+barks post-ship confirm (abe9e02; flag ON Continuity; no APK)
+- Version / commit / APK: **2.13.2** / vc46 unchanged / commit **`abe9e02`** pushed `origin/master` / **no BETA APK** / **no version bump** / **no Play**
+- User intent: Append post-ship change memory after Warden articulation+barks; do not mark store-shipped; REMOVED untouched; Scout/Sentinel still next
+- Agent action: Confirmed CHANGE_MEMORY channel/pending/changelog already matched (flag ON Continuity, size lock r=13/drawH=48, store deferred); pinned commit hash here; REMOVED list untouched
+- Notes: **Not store-shipped.** Sheets gait idle↔walk, attack on swipeT, death when downed, heavy plant squash/bob/lean; bark voice `warden` (deep metallic, not orc/dog) + alert/attack/combat/hurt (mute-aware). Scout/Sentinel still pending.
+
 ### 2026-08-09 — DEFERRED — #3b Ashen Warden articulation+barks (flag ON Continuity; no APK)
-- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; `WARDEN_SPRITE_ENABLED=true` for Continuity/source testing; commit **be9e02**
+- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; `WARDEN_SPRITE_ENABLED=true` for Continuity/source testing; later pinned **`abe9e02`**
 - User intent: Next for articulation movement — same as Rover pass; articulate move + bark; flag ON master Continuity; no APK / no version bump
 - Agent action: Gait idle↔walk + attack on swipeT pulse-cannon + death sheet; heavy plant squash/bob/lean on sprite path; armored-robot guardian bark voice (`voice:'warden'`) + original CONTACT/FIRE/HOLD LINE lines (alert/attack/combat/hurt); size lock `r=13` / `drawH=48` unchanged; docs warden-art-plan + CHANGE_MEMORY + UNIT_SIZES + decisions; www sync game.js
 - Notes: **Not store-shipped.** Distinct from orc enemy barks and Rover dog woofs (deep metallic square synth). Procedural `companionFigure` remains fallback. Scout/Sentinel still pending. REMOVED list intact.

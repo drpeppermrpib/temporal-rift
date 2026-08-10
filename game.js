@@ -7030,7 +7030,7 @@ function drawHallSprite(s) {
 // Gold Vault sheets — soft-wire OFF until building-art ship batch.
 // Collision r stays STRUCT_KINDS.golddepot.r (40). Flag ON → drawH=52 (stockier than hall 60).
 const VAULT_SPRITE_ENABLED = false;
-const VAULT_SPRITE_DRAWH = 52; // SIZE LOCK — fortified storehouse, << hall / Keep
+const VAULT_SPRITE_DRAWH = 52; // SIZE LOCK — squat mine-mouth bunker, << hall / Keep
 const vaultSpr = { idle: null, damaged: null, ok: false };
 (function loadVaultSprites() {
   if (!VAULT_SPRITE_ENABLED) return;

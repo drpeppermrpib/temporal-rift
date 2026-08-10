@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #2d Gold Vault remesh to mine-mouth (flag OFF; no APK)
+- Version / commit / APK: assets+docs only (no APP_VERSION / versionCode bump) / **no BETA APK** / **no live enable**
+- User intent: Remesh Gold Vault from freestanding stronghouse/arcade vault look to dug-into-hill / fortified mine-mouth aesthetic; soft-wire stays OFF; Desktop Photos; no APK / no version bump / no live enable
+- Agent action: Replaced `assets/buildings/vault/{idle,damaged}.png` with timber-framed rocky bunker mouth + aether-gold interior glow (no readable IP/sign text); new `_refs/`: `hillside-bunker-mouth-insp`, `rocky-cave-ladder-insp`, `timber-frame-mine-mouth-insp` (old arcade refs removed); kept `VAULT_SPRITE_ENABLED=false`, sizes `r=40` / `drawH=52` unchanged; docs `vault-art-plan.md` + UNIT_SIZES + CHANGE_MEMORY; Desktop `C:\Users\drpep\Desktop\TemporalRift-Vault-Sprites` refreshed
+- Notes: Prior arcade/stronghouse mesh superseded. Aether Pit still pending; apply vault (flag ON) with stronghold batch. REMOVED list intact — nothing added to REMOVED.
+
 ### 2026-08-09 — DEFERRED — #2c Muster Hall + #2d Gold Vault art drafted (pit pending; apply later)
 - Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / `080094b` / **no BETA APK**
 - User intent: Mesh town-hall / half-timber / gothic / arcade refs into Muster Hall (#2c) then Gold Vault (#2d); soft-wire flags OFF; Desktop photos; no APK / no live enable / no stronghold this pass

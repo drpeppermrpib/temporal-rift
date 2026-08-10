@@ -55,6 +55,7 @@ Update when any channel ships. Audit snapshot as of 2026-08-09:
 | Laborer retaliate-on-hit only + squad smidge buff | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) |
 | Town/RTS Continuity save (`town` payload) | **Coded on master only (unreleased)** — still 2.13.2 / vc46; no BETA/Play ship | **No** | **No** | **No** |
 | Ashen Ravager sprites + articulation + barks | **Coded on master, flag OFF** (`RAVAGER_SPRITE_ENABLED=false`; live procedural; flip → r=36 / drawH=100) — **ship deferred** with stronghold batch | **No** | **No** | **No** |
+| Rift Keep building sprites (idle/damaged) | **Drafted on master, flag OFF** (`KEEP_SPRITE_ENABLED=false`; live procedural keep; flip → drawH=72, r=54 unchanged) — halls/camps pending; **ship deferred** with stronghold batch | **No** | **No** | **No** |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | Yes (2.13.2) | Yes (2.13.2) |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **Deepened** (2.13.2) | **Deepened** (2.13.2) |
@@ -132,8 +133,9 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Backlog | Music bus / full soundtrack | Largely stubbed |
 | Backlog | RTS AI polish / more buildings / Colossus merge FX | 2.11.0 deepened town slice; pathfinding / true WC2 sim still thin |
 | Backlog | **Ashen Ravager** sprites — **articulation+barks coded, flag OFF, ship deferred** | Sheets + gait/plant + distinct deep cyclops barks on master; `RAVAGER_SPRITE_ENABLED=false`; live still procedural `r=24`/`s=1.7`. Flip flag → `r=36`, `drawH=100`, `s≈2.78`. See `docs/ravager-art-plan.md`. Store ship with stronghold batch |
+| Backlog | **Rift Keep** building art — **drafted, flag OFF; halls/camps pending** | `assets/buildings/keep/{idle,damaged}.png`; `KEEP_SPRITE_ENABLED=false`; collision `r=54` unchanged; flag ON → `drawH=72`. See `docs/keep-art-plan.md`. Halls/camps/#2 remainder when user sends photos; apply with stronghold batch |
 
-**Next batch suggested order** (user photos → art upgrades + buildings + ravager + stronghold later): (1) ~~ravager mesh~~ **art+articulation+barks coded (flag OFF)** (2) **building art mesh** (user photos next) (3) ally/militia/laborer skins if photos (4) fence brick stronghold systems (5) one update apply (town save + ravager flag ON).
+**Next batch suggested order** (user photos → art upgrades + buildings + ravager + stronghold later): (1) ~~ravager mesh~~ **art+articulation+barks coded (flag OFF)** (2a) ~~**Keep art**~~ **drafted (flag OFF)** (2b) **halls/camps building art** (user photos next) (3) ally/militia/laborer skins if photos (4) fence brick stronghold systems (5) one update apply (town save + ravager/keep flags ON).
 
 ---
 

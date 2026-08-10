@@ -6902,6 +6902,40 @@ function drawMilitia(m) {
   ctx.fillStyle = 'rgba(158,240,255,0.9)';
   ctx.fillText(tMeta.name.replace('Ashen ', ''), m.x, m.y + 12);
 }
+// Rift Keep building sheets — soft-wire OFF until building-art ship batch.
+// Collision r stays STRUCT_KINDS.keep.r (54). Flag ON → drawH=72 (near procedural ~56 tall, << Gharok).
+const KEEP_SPRITE_ENABLED = false;
+const KEEP_SPRITE_DRAWH = 72; // SIZE LOCK — keep footprint, not Gharok-huge
+const keepSpr = { idle: null, damaged: null, ok: false };
+(function loadKeepSprites() {
+  if (!KEEP_SPRITE_ENABLED) return; // soft-load only when enabled
+  const keys = ['idle', 'damaged'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) keepSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) keepSpr.ok = good > 0; };
+    img.src = 'assets/buildings/keep/' + k + '.png';
+    keepSpr[k] = img;
+  }
+})();
+function keepSpriteReady(img) {
+  return !!(KEEP_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+function drawKeepSprite(s) {
+  if (!KEEP_SPRITE_ENABLED || s.kind !== 'keep') return false;
+  const hurt = s.hp < s.maxHp * 0.45;
+  const img = (hurt && keepSpriteReady(keepSpr.damaged)) ? keepSpr.damaged
+    : keepSpriteReady(keepSpr.idle) ? keepSpr.idle
+    : keepSpriteReady(keepSpr.damaged) ? keepSpr.damaged
+    : null;
+  if (!img) return false;
+  const drawH = KEEP_SPRITE_DRAWH;
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
+  return true;
+}
 function drawStructure(s) {
   const def = STRUCT_KINDS[s.kind];
   const pulse = 0.7 + Math.sin(performance.now() / 280 + s.x) * 0.2;
@@ -6915,29 +6949,34 @@ function drawStructure(s) {
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.stroke();
   ctx.fillStyle = `rgba(${col},0.1)`;
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
-  // building body — Keep is taller
+  // Keep sheets when flag ON; other kinds / fallback stay procedural
+  const usedKeepSpr = drawKeepSprite(s);
+  // building body — Keep is taller (skipped when keep sprite draws)
   const bw = s.kind === 'keep' ? 42 : 32, bh = s.kind === 'keep' ? 40 : 28;
-  ctx.fillStyle = '#2a2218';
-  ctx.fillRect(s.x - bw / 2, s.y - bh, bw, bh);
-  ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2;
-  ctx.strokeRect(s.x - bw / 2, s.y - bh, bw, bh);
-  if (s.kind === 'keep') {
-    ctx.fillStyle = `rgba(${col},${pulse})`;
-    ctx.fillRect(s.x - 8, s.y - bh - 16, 16, 16);
-    ctx.fillRect(s.x - bw / 2 - 4, s.y - bh - 6, 10, 14);
-    ctx.fillRect(s.x + bw / 2 - 6, s.y - bh - 6, 10, 14);
-  } else if (s.kind === 'farm') {
-    ctx.fillStyle = '#6a8a40';
-    ctx.fillRect(s.x - 18, s.y - 8, 36, 6);
-  } else {
-    ctx.fillStyle = `rgba(${col},${pulse})`;
-    ctx.fillRect(s.x - 10, s.y - bh - 12, 20, 12);
+  if (!usedKeepSpr) {
+    ctx.fillStyle = '#2a2218';
+    ctx.fillRect(s.x - bw / 2, s.y - bh, bw, bh);
+    ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2;
+    ctx.strokeRect(s.x - bw / 2, s.y - bh, bw, bh);
+    if (s.kind === 'keep') {
+      ctx.fillStyle = `rgba(${col},${pulse})`;
+      ctx.fillRect(s.x - 8, s.y - bh - 16, 16, 16);
+      ctx.fillRect(s.x - bw / 2 - 4, s.y - bh - 6, 10, 14);
+      ctx.fillRect(s.x + bw / 2 - 6, s.y - bh - 6, 10, 14);
+    } else if (s.kind === 'farm') {
+      ctx.fillStyle = '#6a8a40';
+      ctx.fillRect(s.x - 18, s.y - 8, 36, 6);
+    } else {
+      ctx.fillStyle = `rgba(${col},${pulse})`;
+      ctx.fillRect(s.x - 10, s.y - bh - 12, 20, 12);
+    }
   }
+  const barH = usedKeepSpr ? KEEP_SPRITE_DRAWH : bh;
   const w = 34;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(s.x - w / 2, s.y - bh - 20, w, 3.5);
+  ctx.fillRect(s.x - w / 2, s.y - barH - 20, w, 3.5);
   ctx.fillStyle = `rgb(${col})`;
-  ctx.fillRect(s.x - w / 2, s.y - bh - 20, w * clamp(s.hp / s.maxHp, 0, 1), 3.5);
+  ctx.fillRect(s.x - w / 2, s.y - barH - 20, w * clamp(s.hp / s.maxHp, 0, 1), 3.5);
   ctx.font = 'bold 9px Segoe UI'; ctx.textAlign = 'center';
   ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
   const label = (def ? def.name : s.kind) + ' L' + s.lvl;

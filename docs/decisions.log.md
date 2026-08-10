@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #2 Keep art drafted (halls/camps pending; apply later)
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK**
+- User intent: Mesh castle/keep refs into Rift Keep building art only for batch #2 part 1; halls/camps later; soft-wire flag OFF; Desktop photos; no APK / no live enable / no brick stronghold this pass
+- Agent action: Generated original Rift Keep idle+damaged (512×512 transparent); refs under `assets/buildings/keep/_refs/`; size lock collision `r=54` / `drawH=72` (procedural ~42×56); soft-wire `KEEP_SPRITE_ENABLED=false`; docs `keep-art-plan.md` + CHANGE_MEMORY; Desktop `TemporalRift-Keep-Sprites`; www sync sheets (no `_refs`)
+- Notes: Halls/timber/supply/muster/camps pending user photos (#2 parts). Flip flag + apply with stronghold + town-save batch. REMOVED list intact. Original keep — not a named real-world castle clone.
+
 ### 2026-08-09 — DEFERRED — Ashen Ravager articulation + barks coded (flag OFF; ship later)
 - Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**
 - User intent: After approving Ravager art — “next!” add articulation with movements + sounds like other sprite foes; stop; buildings (#2) separately; don’t ship store update yet

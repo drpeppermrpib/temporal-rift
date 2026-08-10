@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #3a Ashen Rover / Rift Hound art drafted (flag OFF; no APK)
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK** / **no live enable**
+- User intent: Allies art pass start with dog only; mesh cybernetic/robot dog refs into original Temporal Rift Rover; soft-wire OFF; Desktop Photos; no APK / no version bump; Warden/Scout/Sentinel later
+- Agent action: Generated original Ashen Rover idle/walk/attack/death (512×512 transparent); refs under `assets/allies/rover/_refs/`; size lock `r=11` / `drawH=26` (collision r unchanged); soft-wire `ROVER_SPRITE_ENABLED=false`; docs `rover-art-plan.md` + UNIT_SIZES + CHANGE_MEMORY; Desktop `C:\Users\drpep\Desktop\TemporalRift-Rover-Sprites`; www sync sheets (no `_refs`)
+- Notes: Ally batch **#3a dog only**. Procedural `drawRover` still live. Ready for #3b skill-tree squad when user photos or says go. REMOVED list intact. Not Boston Dynamics / branded IP copies.
+
 ### 2026-08-09 — DEFERRED — Cloister / brick stronghold walls systems+art (no APK)
 - Version / commit / APK: master code+art only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; systems ON for Continuity/source testing only
 - User intent: Mesh brick fence refs as modular sections (straight / corners / T-junctions); Continuity town save; no APK / no version bump; keep wooden barricades; store ship deferred

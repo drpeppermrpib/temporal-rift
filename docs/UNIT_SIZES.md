@@ -17,8 +17,8 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Warlord (Gharok) | **54** | boss ? locked |
 | Bulwark | **23** | fused husks / tank ? SIZE LOCK (2.13.2; was 22); near ravager, still << Gharok |
 | Skeleton | **12** | grave emergers ? SIZE LOCK (2.13.1; **unchanged in 2.13.2**) |
-| Companion (rover) | **11** | |
-| Companion (warden/scout/sentinel) | **13** | |
+| Companion (rover) | **11** | SIZE LOCK  sheets drafted flag OFF; do not bump |
+| Companion (warden/scout/sentinel) | **13** | ally #3b later |
 | Ashen Laborer | **11** | |
 | Militia spear/bow | **12** | `MILITIA_TYPES.*.r` |
 | Aether Colossus | **54** | ~Gharok scale |
@@ -31,7 +31,7 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Gharok sprite | `drawH = 228` | idle/walk/windup PNG frame-swap (boss only) |
 | Gharok procedural fallback | `s = 3.2` | |
 | Ashen Husk sprite | `drawH = 56` | was 42 ? toward ravager ~61; **not** boss |
-| Sprinter sprite | `drawH = 56 * 0.87` (~48.7) | was 42ï¿½0.87; same husk sheets |
+| Sprinter sprite | `drawH = 56 * 0.87` (~48.7) | was 420.87; same husk sheets |
 | Ashen Skeleton sprite | `drawH = 38` | **UNCHANGED** from 2.13.1 |
 | Ashen Bulwark sprite | `drawH = 62` | was 58 ? near ravager; **not** Gharok 228 |
 | Ashen Shaman sprite | `drawH = 56` | was 42 ? matches husk toward ravager |
@@ -43,6 +43,7 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Skeleton `s` | **1.055** | **UNCHANGED** from 2.13.1 |
 | Militia figure `s` | **0.78** | matches prior box height |
 | Colossus silhouette `H` | **210** | |
+| Ashen Rover sprite | `drawH = 26` when flag ON | companion dog  **not** husk 56 / Gharok 228; collision `r=11` unchanged |
 
 ## Animation path (v2.13)
 
@@ -60,3 +61,4 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 - **Muster Hall (art drafted, flag OFF 2026-08-09):** `assets/buildings/hall/{idle,damaged}.png`; `HALL_SPRITE_ENABLED=false` (live procedural muster). Flip flag -> `drawH=60`, collision `r=46` unchanged (between camp ~50 and Keep 72; training hall, not cathedral). See `docs/hall-art-plan.md`.
 - **Gold Vault (mine-mouth remesh, flag OFF 2026-08-09):** `assets/buildings/vault/{idle,damaged}.png`; hillside bunker / timber-framed entrance + aether-gold glow (not freestanding stronghouse). `VAULT_SPRITE_ENABLED=false` (live procedural golddepot). Flip flag -> `drawH=52`, collision `r=40` unchanged (stockier than hall 60). See `docs/vault-art-plan.md`.
 - **Aether Pit (art drafted, flag OFF 2026-08-09):** `assets/buildings/pit/{idle,damaged}.png`; stone/earth/quarry dug crater + cyan?teal / purple aether glow in hole (lamp ref = glow mood only). `PIT_SPRITE_ENABLED=false` (live procedural aetherpit). Flip flag -> `drawH=48`, collision `r=38` unchanged (between supply 46 and vault 52). See `docs/pit-art-plan.md`.
+- **Ashen Rover / Rift Hound (art drafted, flag OFF 2026-08-09):** `assets/allies/rover/{idle,walk,attack,death}.png`; gunmetal cyber-dog + aether cyan accents (original mesh — not Boston Dynamics / branded IP). `ROVER_SPRITE_ENABLED=false` (live procedural `drawRover`). Flip flag -> `drawH=26`, collision `r=11` unchanged. Ally batch **#3a dog only**; Warden/Scout/Sentinel next. See `docs/rover-art-plan.md`.

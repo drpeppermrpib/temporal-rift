@@ -6926,7 +6926,97 @@ function drawWarlordProcedural(e, alpha) {
 // ================== COMPANION SPRITES (v2.8) ======================
 // Rover: quadruped robot dog with a cyan visor. Warden/Scout reuse the
 // shared humanoid rig with cannon/crossbow arms.
+//
+// ============ ASHEN ROVER / RIFT HOUND SPRITES (drafted; flag OFF) ============
+// assets/allies/rover/{idle,walk,attack,death}.png — companion footprint, NOT boss.
+// Flag OFF: live procedural drawRover. Flag ON: sheets at drawH=26, collision r=11 unchanged.
+const ROVER_SPRITE_ENABLED = false;
+const ROVER_SPRITE_DRAWH = 26; // SIZE LOCK — matches procedural ~21 chassis + pad; << husk 56 / Gharok 228
+const roverSpr = { idle: null, walk: null, attack: null, death: null, ok: false };
+(function loadRoverSprites() {
+  if (!ROVER_SPRITE_ENABLED) return; // soft-load only when enabled
+  const keys = ['idle', 'walk', 'attack', 'death'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) roverSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) roverSpr.ok = good > 0; };
+    img.src = 'assets/allies/rover/' + k + '.png';
+    roverSpr[k] = img;
+  }
+})();
+
+function roverSpriteReady(img) {
+  return !!(ROVER_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+
+function roverSpriteFrame(c) {
+  if (c.downed && roverSpriteReady(roverSpr.death)) return roverSpr.death;
+  if ((c.swipeT || 0) > 0 && roverSpriteReady(roverSpr.attack)) return roverSpr.attack;
+  const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
+  if (moving && roverSpriteReady(roverSpr.walk) && roverSpriteReady(roverSpr.idle)) {
+    return (Math.floor((c.walk || 0) / Math.PI) & 1) ? roverSpr.walk : roverSpr.idle;
+  }
+  if (roverSpriteReady(roverSpr.idle)) return roverSpr.idle;
+  if (roverSpriteReady(roverSpr.walk)) return roverSpr.walk;
+  if (roverSpriteReady(roverSpr.attack)) return roverSpr.attack;
+  return null;
+}
+
+function drawRoverSprite(c) {
+  if (!ROVER_SPRITE_ENABLED) return false;
+  const img = roverSpriteFrame(c);
+  if (!img) return false;
+  const drawH = ROVER_SPRITE_DRAWH; // 26 — companion dog, not boss
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const t = c.walk || 0;
+  const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
+  const swipe = c.swipeT || 0;
+  const bite = swipe > 0 ? clamp(1 - swipe / UNIT_SWIPE, 0, 1) : 0;
+  const flash = c.hurtT > 0.35;
+  const bob = moving ? Math.abs(Math.sin(t)) * 1.2
+    : (swipe > 0) ? 0.5
+    : Math.abs(Math.sin(t * 0.5)) * 0.35;
+  const lean = moving ? Math.sin(t) * 0.04
+    : bite > 0.4 ? 0.08
+    : flash ? -0.06
+    : 0;
+
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  if (c.downed) ctx.globalAlpha = 0.55;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 12 + bite * 2, 4.5, 0, 0, TAU); ctx.fill();
+
+  ctx.scale(c.facing || 1, 1);
+  ctx.translate(0, -bob);
+  if (c.downed) ctx.rotate(0.15);
+  else ctx.rotate(lean);
+
+  if (bite > 0.25 && !c.downed) {
+    ctx.save();
+    ctx.globalAlpha *= 0.35 + bite * 0.35;
+    ctx.shadowColor = '#4de1ff';
+    ctx.shadowBlur = 8 + bite * 6;
+    ctx.fillStyle = `rgba(158,240,255,${0.12 + bite * 0.2})`;
+    ctx.beginPath();
+    ctx.ellipse(drawW * 0.22, -drawH * 0.45, 5 + bite * 3, 4 + bite * 2, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (flash) ctx.filter = 'brightness(2.5) saturate(0.15)';
+  ctx.drawImage(img, -drawW / 2, -drawH + 2, drawW, drawH);
+  ctx.filter = 'none';
+
+  ctx.restore();
+  return true;
+}
+
 function drawRover(c) {
+  if (drawRoverSprite(c)) return;
   const flash = c.hurtT > 0.35;
   const body = flash ? '#fff' : '#8d99ae';
   const dark = flash ? '#fff' : '#5a6478';

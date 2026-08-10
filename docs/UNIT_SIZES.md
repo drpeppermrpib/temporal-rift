@@ -13,7 +13,7 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Husk | **21** | zombie shambler ? SIZE LOCK (2.13.2; was 15) toward ravager 24 |
 | Sprinter | **18** | fast ghoul ? SIZE LOCK (2.13.2; was 12) |
 | Shaman | **20** | ranged caster ? SIZE LOCK (2.13.2; was 14) |
-| Ravager | **24** | orc brute (reference scale; procedural) |
+| Ravager | **24** live / **36** pending apply | orc brute ù live procedural `r=24`; Ashen Ravager sheets drafted with planned `r=36` (between bulwark 23 and Gharok 54); `RAVAGER_SPRITE_ENABLED=false` |
 | Warlord (Gharok) | **54** | boss ? locked |
 | Bulwark | **23** | fused husks / tank ? SIZE LOCK (2.13.2; was 22); near ravager, still << Gharok |
 | Skeleton | **12** | grave emergers ? SIZE LOCK (2.13.1; **unchanged in 2.13.2**) |
@@ -31,14 +31,14 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Gharok sprite | `drawH = 228` | idle/walk/windup PNG frame-swap (boss only) |
 | Gharok procedural fallback | `s = 3.2` | |
 | Ashen Husk sprite | `drawH = 56` | was 42 ? toward ravager ~61; **not** boss |
-| Sprinter sprite | `drawH = 56 * 0.87` (~48.7) | was 42◊0.87; same husk sheets |
+| Sprinter sprite | `drawH = 56 * 0.87` (~48.7) | was 42ù0.87; same husk sheets |
 | Ashen Skeleton sprite | `drawH = 38` | **UNCHANGED** from 2.13.1 |
 | Ashen Bulwark sprite | `drawH = 62` | was 58 ? near ravager; **not** Gharok 228 |
 | Ashen Shaman sprite | `drawH = 56` | was 42 ? matches husk toward ravager |
 | Figure `H` | `36 * s` | shared humanoid rig |
 | Husk / shaman figure `s` | **1.56** | was 1.17 |
 | Sprinter `s` | **1.35** | was 1.02 |
-| Ravager `s` | **1.7** | reference (~drawH 61) |
+| Ravager `s` | **1.7** live / **?2.78** pending | live procedural; planned with sprite `drawH=100` |
 | Bulwark `s` | **1.72** | was 1.61 |
 | Skeleton `s` | **1.055** | **UNCHANGED** from 2.13.1 |
 | Militia figure `s` | **0.78** | matches prior box height |
@@ -54,4 +54,4 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 - **Ashen Shaman (2.13.0 APPLIED / size 2.13.2):** `assets/shaman/{idle,walk,windup}.png` at `drawH=56`; `SHAMAN_SPRITE_ENABLED=true`. See `docs/shaman-art-plan.md`.
 - **Enemy barks (2.13.0):** synth grunts + original orc lines via `sfx` bark voice; respects mute SFX.
 - **Death:** particle/decal burst (no lingering corpse sheet yet).
-- **Gap:** Ashen Ravager still procedural (no sheet yet).
+- **Ashen Ravager (DEFERRED 2026-08-09):** `assets/ravager/{idle,walk,windup}.png` drafted; `RAVAGER_SPRITE_ENABLED=false` (live procedural). Planned apply: `r=36`, `drawH=100`, `s?2.78` ó between bulwark (`23`/`62`) and Gharok (`54`/`228`). See `docs/ravager-art-plan.md`.

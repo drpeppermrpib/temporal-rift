@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — Ashen Ravager art drafted (APK apply later)
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK**
+- User intent: Mesh 6 orc/cyclops/zombie refs into one-eyed fat zombie-orc Ravager sheets; size between others and boss; soft-wire flag OFF; Desktop photos; stop before articulation/sounds; no APK / no live enable
+- Agent action: Generated original Ashen Ravager / Rift Cyclope idle/walk/windup (512×512 transparent); refs under `assets/ravager/_refs/`; planned size lock `r=36` / `drawH=100` / `s≈2.78` (live still `r=24` / `s=1.7`); soft-wire `RAVAGER_SPRITE_ENABLED=false`; docs + Desktop `TemporalRift-Ravager-Sprites`; CHANGE_MEMORY pending
+- Notes: Articulation/barks when user says "next". Flip flag + apply size with update batch. No WoW/Saurfang/Blizzard IP. No stronghold this pass.
+
 ### 2026-08-09 — DEFERRED — Town/RTS save fix coded (ship with stronghold+art batch)
 - Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play AAB / no versionCode bump**
 - User intent: Continue after quit lost buildings, Ashen Laborers, and Muster militia (companion squad was fine); fix in code + document for next update batch with fence brick stronghold; do not apply/build/release this pass

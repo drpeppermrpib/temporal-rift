@@ -54,6 +54,7 @@ Update when any channel ships. Audit snapshot as of 2026-08-09:
 | Muster militia WC2 engage + laborer revive | Yes (2.13.1) | Yes (2.13.1) | Yes (2.13.2) | Yes (2.13.2) |
 | Laborer retaliate-on-hit only + squad smidge buff | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) |
 | Town/RTS Continuity save (`town` payload) | **Coded on master only (unreleased)** — still 2.13.2 / vc46; no BETA/Play ship | **No** | **No** | **No** |
+| Ashen Ravager sprites (idle/walk/windup) | **Drafted soft-wire OFF** (`RAVAGER_SPRITE_ENABLED=false`; planned r=36 / drawH=100) | **No** | **No** | **No** |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | Yes (2.13.2) | Yes (2.13.2) |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **Deepened** (2.13.2) | **Deepened** (2.13.2) |
@@ -130,9 +131,9 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Backlog | Skill-tree polish | Called backlog in 2.8.3 notes |
 | Backlog | Music bus / full soundtrack | Largely stubbed |
 | Backlog | RTS AI polish / more buildings / Colossus merge FX | 2.11.0 deepened town slice; pathfinding / true WC2 sim still thin |
-| Backlog | **Ashen Ravager** sprite art (NPC #4) | Next after Shaman; wait for refs — same soft-wire / APK-deferred pattern as Skeleton/Bulwark/Shaman |
+| Backlog | **Ashen Ravager** sprites — **art drafted, apply deferred** | Sheets in `assets/ravager/`; `RAVAGER_SPRITE_ENABLED=false`; live still procedural `r=24`/`s=1.7`. Planned apply: `r=36`, `drawH=100`, `s≈2.78`. See `docs/ravager-art-plan.md`. Flip flag + size + barks/articulation when user says apply/next |
 
-**Next batch suggested order** (user photos → art upgrades + buildings + ravager + stronghold later): (1) ravager last enemy mesh (2) building art mesh (3) ally/militia/laborer skins if photos (4) fence brick stronghold systems (5) one update apply (includes town save fix already on master).
+**Next batch suggested order** (user photos → art upgrades + buildings + ravager + stronghold later): (1) ~~ravager last enemy mesh~~ **drafted (flag OFF)** (2) building art mesh (3) ally/militia/laborer skins if photos (4) fence brick stronghold systems (5) one update apply (includes town save fix already on master + ravager flag/size).
 
 ---
 

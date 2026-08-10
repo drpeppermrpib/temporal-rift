@@ -5954,6 +5954,102 @@ function drawShamanSprite(e, alpha) {
   return true;
 }
 
+// ============ ASHEN RAVAGER SPRITES (DEFERRED — flag OFF) ============
+// assets/ravager/{idle,walk,windup}.png — husk/bulwark quality, between others and boss.
+// LIVE until apply: ETYPES.ravager r=24 / figure s=1.7 (procedural). Planned apply lock below.
+// Planned size (flag ON + size pass): collision r=36, drawH=100, figure s≈2.78.
+// Clearly > bulwark r=23/drawH=62; clearly < Gharok r=54/drawH=228. NOT boss.
+const RAVAGER_SPRITE_ENABLED = false; // soft-wire OFF — live game unchanged until later apply
+const RAVAGER_SPRITE_DRAWH = 100; // SIZE LOCK (pending apply) — between bulwark 62 and Gharok 228
+const ravagerSpr = { idle: null, walk: null, windup: null, ok: false };
+(function loadRavagerSprites() {
+  if (!RAVAGER_SPRITE_ENABLED) return; // soft-load only when enabled
+  const keys = ['idle', 'walk', 'windup'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) ravagerSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) ravagerSpr.ok = good > 0; };
+    img.src = 'assets/ravager/' + k + '.png';
+    ravagerSpr[k] = img;
+  }
+})();
+
+function ravagerSpriteReady(img) {
+  return !!(RAVAGER_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+
+function ravagerSpriteFrame(e) {
+  if ((e.swipeT || 0) > 0 && ravagerSpriteReady(ravagerSpr.windup)) return ravagerSpr.windup;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  if (moving && ravagerSpriteReady(ravagerSpr.walk) && ravagerSpriteReady(ravagerSpr.idle)) {
+    return (Math.floor((e.walk || 0) / Math.PI) & 1) ? ravagerSpr.walk : ravagerSpr.idle;
+  }
+  if (ravagerSpriteReady(ravagerSpr.idle)) return ravagerSpr.idle;
+  if (ravagerSpriteReady(ravagerSpr.walk)) return ravagerSpr.walk;
+  if (ravagerSpriteReady(ravagerSpr.windup)) return ravagerSpr.windup;
+  return null;
+}
+
+function drawRavagerSprite(e, alpha) {
+  if (!RAVAGER_SPRITE_ENABLED) return false;
+  const img = ravagerSpriteFrame(e);
+  if (!img) return false;
+  const s = 2.78; // pending UNIT_SIZES ravager figure s (drawH/36)
+  const drawH = RAVAGER_SPRITE_DRAWH; // 100 — between bulwark 62 and boss 228
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const t = e.walk || 0;
+  const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
+  const swipe = e.swipeT || 0;
+  const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
+  const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
+  const hurt = e.flash > 0;
+  const bob = moving ? Math.abs(Math.sin(t)) * 2.2 * s
+    : (swipe > 0) ? 1.0 * s
+    : Math.abs(Math.sin(t * 0.55)) * 0.5 * s;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
+  const lean = moving ? Math.sin(t) * 0.05
+    : windPose > 0 ? -0.1 - windPose * 0.04
+    : strikePose > 0 ? 0.15 * (1 - strikePose * 0.3)
+    : hurt ? -0.11
+    : Math.sin(t * 0.55) * 0.01;
+  const squashY = 1 - plant * 0.055 - (strikePose > 0 ? 0.03 : 0) + (hurt ? 0.015 : 0);
+  const squashX = 1 + plant * 0.045 + (strikePose > 0 ? 0.035 : 0) - (hurt ? 0.015 : 0);
+
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 13 * s * (1 + plant * 0.04), 4.8 * s, 0, 0, TAU); ctx.fill();
+
+  ctx.scale(e.facing || 1, 1);
+  ctx.translate(0, -bob);
+  ctx.rotate(lean);
+  ctx.scale(squashX, squashY);
+
+  if (windPose > 0 || strikePose > 0) {
+    ctx.save();
+    const glow = windPose || strikePose;
+    ctx.globalAlpha *= 0.35 + glow * 0.4;
+    ctx.shadowColor = '#e07040';
+    ctx.shadowBlur = 12 * s;
+    ctx.fillStyle = `rgba(224,112,64,${0.1 + glow * 0.22})`;
+    ctx.beginPath();
+    ctx.ellipse(drawW * 0.14, -drawH * 0.55, 9 * s + glow * 4.5, 11 * s + glow * 5.5, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (hurt) ctx.filter = 'brightness(2.5) saturate(0.15)';
+  ctx.drawImage(img, -drawW / 2, -drawH + 2, drawW, drawH);
+  ctx.filter = 'none';
+
+  ctx.restore();
+  return true;
+}
+
 // ============ WORLD SPRITES (v2.8.7) — pine trees + rocks ============
 // assets/world/trees|rocks/*.png — drawImage when ready, procedural fallback otherwise.
 const worldSpr = {
@@ -7184,6 +7280,8 @@ function render() {
         // Ashen Bulwark sheets — drawH=62, r=23; toward ravager (2.13.2)
       } else if (e.type === 'shaman' && drawShamanSprite(e, emerge)) {
         // Ashen Shaman sheets — drawH=56, r=20; toward ravager (2.13.2)
+      } else if (e.type === 'ravager' && drawRavagerSprite(e, emerge)) {
+        // Ashen Ravager sheets — DEFERRED flag OFF; planned drawH=100 / r=36 (between bulwark & Gharok)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

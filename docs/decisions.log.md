@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-10 — DEFERRED — Ashen Scout art draft (flag OFF; no articulate; no APK)
+- Version / commit / APK: **2.13.2** / vc46 unchanged / **no BETA APK** / **no version bump** / **no Play**
+- User intent: Mesh Scout companion bright green + purple power-armor archer (arrow guy, not yellow Warden tank); soft-wire OFF; no APK; no articulate yet; Desktop + Photos; docs + CHANGE_MEMORY; commit+push
+- Agent action: Generated original Ashen Scout idle/walk/attack/death (512×512 transparent); refs under `assets/allies/scout/_refs/` (power-armor bulk + armored archer pose/bow — not Fallout BoS / Destiny IP); size lock collision `r=13` unchanged, flag ON → `drawH=38`; soft-wire `SCOUT_SPRITE_ENABLED=false` (basic stub, no gait plant/barks); docs `scout-art-plan.md` + UNIT_SIZES + CHANGE_MEMORY; Desktop `C:\Users\drpep\Desktop\TemporalRift-Scout-Sprites` (+ Pictures); www sync sheets (no `_refs`)
+- Notes: Procedural ranger stays live. Articulate + barks = later user ask. Sentinel still pending.
+
 ### 2026-08-09 — DEFERRED — #3b Ashen Warden post-ship docs pins (2114ce3 / a55db1e)
 - Version / commit / APK: **2.13.2** / vc46 unchanged / code **`abe9e02`** + docs pins **`2114ce3`** / **`a55db1e`** / **no BETA APK** / **no version bump** / **no Play** / **not store-shipped**
 - User intent: Append CHANGE_MEMORY after Ashen Warden articulation+barks ship on master Continuity; do not mark store-shipped; REMOVED untouched; only fix gaps

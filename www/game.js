@@ -7036,7 +7036,7 @@ function drawWarlordProcedural(e, alpha) {
 
 // ================== COMPANION SPRITES (v2.8) ======================
 // Rover: quadruped robot dog with a cyan visor (sheets ON Continuity).
-// Warden: yellow knight-robot tank (sheets ON Continuity). Scout/Sentinel still procedural.
+// Warden: yellow knight-robot tank (sheets ON Continuity). Scout: art drafted, soft-wire OFF (no articulate yet).
 //
 // ============ ASHEN ROVER / RIFT HOUND SPRITES (articulation+barks ON for Continuity; store deferred) ============
 // assets/allies/rover/{idle,walk,attack,death}.png — companion footprint, NOT boss.
@@ -7236,6 +7236,62 @@ function drawWardenSprite(c) {
   return true;
 }
 
+// ============ ASHEN SCOUT SPRITES (art drafted; soft-wire OFF — articulate later) ============
+// assets/allies/scout/{idle,walk,attack,death}.png — lighter archer companion, NOT Warden tank / NOT boss.
+// Flag OFF: live procedural companionFigure (s=1.0 crossbow). Flip later → sheets + drawH=38.
+// Size lock: collision r=13 always (syncCompanions non-rover); drawH=38 (= 36*s1.0 + pad).
+// Bright green plates + purple aether; bow silhouette — original TR Scout (no Fallout/Destiny IP).
+const SCOUT_SPRITE_ENABLED = false;
+const SCOUT_SPRITE_DRAWH = 38; // SIZE LOCK — matches procedural H=36*1.0 + pad; << Warden 48 / husk 56 / Gharok 228
+const scoutSpr = { idle: null, walk: null, attack: null, death: null, ok: false };
+(function loadScoutSprites() {
+  if (!SCOUT_SPRITE_ENABLED) return; // soft-load only when enabled
+  const keys = ['idle', 'walk', 'attack', 'death'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) scoutSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) scoutSpr.ok = good > 0; };
+    img.src = 'assets/allies/scout/' + k + '.png';
+    scoutSpr[k] = img;
+  }
+})();
+
+function scoutSpriteReady(img) {
+  return !!(SCOUT_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+
+function scoutSpriteFrame(c) {
+  // Basic frame pick only — gait plant/barks deferred (do not articulate yet)
+  if (c.downed && scoutSpriteReady(scoutSpr.death)) return scoutSpr.death;
+  if ((c.swipeT || 0) > 0 && scoutSpriteReady(scoutSpr.attack)) return scoutSpr.attack;
+  const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
+  if (moving && scoutSpriteReady(scoutSpr.walk)) return scoutSpr.walk;
+  if (scoutSpriteReady(scoutSpr.idle)) return scoutSpr.idle;
+  if (scoutSpriteReady(scoutSpr.walk)) return scoutSpr.walk;
+  if (scoutSpriteReady(scoutSpr.attack)) return scoutSpr.attack;
+  return null;
+}
+
+function drawScoutSprite(c) {
+  if (!SCOUT_SPRITE_ENABLED) return false;
+  const img = scoutSpriteFrame(c);
+  if (!img) return false;
+  const drawH = SCOUT_SPRITE_DRAWH; // 38 — lighter archer companion, not tank/boss
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  if (c.downed) ctx.globalAlpha = 0.55;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 11, 4.2, 0, 0, TAU); ctx.fill();
+  ctx.scale(c.facing || 1, 1);
+  if (c.downed) ctx.rotate(0.12);
+  ctx.drawImage(img, -drawW / 2, -drawH + 2, drawW, drawH);
+  ctx.restore();
+  return true;
+}
+
 function drawRover(c) {
   if (drawRoverSprite(c)) return;
   const flash = c.hurtT > 0.35;
@@ -7313,6 +7369,7 @@ function companionFigure(c) {
 function drawCompanion(c) {
   if (c.type === 'rover') drawRover(c);
   else if (c.type === 'warden' && drawWardenSprite(c)) { /* sheet path when flag ON */ }
+  else if (c.type === 'scout' && drawScoutSprite(c)) { /* soft-wire sheets when flag ON */ }
   else drawFigure(c.x, c.y, companionFigure(c));
   // downed marker
   if (c.downed) {

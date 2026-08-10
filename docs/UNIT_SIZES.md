@@ -18,8 +18,8 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Bulwark | **23** | fused husks / tank ? SIZE LOCK (2.13.2; was 22); near ravager, still << Gharok |
 | Skeleton | **12** | grave emergers ? SIZE LOCK (2.13.1; **unchanged in 2.13.2**) |
 | Companion (rover) | **11** | SIZE LOCK � sheets + Continuity flag ON; do not bump |
-| Companion (warden) | **13** | SIZE LOCK — sheets + Continuity flag ON; do not bump |
-| Companion (scout/sentinel) | **13** | ally #3b later |
+| Companion (warden) | **13** | SIZE LOCK � sheets + Continuity flag ON; do not bump |
+| Companion (scout/sentinel) | **13** | Scout sheets drafted flag OFF; Sentinel later; do not bump |
 | Ashen Laborer | **11** | |
 | Militia spear/bow | **12** | `MILITIA_TYPES.*.r` |
 | Aether Colossus | **54** | ~Gharok scale |
@@ -45,7 +45,8 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 | Militia figure `s` | **0.78** | matches prior box height |
 | Colossus silhouette `H` | **210** | |
 | Ashen Rover sprite | `drawH = 26` | companion dog � **not** husk 56 / Gharok 228; collision `r=11` unchanged; `ROVER_SPRITE_ENABLED=true` Continuity |
-| Ashen Warden sprite | `drawH = 48` | tank companion — procedural `H≈45` (`s=1.25`) + pad; collision `r=13` unchanged; `WARDEN_SPRITE_ENABLED=true` Continuity |
+| Ashen Warden sprite | `drawH = 48` | tank companion � procedural `H?45` (`s=1.25`) + pad; collision `r=13` unchanged; `WARDEN_SPRITE_ENABLED=true` Continuity |
+| Ashen Scout sprite | `drawH = 38` | lighter archer companion � procedural `H=36` (`s=1.0`) + pad; collision `r=13` unchanged; `SCOUT_SPRITE_ENABLED=false` (art draft; articulate later) |
 
 ## Animation path (v2.13)
 
@@ -64,4 +65,5 @@ In-engine animation (limb swing / windup / strike / hurt lean) must stay additiv
 - **Gold Vault (mine-mouth remesh, flag OFF 2026-08-09):** `assets/buildings/vault/{idle,damaged}.png`; hillside bunker / timber-framed entrance + aether-gold glow (not freestanding stronghouse). `VAULT_SPRITE_ENABLED=false` (live procedural golddepot). Flip flag -> `drawH=52`, collision `r=40` unchanged (stockier than hall 60). See `docs/vault-art-plan.md`.
 - **Aether Pit (art drafted, flag OFF 2026-08-09):** `assets/buildings/pit/{idle,damaged}.png`; stone/earth/quarry dug crater + cyan?teal / purple aether glow in hole (lamp ref = glow mood only). `PIT_SPRITE_ENABLED=false` (live procedural aetherpit). Flip flag -> `drawH=48`, collision `r=38` unchanged (between supply 46 and vault 52). See `docs/pit-art-plan.md`.
 - **Ashen Rover / Rift Hound (articulation+barks ON Continuity 2026-08-09):** `assets/allies/rover/{idle,walk,attack,death}.png`; gunmetal cyber-dog + aether cyan accents. `ROVER_SPRITE_ENABLED=true` for master Continuity testing (store ship deferred). Collision `r=11` / `drawH=26` locked. Idle?walk gait + attack swipe + death + plant squash; aether-hound barks. See `docs/rover-art-plan.md`.
-- **Ashen Warden / Rift Warden (articulation+barks ON Continuity 2026-08-09):** `assets/allies/warden/{idle,walk,attack,death}.png`; weathered yellow/ochre knight-robotics armor + cyan/violet aether accents. `WARDEN_SPRITE_ENABLED=true` for master Continuity testing (store ship deferred). Collision `r=13` / `drawH=48` locked. Idle↔walk gait + attack swipe + death + heavy plant squash; armored-robot guardian barks. See `docs/warden-art-plan.md`.
+- **Ashen Warden / Rift Warden (articulation+barks ON Continuity 2026-08-09):** `assets/allies/warden/{idle,walk,attack,death}.png`; weathered yellow/ochre knight-robotics armor + cyan/violet aether accents. `WARDEN_SPRITE_ENABLED=true` for master Continuity testing (store ship deferred). Collision `r=13` / `drawH=48` locked. Idle?walk gait + attack swipe + death + heavy plant squash; armored-robot guardian barks. See `docs/warden-art-plan.md`.
+- **Ashen Scout / Rift Scout (art drafted, flag OFF 2026-08-10):** `assets/allies/scout/{idle,walk,attack,death}.png`; bright green plates + purple aether; slim knight-robotics archer (bow silhouette — not Warden yellow tank; not Fallout/Destiny IP). `SCOUT_SPRITE_ENABLED=false` (live procedural `s=1.0`); soft-wire stub only — **no articulate/barks yet**. Collision `r=13` / `drawH=38` locked. Desktop `TemporalRift-Scout-Sprites`. See `docs/scout-art-plan.md`.

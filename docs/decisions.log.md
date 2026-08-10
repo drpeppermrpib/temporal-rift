@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — Town/RTS save fix coded (ship with stronghold+art batch)
+- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play AAB / no versionCode bump**
+- User intent: Continue after quit lost buildings, Ashen Laborers, and Muster militia (companion squad was fine); fix in code + document for next update batch with fence brick stronghold; do not apply/build/release this pass
+- Agent action: Extended `snapshot`/`loadGame` with additive `town` payload (structures+levels, laborers orders/HP/downed, militia skills/HP/pos, barricades, waveTrainLeft, gold mine stocks); wood/gold already saved; old saves without `town` keep starter Keep+laborers; companion/player/wave/skill-tree untouched; smoke test `test-town-save.js`; CHANGE_MEMORY pending note
+- Notes: Next ship bundles save fix + stronghold + more art. Suggested batch order: (1) ravager last enemy mesh (2) building art mesh (3) ally/militia/laborer skins if photos (4) fence brick stronghold systems (5) one update apply. REMOVED list intact.
+
 ### 2026-08-09 — SHIPPED — Play Closed testing 2.13.2 live
 - Version / commit / APK: 2.13.2 (versionCode 46) / Play Closed testing (`playstore/TemporalRift-2.13.2.aab`, TR_CHANNEL=play)
 - User intent: Confirm Play Closed rollout finished — “nvm it worked”

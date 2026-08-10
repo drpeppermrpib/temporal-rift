@@ -53,12 +53,13 @@ Update when any channel ships. Audit snapshot as of 2026-08-09:
 | Enemy combat barks (synth + lines) | Yes (2.13.0) | Yes (2.13.0) | Yes (2.13.2) | Yes (2.13.2) |
 | Muster militia WC2 engage + laborer revive | Yes (2.13.1) | Yes (2.13.1) | Yes (2.13.2) | Yes (2.13.2) |
 | Laborer retaliate-on-hit only + squad smidge buff | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) | Yes (2.13.2) |
+| Town/RTS Continuity save (`town` payload) | **Coded on master only (unreleased)** — still 2.13.2 / vc46; no BETA/Play ship | **No** | **No** | **No** |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | Yes (2.13.2) | Yes (2.13.2) |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **Deepened** (2.13.2) | **Deepened** (2.13.2) |
 | Compact HUD + thinner beam (2.9.1) | Yes | Yes | Yes (2.13.2) | Yes (2.13.2) |
 
-**Channel lag note:** GitHub Release **v2.13.2** and Play Closed testing **2.13.2** (versionCode 46) both live as of 2026-08-09 (user confirmed Play rollout).
+**Channel lag note:** GitHub Release **v2.13.2** and Play Closed testing **2.13.2** (versionCode 46) both live as of 2026-08-09 (user confirmed Play rollout). **Town/RTS Continuity save** is coded on master only — live BETA/GitHub/Play 2.13.2 builds still drop town on Continue until the next update batch ships.
 
 ---
 ## Remove / Keep register
@@ -81,7 +82,7 @@ Hard constraints. Agents must check before reintroducing UI or features.
 | Channel-aware update check | Play builds must not offer GitHub updates |
 | Learning engine + collapsible adapt panel | Discoverability ≠ removal; 2.9.3 adds settings hide toggle (not removal of system) |
 | Barricades, exit pulse, fence tiers, sentry uplink, adjacency fortify links | Core defense; 2.9.3 adds pre-place link ghost |
-| Autosave / settings / layout drag / HUD offset / button styles / vibration | Mobile UX |
+| Autosave / settings / layout drag / HUD offset / button styles / vibration | Mobile UX; town/RTS Continuity (`town` payload) coded on master — ship with next update batch |
 | Dual-wield Ascension, Gusher, Sticker, companions (Rover/Warden/Scout) | 2.8+ |
 | Death checkpoints | 2.8+ |
 | Camera view Normal/Low/Lower | 2.8+ |
@@ -121,6 +122,8 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Priority | Item | Notes |
 |---|---|---|
 | High | Full **co-op combat sync** | PeerJS presence/HP/wave/revive shipped; enemies stay local — explicitly deferred |
+| **Next update (coded, unreleased)** | **Town/RTS Continuity save** | On master at **2.13.2** (no versionCode bump, no BETA/Play): additive `town` in snapshot/loadGame — structures+levels, laborers, militia, barricades, gold-mine stocks, waveTrainLeft; wood/gold already saved; companion/player/wave/skill-tree unchanged. **Ship deferred** until fence-brick stronghold + art batch. Live APKs still drop town on Continue until that ship. |
+| Next update batch | Fence brick / cloister / **stronghold** | Explicitly skipped in 2.13.2; bundle with save fix + art |
 | Backlog | **Rift Forge** companion + **v3 overhaul** | Companion scaffold SHIPPED at `../rift-forge` + `RiftForge-0.1.0.apk`; **APK deferred for ease** — prefer Windows **character-drops** pipeline for v3 art (see `docs/CHARACTER_DROP_FORMAT.md`); full v3 loader/overhaul still pending |
 | Backlog | **Character sheet ingest** (canvas) | Drop folder ready; **primary path now in-engine anim** (2.12.0). Pixelorama/Forge APK optional later — do not require user Pixelorama |
 | Backlog | Clan spot 2–5 players / robust rooms | Passkeys exist; not full lobby/matchmaking |
@@ -128,6 +131,8 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Backlog | Music bus / full soundtrack | Largely stubbed |
 | Backlog | RTS AI polish / more buildings / Colossus merge FX | 2.11.0 deepened town slice; pathfinding / true WC2 sim still thin |
 | Backlog | **Ashen Ravager** sprite art (NPC #4) | Next after Shaman; wait for refs — same soft-wire / APK-deferred pattern as Skeleton/Bulwark/Shaman |
+
+**Next batch suggested order** (user photos → art upgrades + buildings + ravager + stronghold later): (1) ravager last enemy mesh (2) building art mesh (3) ally/militia/laborer skins if photos (4) fence brick stronghold systems (5) one update apply (includes town save fix already on master).
 
 ---
 

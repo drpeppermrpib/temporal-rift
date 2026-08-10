@@ -362,6 +362,8 @@ bindHold('btnTalk', () => {
 $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e.preventDefault(); toggleTree(); });
 
 // ==================== VERSION & UPDATE CHECK ======================
+// Store/Play versionName stays 2.13.2 until next batch (save fix + stronghold + art).
+// Town/RTS persist is coded on master but UNRELEASED — do not bump versionCode yet.
 const APP_VERSION = '2.13.2';
 $('appVer').textContent = 'v' + APP_VERSION;
 
@@ -1118,6 +1120,115 @@ makeDraggable($('joyZone'), (left, top, w, h) => {
   applyLayout();
 });
 
+function snapshotTown() {
+  // Additive RTS/town payload (v2.13.2+ unreleased). Older saves omit `town`.
+  return {
+    structures: structures.map(s => ({
+      kind: s.kind, x: s.x, y: s.y, r: s.r,
+      hp: s.hp, maxHp: s.maxHp, lvl: s.lvl || 1,
+    })),
+    laborers: laborers.map(L => ({
+      id: L.id, x: L.x, y: L.y, r: L.r,
+      hp: L.hp, maxHp: L.maxHp, downed: !!L.downed,
+      order: L.order || 'auto',
+      carry: L.carry && (L.carry.type === 'wood' || L.carry.type === 'gold')
+        ? { type: L.carry.type, amt: Math.max(1, L.carry.amt | 0) } : null,
+    })),
+    militia: militia.map(m => ({
+      id: m.id, kind: m.kind, x: m.x, y: m.y, r: m.r,
+      hp: m.hp, maxHp: m.maxHp, downed: !!m.downed,
+      sk: {
+        dmg: (m.sk && m.sk.dmg) || 0,
+        armor: (m.sk && m.sk.armor) || 0,
+        spd: (m.sk && m.sk.spd) || 0,
+      },
+    })),
+    barricades: barricades.map(b => ({
+      x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, baseHp: b.baseHp,
+    })),
+    waveTrainLeft,
+    goldMines: goldMines.map(g => ({
+      x: g.x, y: g.y, r: g.r,
+      goldLeft: g.goldLeft, maxGold: g.maxGold,
+      name: g.name || 'Gold Mine',
+    })),
+  };
+}
+function applyTownSave(town) {
+  if (!town || typeof town !== 'object') return;
+  if (Array.isArray(town.structures)) {
+    structures = town.structures.filter(s => s && STRUCT_KINDS[s.kind]).map(s => {
+      const def = STRUCT_KINDS[s.kind];
+      const lvl = clamp(s.lvl || 1, 1, 3);
+      return {
+        kind: s.kind, x: +s.x, y: +s.y,
+        r: s.r || (def.r + (lvl - 1) * 4),
+        hp: Math.max(1, +s.hp || def.hp),
+        maxHp: Math.max(1, +s.maxHp || def.hp),
+        lvl, trainCd: 0, seepT: 0, kiT: 0,
+      };
+    });
+  }
+  if (Array.isArray(town.laborers)) {
+    laborers = town.laborers.filter(L => L).map(L => ({
+      id: L.id > 0 ? L.id : laborerIdSeq++,
+      x: +L.x, y: +L.y, vx: 0, vy: 0, r: L.r || 11,
+      hp: Math.max(0, +L.hp || 90),
+      maxHp: Math.max(1, +L.maxHp || 90),
+      carry: L.carry && (L.carry.type === 'wood' || L.carry.type === 'gold')
+        ? { type: L.carry.type, amt: Math.max(1, +L.carry.amt || 1) } : null,
+      target: null,
+      task: L.order === 'follow' ? 'follow' : 'idle',
+      order: L.order || 'auto',
+      gatherT: 0, walk: rand(0, 8), facing: 1, hurtT: 0,
+      insideMine: false, mineT: 0,
+      downed: !!L.downed,
+      atkCd: rand(0.2, 0.6), swipeT: 0, retaliateT: 0,
+    }));
+    laborerIdSeq = laborers.reduce((m, L) => Math.max(m, L.id || 0), 0) + 1;
+  }
+  if (Array.isArray(town.militia)) {
+    militia = town.militia.filter(m => m && MILITIA_TYPES[m.kind]).map(m => {
+      const t = MILITIA_TYPES[m.kind];
+      const sk = m.sk || {};
+      return {
+        id: m.id > 0 ? m.id : militiaIdSeq++,
+        kind: m.kind, x: +m.x, y: +m.y, vx: 0, vy: 0, r: m.r || t.r,
+        hp: Math.max(0, +m.hp || t.hp),
+        maxHp: Math.max(1, +m.maxHp || t.hp),
+        downed: !!m.downed, hurtT: 0,
+        atkCd: rand(0.2, 0.8), walk: rand(0, 8), facing: 1, aim: 0,
+        sk: {
+          dmg: clamp(sk.dmg || 0, 0, 3),
+          armor: clamp(sk.armor || 0, 0, 3),
+          spd: clamp(sk.spd || 0, 0, 3),
+        },
+      };
+    });
+    militiaIdSeq = militia.reduce((m, u) => Math.max(m, u.id || 0), 0) + 1;
+  }
+  if (Array.isArray(town.barricades)) {
+    barricades = town.barricades.filter(b => b).map(b => ({
+      x: +b.x, y: +b.y, r: b.r || BARRICADE_BASE_R,
+      hp: Math.max(1, +b.hp || 1),
+      maxHp: Math.max(1, +b.maxHp || +b.hp || 1),
+      baseHp: Math.max(1, +b.baseHp || +b.maxHp || 1),
+      neighbors: 0,
+    }));
+    refreshBarricadeLinks();
+  }
+  if (typeof town.waveTrainLeft === 'number')
+    waveTrainLeft = clamp(town.waveTrainLeft | 0, 0, 3);
+  if (Array.isArray(town.goldMines) && town.goldMines.length) {
+    goldMines = town.goldMines.filter(g => g).map(g => ({
+      x: +g.x, y: +g.y, r: g.r || 28,
+      goldLeft: Math.max(0, +g.goldLeft || 0),
+      maxGold: Math.max(1, +g.maxGold || +g.goldLeft || 1),
+      occupied: 0, name: g.name || 'Gold Mine',
+    }));
+    goldVeins = goldMines;
+  }
+}
 function snapshot() {
   return {
     v: 2,
@@ -1133,6 +1244,7 @@ function snapshot() {
     sentryTier,
     loadout: { primary: loadout.primary, secondary: loadout.secondary },
     squad: { owned: { ...squad.owned }, active: { ...squad.active } },
+    town: snapshotTown(),
   };
 }
 function saveGame(announce) {
@@ -1174,6 +1286,9 @@ function loadGame() {
   player.hp = clamp(s.player.hp, 1, maxHp());
   player.ki = clamp(s.player.ki, 0, maxKi());
   player.grenades = maxGrenades();
+  // Additive town/RTS restore (structures, laborers, militia, barricades, mines).
+  // Old saves without `town` keep newGame()'s starter Keep + laborers.
+  applyTownSave(s.town);
   updateQuestHud();
   $('hud').classList.remove('hidden');
   $('btnMenu').classList.remove('hidden');

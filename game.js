@@ -853,20 +853,21 @@ const sfx = (() => {
         osc.start(now); osc.stop(now + 0.16);
         src.start(now); src.stop(now + 0.12);
       } else if (v === 'ravager') {
+        // Deep cyclops-orc roar — lower + longer than bulwark (95→), above warlord (72→)
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(130, now);
-        osc.frequency.exponentialRampToValueAtTime(55, now + 0.22);
+        osc.frequency.setValueAtTime(82, now);
+        osc.frequency.exponentialRampToValueAtTime(36, now + 0.36);
         og.gain.setValueAtTime(0.0001, now);
-        og.gain.exponentialRampToValueAtTime(0.14, now + 0.03);
-        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
-        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520;
+        og.gain.exponentialRampToValueAtTime(0.15, now + 0.045);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 340;
         ng.gain.setValueAtTime(0.0001, now);
-        ng.gain.exponentialRampToValueAtTime(0.09, now + 0.02);
-        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        ng.gain.exponentialRampToValueAtTime(0.11, now + 0.035);
+        ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
         osc.connect(og).connect(dest);
         src.connect(lp).connect(ng).connect(dest);
-        osc.start(now); osc.stop(now + 0.28);
-        src.start(now); src.stop(now + 0.2);
+        osc.start(now); osc.stop(now + 0.42);
+        src.start(now); src.stop(now + 0.32);
       } else {
         // husk — wet moan / uuhh
         osc.type = 'sawtooth';
@@ -949,7 +950,8 @@ const ENEMY_BARK_LINES = {
   skeleton: ['click…', 'hss', 'bones…', 'rattle!', 'clack'],
   bulwark:  ['GRR', 'RAAR', 'crush!', 'hold the line!', 'smash'],
   shaman:   ['hex…', 'hss', 'rift take you', 'curse!', 'ash bind'],
-  ravager:  ['rar', 'smash!', 'kill!', 'break them', 'GRRAH'],
+  // Deep cyclops-orc — original lines; distinct from bulwark tank shouts
+  ravager:  ['grrrahh', 'smash!', 'rarrr', 'one eye...', 'crush bone!', 'break them!', 'GRRAHH'],
   warlord:  ['kneel!', 'ash claims you', 'GRRRAH', 'no mercy'],
 };
 const ENEMY_BARK_COLORS = {
@@ -1811,12 +1813,18 @@ function updateCompanions(dt) {
 const CLAW_WINDUP = 0.7, CLAW_STRIKE = 0.28, CLAW_RANGE = 165, CLAW_CD = 5, CLAW_DMG_MUL = 1.5, CLAW_KB = 820;
 // Contact-melee swipe telegraph for non-boss figures (visual only — hitbox unchanged)
 const UNIT_SWIPE = 0.32;
+// Ashen Ravager sprite gate — keep false until stronghold/art update-batch apply (no APK/store ship).
+// Flip to true → soft-load sheets + r=36 / drawH=100 / s≈2.78 (between bulwark and Gharok).
+const RAVAGER_SPRITE_ENABLED = false;
+const RAVAGER_SPRITE_DRAWH = 100; // SIZE LOCK — between bulwark 62 and Gharok 228
+const RAVAGER_R = RAVAGER_SPRITE_ENABLED ? 36 : 24;
+const RAVAGER_FIGURE_S = RAVAGER_SPRITE_ENABLED ? 2.78 : 1.7;
 const ETYPES = {
-  // v2.13.2 size pass: husk/sprinter/bulwark/shaman toward ravager (r=24 / s=1.7); skeleton UNCHANGED from 2.13.1
+  // v2.13.2 size pass: husk/sprinter/bulwark/shaman toward live ravager r=24; skeleton UNCHANGED from 2.13.1
   husk:     { r: 21, hp: 36,  spd: 60,  dmg: 9,  core: 1,  xp: 6,   ranged: false },
   sprinter: { r: 18, hp: 20,  spd: 135, dmg: 7,  core: 1,  xp: 7,   ranged: false },
   shaman:   { r: 20, hp: 44,  spd: 55,  dmg: 8,  core: 2,  xp: 12,  ranged: true  },
-  ravager:  { r: 24, hp: 160, spd: 46,  dmg: 22, core: 3,  xp: 18,  ranged: false },
+  ravager:  { r: RAVAGER_R, hp: 160, spd: 46,  dmg: 22, core: 3,  xp: 18,  ranged: false },
   warlord:  { r: 54, hp: 950, spd: 38,  dmg: 34, core: 25, xp: 120, ranged: true, boss: true, armor: 300 },
   bulwark:  { r: 23, hp: 90,  spd: 45,  dmg: 16, core: 3,  xp: 16,  ranged: false, kbPlayer: 260 }, // near ravager, still << Gharok
   skeleton: { r: 12, hp: 14,  spd: 170, dmg: 6,  core: 1,  xp: 5,   ranged: false }, // SIZE LOCK 2.13.1 — do not bump
@@ -5265,7 +5273,7 @@ function enemyFigure(e) {
       legs: '#2c2a20', hunch: 0.9, armsForward: true, glowEyes: '#ffb02e' };
     case 'shaman': return { ...base, s: 1.56, skin: '#7a8f5a', cloth: '#4a2f63', hood: '#3a2350',
       legs: '#31264a', hunch: 0.3, weapon: 'staff', glowEyes: '#d24dff' };
-    case 'ravager': return { ...base, s: 1.7, bulk: 1.35, headScale: 1.1, skin: '#5f8f3a', cloth: '#4c3a26',
+    case 'ravager': return { ...base, s: RAVAGER_FIGURE_S, bulk: 1.35, headScale: 1.1, skin: '#5f8f3a', cloth: '#4c3a26',
       pauldron: '#6b7686', legs: '#3a3026', tusks: true, ears: true, weapon: 'club', glowEyes: '#ffd54a' };
     case 'warlord': return { ...base, s: 3.2, bulk: 1.55, headScale: 1.15, skin: '#4ecf3a', cloth: '#5a2f78',
       pauldron: '#9aa8bc', legs: '#2f9a28', tusks: true, ears: true, horns: true, helmet: '#3a3f4c',
@@ -5954,13 +5962,10 @@ function drawShamanSprite(e, alpha) {
   return true;
 }
 
-// ============ ASHEN RAVAGER SPRITES (DEFERRED — flag OFF) ============
+// ============ ASHEN RAVAGER SPRITES (articulation+barks coded; flag OFF until ship batch) ============
 // assets/ravager/{idle,walk,windup}.png — husk/bulwark quality, between others and boss.
-// LIVE until apply: ETYPES.ravager r=24 / figure s=1.7 (procedural). Planned apply lock below.
-// Planned size (flag ON + size pass): collision r=36, drawH=100, figure s≈2.78.
-// Clearly > bulwark r=23/drawH=62; clearly < Gharok r=54/drawH=228. NOT boss.
-const RAVAGER_SPRITE_ENABLED = false; // soft-wire OFF — live game unchanged until later apply
-const RAVAGER_SPRITE_DRAWH = 100; // SIZE LOCK (pending apply) — between bulwark 62 and Gharok 228
+// Flag OFF: live procedural r=24 / s=1.7. Flag ON: sheets + r=36 / drawH=100 / s≈2.78.
+// Gate + size constants: RAVAGER_SPRITE_* near ETYPES. NOT boss (Gharok 54/228).
 const ravagerSpr = { idle: null, walk: null, windup: null, ok: false };
 (function loadRavagerSprites() {
   if (!RAVAGER_SPRITE_ENABLED) return; // soft-load only when enabled
@@ -5981,6 +5986,7 @@ function ravagerSpriteReady(img) {
 }
 
 function ravagerSpriteFrame(e) {
+  // Same idle↔walk↔windup swap as husk/bulwark/shaman (gait half-cycle + swipeT windup)
   if ((e.swipeT || 0) > 0 && ravagerSpriteReady(ravagerSpr.windup)) return ravagerSpr.windup;
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
   if (moving && ravagerSpriteReady(ravagerSpr.walk) && ravagerSpriteReady(ravagerSpr.idle)) {
@@ -5996,7 +6002,7 @@ function drawRavagerSprite(e, alpha) {
   if (!RAVAGER_SPRITE_ENABLED) return false;
   const img = ravagerSpriteFrame(e);
   if (!img) return false;
-  const s = 2.78; // pending UNIT_SIZES ravager figure s (drawH/36)
+  const s = RAVAGER_FIGURE_S; // 2.78 when enabled (drawH/36)
   const drawH = RAVAGER_SPRITE_DRAWH; // 100 — between bulwark 62 and boss 228
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = e.walk || 0;
@@ -6005,24 +6011,25 @@ function drawRavagerSprite(e, alpha) {
   const windPose = swipe > UNIT_SWIPE * 0.5 ? (1 - (swipe - UNIT_SWIPE * 0.5) / (UNIT_SWIPE * 0.5)) : 0;
   const strikePose = swipe > 0 && swipe <= UNIT_SWIPE * 0.5 ? (1 - swipe / (UNIT_SWIPE * 0.5)) : 0;
   const hurt = e.flash > 0;
-  const bob = moving ? Math.abs(Math.sin(t)) * 2.2 * s
-    : (swipe > 0) ? 1.0 * s
-    : Math.abs(Math.sin(t * 0.55)) * 0.5 * s;
+  // Heavy lumber gait — clearer plant squash/bob than bulwark (bigger footprint)
+  const bob = moving ? Math.abs(Math.sin(t)) * 2.4 * s
+    : (swipe > 0) ? 1.1 * s
+    : Math.abs(Math.sin(t * 0.5)) * 0.55 * s;
   const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
-  const lean = moving ? Math.sin(t) * 0.05
-    : windPose > 0 ? -0.1 - windPose * 0.04
-    : strikePose > 0 ? 0.15 * (1 - strikePose * 0.3)
-    : hurt ? -0.11
-    : Math.sin(t * 0.55) * 0.01;
-  const squashY = 1 - plant * 0.055 - (strikePose > 0 ? 0.03 : 0) + (hurt ? 0.015 : 0);
-  const squashX = 1 + plant * 0.045 + (strikePose > 0 ? 0.035 : 0) - (hurt ? 0.015 : 0);
+  const lean = moving ? Math.sin(t) * 0.055
+    : windPose > 0 ? -0.11 - windPose * 0.045
+    : strikePose > 0 ? 0.16 * (1 - strikePose * 0.3)
+    : hurt ? -0.12
+    : Math.sin(t * 0.5) * 0.012;
+  const squashY = 1 - plant * 0.065 - (strikePose > 0 ? 0.035 : 0) + (hurt ? 0.018 : 0);
+  const squashX = 1 + plant * 0.055 + (strikePose > 0 ? 0.04 : 0) - (hurt ? 0.018 : 0);
 
   ctx.save();
   ctx.translate(e.x, e.y);
   if (alpha !== undefined) ctx.globalAlpha = alpha;
 
-  ctx.fillStyle = 'rgba(0,0,0,0.38)';
-  ctx.beginPath(); ctx.ellipse(0, 0, 13 * s * (1 + plant * 0.04), 4.8 * s, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 14 * s * (1 + plant * 0.05), 5.2 * s, 0, 0, TAU); ctx.fill();
 
   ctx.scale(e.facing || 1, 1);
   ctx.translate(0, -bob);
@@ -7281,7 +7288,7 @@ function render() {
       } else if (e.type === 'shaman' && drawShamanSprite(e, emerge)) {
         // Ashen Shaman sheets — drawH=56, r=20; toward ravager (2.13.2)
       } else if (e.type === 'ravager' && drawRavagerSprite(e, emerge)) {
-        // Ashen Ravager sheets — DEFERRED flag OFF; planned drawH=100 / r=36 (between bulwark & Gharok)
+        // Ashen Ravager sheets — articulation ready; flag OFF until ship (drawH=100 / r=36)
       } else {
         const fig = enemyFigure(e);
         fig.alpha = emerge;

@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — Ashen Ravager articulation + barks coded (flag OFF; ship later)
+- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**
+- User intent: After approving Ravager art — “next!” add articulation with movements + sounds like other sprite foes; stop; buildings (#2) separately; don’t ship store update yet
+- Agent action: Wired idle↔walk↔windup + heavier plant squash/bob/lean on sprite path; size gates `RAVAGER_R`/`RAVAGER_FIGURE_S`/`drawH=100` follow flag; distinct deep cyclops-orc bark lines + lower/longer synth voice vs bulwark; left `RAVAGER_SPRITE_ENABLED=false` (live procedural unchanged); UNIT_SIZES + ravager-art-plan + CHANGE_MEMORY; www sync sheets (no `_refs`)
+- Notes: Flip one flag line to enable locally/ship. Store enable deferred with stronghold + building-art batch. Ready for #2 building photos. REMOVED list intact. No WoW/Blizzard IP.
+
 ### 2026-08-09 — DEFERRED — Ashen Ravager art drafted (APK apply later)
 - Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK**
 - User intent: Mesh 6 orc/cyclops/zombie refs into one-eyed fat zombie-orc Ravager sheets; size between others and boss; soft-wire flag OFF; Desktop photos; stop before articulation/sounds; no APK / no live enable

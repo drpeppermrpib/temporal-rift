@@ -16,8 +16,14 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #3a Ashen Rover articulation+barks post-ship confirm (4b9b2ea; flag ON Continuity; no APK)
+- Version / commit / APK: **2.13.2** / vc46 unchanged / commit **`4b9b2ea`** pushed `origin/master` / **no BETA APK** / **no version bump** / **no Play**
+- User intent: Append post-ship change memory after Rover articulation+barks; do not mark store-shipped; REMOVED untouched; #3b still next
+- Agent action: Confirmed CHANGE_MEMORY channel/pending/changelog already matched (flag ON Continuity, size lock r=11/drawH=26, store deferred); pinned commit hash here; REMOVED list untouched
+- Notes: **Not store-shipped.** Sheets gait idle↔walk, attack on swipeT, death when downed, plant squash/bob/lean; bark voice `rover` (higher/shorter than orcs) + alert/attack/combat/hurt/fetch (mute-aware). Ally **#3b** Warden/Scout/Sentinel still next.
+
 ### 2026-08-09 — DEFERRED — #3a Ashen Rover articulation+barks (flag ON Continuity; no APK)
-- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; `ROVER_SPRITE_ENABLED=true` for Continuity/source testing
+- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; `ROVER_SPRITE_ENABLED=true` for Continuity/source testing; later pinned **`4b9b2ea`**
 - User intent: Art approved — add articulate move + bark like ravager after art; flag ON for master Continuity testing; still no APK / no version bump / no Play; store ship deferred with batch
 - Agent action: Gait idle↔walk + attack on swipeT + death sheet; plant squash/bob/lean on sprite path; aether-hound bark voice (`voice:'rover'`) + original woof/grr/alert lines (alert/attack/combat/hurt/fetch); size lock `r=11` / `drawH=26` unchanged; docs rover-art-plan + CHANGE_MEMORY + decisions; www sync game.js
 - Notes: **Not store-shipped.** Distinct from orc enemy barks (higher/shorter synth). Procedural `drawRover` remains fallback. Ally #3b Warden/Scout/Sentinel still pending. REMOVED list intact.

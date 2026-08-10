@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #2b Camp art drafted (halls pending; apply later)
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK**
+- User intent: Mesh medieval camp refs into Timber Camp / Supply Camp building art (#2b); soft-wire flags OFF; Desktop photos; no APK / no live enable / no halls / no stronghold this pass
+- Agent action: Generated original Timber + Supply idle/damaged (512×512 transparent) + shared idle/damaged; refs under `assets/buildings/camp/_refs/`; size lock timber `r=40`/`drawH=50`, supply(farm) `r=36`/`drawH=46`; soft-wire `CAMP_SPRITE_ENABLED`/`TIMBER_SPRITE_ENABLED`/`SUPPLY_SPRITE_ENABLED=false`; docs `camp-art-plan.md` + CHANGE_MEMORY; Desktop `TemporalRift-Camp-Sprites`; www sync sheets (no `_refs`)
+- Notes: Muster/halls still pending user photos. Flip flags + apply with Keep + stronghold + town-save batch. REMOVED list intact. Original Ashen/Rift camp naming — inspiration only.
+
 ### 2026-08-09 — DEFERRED — #2 Keep art drafted (halls/camps pending; apply later)
 - Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK**
 - User intent: Mesh castle/keep refs into Rift Keep building art only for batch #2 part 1; halls/camps later; soft-wire flag OFF; Desktop photos; no APK / no live enable / no brick stronghold this pass

@@ -6936,6 +6936,63 @@ function drawKeepSprite(s) {
   ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
   return true;
 }
+// Timber Camp / Supply Camp sheets — soft-wire OFF until building-art ship batch.
+// Collision r stays STRUCT_KINDS (timber 40 / farm=Supply 36). Flag ON → camp-tall drawH (<< Keep 72 / Gharok).
+const CAMP_SPRITE_ENABLED = false; // master gate
+const TIMBER_SPRITE_ENABLED = false; // per-type (also requires CAMP_SPRITE_ENABLED)
+const SUPPLY_SPRITE_ENABLED = false;
+const TIMBER_SPRITE_DRAWH = 50; // SIZE LOCK — timber footprint (procedural ~32×40)
+const SUPPLY_SPRITE_DRAWH = 46; // SIZE LOCK — supply/farm footprint (procedural ~32×28)
+const campSpr = {
+  idle: null, damaged: null,
+  timberIdle: null, timberDamaged: null,
+  supplyIdle: null, supplyDamaged: null,
+  ok: false,
+};
+(function loadCampSprites() {
+  if (!CAMP_SPRITE_ENABLED) return; // soft-load only when master enabled
+  const keys = [
+    ['idle', 'idle'], ['damaged', 'damaged'],
+    ['timberIdle', 'timber-idle'], ['timberDamaged', 'timber-damaged'],
+    ['supplyIdle', 'supply-idle'], ['supplyDamaged', 'supply-damaged'],
+  ];
+  let left = keys.length, good = 0;
+  for (const [prop, file] of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) campSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) campSpr.ok = good > 0; };
+    img.src = 'assets/buildings/camp/' + file + '.png';
+    campSpr[prop] = img;
+  }
+})();
+function campSpriteReady(img) {
+  return !!(CAMP_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+function drawCampSprite(s) {
+  if (!CAMP_SPRITE_ENABLED) return false;
+  let drawH = 0, idle = null, damaged = null;
+  if (s.kind === 'timber' && TIMBER_SPRITE_ENABLED) {
+    drawH = TIMBER_SPRITE_DRAWH;
+    idle = campSpr.timberIdle || campSpr.idle;
+    damaged = campSpr.timberDamaged || campSpr.damaged;
+  } else if (s.kind === 'farm' && SUPPLY_SPRITE_ENABLED) {
+    drawH = SUPPLY_SPRITE_DRAWH;
+    idle = campSpr.supplyIdle || campSpr.idle;
+    damaged = campSpr.supplyDamaged || campSpr.damaged;
+  } else {
+    return false;
+  }
+  const hurt = s.hp < s.maxHp * 0.45;
+  const img = (hurt && campSpriteReady(damaged)) ? damaged
+    : campSpriteReady(idle) ? idle
+    : campSpriteReady(damaged) ? damaged
+    : null;
+  if (!img) return false;
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
+  return drawH;
+}
 function drawStructure(s) {
   const def = STRUCT_KINDS[s.kind];
   const pulse = 0.7 + Math.sin(performance.now() / 280 + s.x) * 0.2;
@@ -6949,11 +7006,12 @@ function drawStructure(s) {
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.stroke();
   ctx.fillStyle = `rgba(${col},0.1)`;
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
-  // Keep sheets when flag ON; other kinds / fallback stay procedural
+  // Keep / camp sheets when flags ON; other kinds / fallback stay procedural
   const usedKeepSpr = drawKeepSprite(s);
-  // building body — Keep is taller (skipped when keep sprite draws)
+  const usedCampH = usedKeepSpr ? false : drawCampSprite(s);
+  // building body — Keep is taller (skipped when keep/camp sprite draws)
   const bw = s.kind === 'keep' ? 42 : 32, bh = s.kind === 'keep' ? 40 : 28;
-  if (!usedKeepSpr) {
+  if (!usedKeepSpr && !usedCampH) {
     ctx.fillStyle = '#2a2218';
     ctx.fillRect(s.x - bw / 2, s.y - bh, bw, bh);
     ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2;
@@ -6971,7 +7029,7 @@ function drawStructure(s) {
       ctx.fillRect(s.x - 10, s.y - bh - 12, 20, 12);
     }
   }
-  const barH = usedKeepSpr ? KEEP_SPRITE_DRAWH : bh;
+  const barH = usedKeepSpr ? KEEP_SPRITE_DRAWH : (usedCampH || bh);
   const w = 34;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(s.x - w / 2, s.y - barH - 20, w, 3.5);

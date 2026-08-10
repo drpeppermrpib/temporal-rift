@@ -68,5 +68,5 @@ checker variants / `preview-idle-damaged.png` for Photos review.
 
 ## Next batch order
 
-(1) ~~ravager~~ coded flag OFF → (2a) **~~Keep art~~ drafted flag OFF** → (2b) **halls/camps** (user photos next)
+(1) ~~ravager~~ coded flag OFF → (2a) **~~Keep art~~ drafted flag OFF** → (2b) **~~camps~~ drafted flag OFF** → halls when photos
 → (3) ally skins if photos → (4) fence brick stronghold → (5) one update apply

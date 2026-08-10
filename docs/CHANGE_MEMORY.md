@@ -60,12 +60,13 @@ Update when any channel ships. Audit snapshot as of 2026-08-09:
 | Muster Hall building sprites (idle/damaged) | **Drafted on master, flag OFF** (`HALL_SPRITE_ENABLED=false`; live procedural muster; flip → drawH=60, r=46 unchanged) — **ship deferred** with stronghold batch | **No** | **No** | **No** |
 | Gold Vault building sprites (idle/damaged) | **Remeshed mine-mouth on master, flag OFF** (`VAULT_SPRITE_ENABLED=false`; live procedural golddepot; flip → drawH=52, r=40 unchanged) — hillside bunker / timber frame + aether-gold glow (replaced prior stronghouse mesh); **ship deferred** with stronghold batch | **No** | **No** | **No** |
 | Aether Pit building sprites (idle/damaged) | **Drafted on master, flag OFF** (`PIT_SPRITE_ENABLED=false`; live procedural aetherpit; flip → drawH=48, r=38 unchanged) — same pipeline as keep/camp/hall/vault; `aether-glow-mood-insp` = glow/lighting mood ONLY (no lamp object/logo/product); **no APK / no version bump / no live enable**; **ship deferred** with stronghold batch | **No** | **No** | **No** |
+| Cloister Wall / brick stronghold | **Coded on master** (`BRICKWALL_ENABLED`/`BRICKWALL_SPRITE_ENABLED=true`; Continuity `town.brickWalls`) — **store ship deferred** with town-save + peer art batch; no APK / no version bump | **No** | **No** | **No** |
 | Riftnet co-op (presence/HP/wave/revive) | Yes (partial) | Yes | Yes (2.13.2) | Yes (2.13.2) |
 | Full co-op combat sync (enemies shared) | **No** (deferred) | **No** | **No** | **No** |
 | Buildable city / craft behind fences | **Deepened** (2.11.0 WC2-style slice) | **Deepened** | **Deepened** (2.13.2) | **Deepened** (2.13.2) |
 | Compact HUD + thinner beam (2.9.1) | Yes | Yes | Yes (2.13.2) | Yes (2.13.2) |
 
-**Channel lag note:** GitHub Release **v2.13.2** and Play Closed testing **2.13.2** (versionCode 46) both live as of 2026-08-09 (user confirmed Play rollout). **Town/RTS Continuity save** is coded on master only — live BETA/GitHub/Play 2.13.2 builds still drop town on Continue until the next update batch ships.
+**Channel lag note:** GitHub Release **v2.13.2** and Play Closed testing **2.13.2** (versionCode 46) both live as of 2026-08-09 (user confirmed Play rollout). **Town/RTS Continuity save** and **Cloister Wall / brick stronghold** are coded on master only (still labeled 2.13.2 / vc46; no APK) — live BETA/GitHub/Play 2.13.2 builds still drop town on Continue and have no Cloister Wall BUILD option until the next store update batch ships.
 
 ---
 ## Remove / Keep register
@@ -87,7 +88,7 @@ Hard constraints. Agents must check before reintroducing UI or features.
 | Bottom region / city label (`regionFlashT`) | Replacement for removed center popup |
 | Channel-aware update check | Play builds must not offer GitHub updates |
 | Learning engine + collapsible adapt panel | Discoverability ≠ removal; 2.9.3 adds settings hide toggle (not removal of system) |
-| Barricades, exit pulse, fence tiers, sentry uplink, adjacency fortify links | Core defense; 2.9.3 adds pre-place link ghost |
+| Barricades, exit pulse, fence tiers, sentry uplink, adjacency fortify links | Core defense; 2.9.3 adds pre-place link ghost. **Wooden barricades KEPT** — Cloister Walls are additive (master, store deferred), not a replacement |
 | Autosave / settings / layout drag / HUD offset / button styles / vibration | Mobile UX; town/RTS Continuity (`town` payload) coded on master — ship with next update batch |
 | Dual-wield Ascension, Gusher, Sticker, companions (Rover/Warden/Scout) | 2.8+ |
 | Death checkpoints | 2.8+ |
@@ -99,7 +100,7 @@ Hard constraints. Agents must check before reintroducing UI or features.
 | Compact minimap + HP/aether cluster; map S/M/L; thinner beam ladder | 2.9.1 |
 | Field hold-Talk revive + PeerJS downed/revive | 2.9.2 |
 | BETA package `com.drpep.temporalrift.beta` | Side-by-side installs |
-| RTS build picker + wood/gold + Ashen Laborers + upgradable halls + Aether Colossus | 2.10.0 — additive city pathway started; deepened in 2.11.0 |
+| RTS build picker + wood/gold + Ashen Laborers + upgradable halls + Aether Colossus | 2.10.0 — additive city pathway started; deepened in 2.11.0; master adds **Cloister Wall** to BUILD (store deferred) |
 | WC2-style Rift Keep town + forest stands + gold mines + Muster militia | 2.11.0 — workers≠squad; +3 combat train/wave; militia engage fixed 2.13.1; laborers revivable 2.13.1; retaliate-on-hit only 2.13.2 |
 
 ### Discoverability risk (not removed — easy to feel “gone”)
@@ -128,8 +129,8 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Priority | Item | Notes |
 |---|---|---|
 | High | Full **co-op combat sync** | PeerJS presence/HP/wave/revive shipped; enemies stay local — explicitly deferred |
-| **Next update (coded, unreleased)** | **Town/RTS Continuity save** | On master at **2.13.2** (no versionCode bump, no BETA/Play): additive `town` in snapshot/loadGame — structures+levels, laborers, militia, barricades, gold-mine stocks, waveTrainLeft; wood/gold already saved; companion/player/wave/skill-tree unchanged. **Ship deferred** until fence-brick stronghold + art batch. Live APKs still drop town on Continue until that ship. |
-| Next update batch | Fence brick / cloister / **stronghold** | Explicitly skipped in 2.13.2; bundle with save fix + art |
+| **Next update (coded, unreleased)** | **Town/RTS Continuity save** | On master at **2.13.2** (no versionCode bump, no BETA/Play): additive `town` in snapshot/loadGame — structures+levels, laborers, militia, barricades, **brickWalls**, gold-mine stocks, waveTrainLeft; wood/gold already saved; companion/player/wave/skill-tree unchanged. `test-town-save.js` covers `brickWalls`. **Store ship deferred** with peer art flags ON (stronghold systems already ON on master). Live APKs still drop town on Continue until that ship. |
+| Next update batch | Fence brick / cloister / **stronghold** | **Systems+art coded on master** (`BRICKWALL_ENABLED`/`BRICKWALL_SPRITE_ENABLED=true` for Continuity/source testing); BUILD Cloister Wall (wood 10 / gold 4 / cores 2; HP 280; max 16); cardinal auto-link + corners/T + LINK ghost; **store ship deferred** with Continuity + peer art flags — **not** store-shipped |
 | Backlog | **Rift Forge** companion + **v3 overhaul** | Companion scaffold SHIPPED at `../rift-forge` + `RiftForge-0.1.0.apk`; **APK deferred for ease** — prefer Windows **character-drops** pipeline for v3 art (see `docs/CHARACTER_DROP_FORMAT.md`); full v3 loader/overhaul still pending |
 | Backlog | **Character sheet ingest** (canvas) | Drop folder ready; **primary path now in-engine anim** (2.12.0). Pixelorama/Forge APK optional later — do not require user Pixelorama |
 | Backlog | Clan spot 2–5 players / robust rooms | Passkeys exist; not full lobby/matchmaking |
@@ -142,8 +143,9 @@ Do not invent extras. Skip boss art / combat “feel” polish unless user reope
 | Backlog | **Muster Hall** building art — **drafted, flag OFF** | Commit `080094b`; `assets/buildings/hall/{idle,damaged}.png`; `HALL_SPRITE_ENABLED=false`; collision `r=46` unchanged; flag ON → `drawH=60` (between camp ~50 and Keep 72). Desktop `TemporalRift-Hall-Sprites`. See `docs/hall-art-plan.md`. Apply with stronghold batch |
 | Backlog | **Gold Vault** building art — **remeshed mine-mouth, flag OFF** | Replaced stronghouse/arcade mesh with dug-into-hill timber-framed mine mouth + aether-gold interior glow (no readable IP/sign text); `assets/buildings/vault/{idle,damaged}.png`; `_refs/`: hillside-bunker-mouth-insp, rocky-cave-ladder-insp, timber-frame-mine-mouth-insp (old arcade refs removed); `VAULT_SPRITE_ENABLED=false`; collision `r=40` unchanged; flag ON → `drawH=52`. Desktop `TemporalRift-Vault-Sprites`. See `docs/vault-art-plan.md`. Apply with stronghold batch |
 | Backlog | **Aether Pit** building art — **drafted, flag OFF** | Same pipeline as keep/camp/hall/vault. Stone-lined dug crater / quarry pit + cyan→teal / purple aether glow in hole; `_refs/` includes `aether-glow-mood-insp` (Razer lamp) = **glow/lighting mood ONLY** — no lamp object/logo/product in sheets (README); `assets/buildings/pit/{idle,damaged}.png` (512×512 transparent); `PIT_SPRITE_ENABLED=false`; collision `r=38` unchanged; flag ON → `drawH=48`. Desktop `C:\Users\drpep\Desktop\TemporalRift-Pit-Sprites`. No APK / no version bump / no live enable. See `docs/pit-art-plan.md`. Apply with stronghold batch |
+| Backlog | **Cloister Wall / brick stronghold** — **systems+art on master, store deferred** | Modular `assets/buildings/brickwall/{pillar,segment,corner,tee}(+damaged).png` + `_refs`; BUILD → Cloister Wall (wood 10 / gold 4 / cores 2; HP 280; max 16); cardinal auto-link straights/corners/T; LINK ghost like barricades; `town.brickWalls` Continuity (additive with barricades); `BRICKWALL_ENABLED`/`BRICKWALL_SPRITE_ENABLED=true` for source testing. Desktop `C:\Users\drpep\Desktop\TemporalRift-BrickWall-Sprites`. See `docs/brickwall-art-plan.md`. No APK / no version bump / **not store-shipped** |
 
-**Next batch suggested order** (user photos → art upgrades + buildings + ravager + stronghold later): (1) ~~ravager mesh~~ **art+articulation+barks coded (flag OFF)** (2a) ~~**Keep art**~~ **drafted (flag OFF)** (2b) ~~**camps**~~ **drafted (flags OFF)** (2c) ~~**Muster Hall**~~ **drafted (flag OFF)** (2d) ~~**Gold Vault**~~ **remeshed mine-mouth (flag OFF)** (2e) ~~**Aether Pit**~~ **drafted (flag OFF)** → (3) ally/militia/laborer skins if photos (4) fence brick stronghold systems (5) one update apply (town save + ravager/keep/camp/hall/vault/pit flags ON).
+**Next batch suggested order** (user photos → art upgrades + buildings + ravager + stronghold later): (1) ~~ravager mesh~~ **art+articulation+barks coded (flag OFF)** (2a) ~~**Keep art**~~ **drafted (flag OFF)** (2b) ~~**camps**~~ **drafted (flags OFF)** (2c) ~~**Muster Hall**~~ **drafted (flag OFF)** (2d) ~~**Gold Vault**~~ **remeshed mine-mouth (flag OFF)** (2e) ~~**Aether Pit**~~ **drafted (flag OFF)** → (3) ally/militia/laborer skins if photos → (4) ~~fence brick stronghold systems~~ **coded on master (store deferred)** → (5) one update apply (town save + ravager/keep/camp/hall/vault/pit flags ON + brickwall already ON).
 
 ---
 
@@ -155,7 +157,8 @@ Append new versions at the top of this list when shipping.
 - **Enemy size toward ravager:** husk/sprinter/bulwark/shaman drawH+r scaled toward ravager (`r=24` / `s=1.7`); still << Gharok. **Skeleton unchanged** (r=12 / drawH=38 / s=1.055). Old→new: husk 15/42→21/56, sprinter 12/~36.5→18/~48.7, shaman 14/42→20/56, bulwark 22/58→23/62.
 - **Laborers:** retaliate-on-hit only (`retaliateT` after damage); removed proactive threaten-engage and flee-to-fight-when-threatened. Still workers≠squad, still revivable.
 - **Squad smidge buff:** companions + muster militia slight HP/dmg (rover 185/10→210/11, warden 300/9→340/10, scout 165/8→185/9, sentinel 240/11→270/12, spear 200/12→230/14, bow 155/9→180/10).
-- **Skipped:** fence brick wall / cloister / stronghold connection (later update).
+- **Skipped (at 2.13.2 release):** fence brick wall / cloister / stronghold connection.
+- **Master later (unreleased; still 2.13.2 / vc46, no APK):** Cloister Wall / brick stronghold systems+art coded — `BRICKWALL_ENABLED`/`BRICKWALL_SPRITE_ENABLED=true` for Continuity/source testing; BUILD Cloister Wall; `town.brickWalls`; wooden barricades KEPT. **Store ship deferred** with Continuity + peer art batch.
 
 ### 2.13.1
 - **Enemy size pass (modest):** husk/sprinter/skeleton/bulwark/shaman slightly larger than player visual — not boss-sized. drawH/r: husk 36/14→42/15, sprinter ~30.6/11→~36.5/12, skeleton 32.4/10→38/12, bulwark 52.2/20→58/22, shaman 36/13→42/14. Gharok untouched.
@@ -226,4 +229,5 @@ Append new versions at the top of this list when shipping.
 |---|---|
 | [`chat_audit_misses_and_regressions.md`](./chat_audit_misses_and_regressions.md) | **Baseline audit** — immutable revert reference |
 | [`decisions.log.md`](./decisions.log.md) | Append-only dated decisions |
+| [`brickwall-art-plan.md`](./brickwall-art-plan.md) | Cloister Wall / brick stronghold art + systems plan (master ON, store deferred) |
 | `.cursor/rules/change-memory.mdc` | Agent rule to load/update this system |

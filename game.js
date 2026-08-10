@@ -1148,6 +1148,9 @@ function snapshotTown() {
     barricades: barricades.map(b => ({
       x: b.x, y: b.y, r: b.r, hp: b.hp, maxHp: b.maxHp, baseHp: b.baseHp,
     })),
+    brickWalls: brickWalls.map(w => ({
+      x: w.x, y: w.y, r: w.r, hp: w.hp, maxHp: w.maxHp, baseHp: w.baseHp,
+    })),
     waveTrainLeft,
     goldMines: goldMines.map(g => ({
       x: g.x, y: g.y, r: g.r,
@@ -1218,6 +1221,17 @@ function applyTownSave(town) {
       neighbors: 0,
     }));
     refreshBarricadeLinks();
+  }
+  if (Array.isArray(town.brickWalls)) {
+    brickWalls = town.brickWalls.filter(w => w).map(w => ({
+      x: +w.x, y: +w.y, r: w.r || BRICKWALL_PILLAR_R,
+      hp: Math.max(1, +w.hp || 1),
+      maxHp: Math.max(1, +w.maxHp || +w.hp || 1),
+      baseHp: Math.max(1, +w.baseHp || +w.maxHp || 1),
+      neighbors: 0,
+      links: { n: null, e: null, s: null, w: null },
+    }));
+    refreshBrickWallLinks();
   }
   if (typeof town.waveTrainLeft === 'number')
     waveTrainLeft = clamp(town.waveTrainLeft | 0, 0, 3);
@@ -1384,6 +1398,22 @@ const BARRICADE_MAX = 8, BARRICADE_COST = 3, BARRICADE_HP = 160;
 const BARRICADE_BASE_R = 34;
 const BARRICADE_LINK_DIST = 86; // centers within this count as adjacent (linked)
 const BARRICADE_MIN_GAP = 52;   // allow closer placement so posts can touch/link
+// Cloister / brick stronghold walls — systems ON for master Continuity testing;
+// store ship deferred with town-save + art batch (no APK / no version bump).
+const BRICKWALL_ENABLED = true;
+const BRICKWALL_SPRITE_ENABLED = true; // soft art; procedural fallback if sheets fail
+let brickWalls = []; // pillars {x,y,r,hp,maxHp,baseHp,neighbors,links:{n,e,s,w}}
+let buildGhostKind = 'barricade'; // 'barricade' | 'brickwall' — aim ghost mode
+const BRICKWALL_MAX = 16;
+const BRICKWALL_COST = { wood: 10, gold: 4, cores: 2 };
+const BRICKWALL_HP = 280; // tougher than energy barricade (160)
+const BRICKWALL_PILLAR_R = 18;
+const BRICKWALL_LINK_DIST = 96;
+const BRICKWALL_MIN_GAP = 58;
+const BRICKWALL_SEG_THICK = 14;
+const BRICKWALL_CARDINAL_TOL = 30;
+const BRICKWALL_SPRITE_DRAWH = 44; // pillar draw height (feet at y)
+const BRICKWALL_SEG_DRAWH = 36;
 // fence grid tier (upgrades every barricade): 1 = stock · 2 = slow · 3 = zap ·
 // 4 = shield membrane (less smash damage) · 5 = fortress pulse (stronger zap)
 let fenceTier = 1;
@@ -2990,11 +3020,56 @@ function barricadeAimPos() {
 function barricadeSpotBlocked(bx, by) {
   return obstacles.some(o => dist2(bx, by, o.x, o.y) < (o.r + 40) ** 2) ||
     barricades.some(b => dist2(bx, by, b.x, b.y) < BARRICADE_MIN_GAP * BARRICADE_MIN_GAP) ||
+    brickWalls.some(w => dist2(bx, by, w.x, w.y) < (BRICKWALL_PILLAR_R + 28) ** 2) ||
     structures.some(s => dist2(bx, by, s.x, s.y) < (s.r + 36) ** 2) ||
     goldVeins.some(g => dist2(bx, by, g.x, g.y) < (g.r + 36) ** 2);
 }
 function barricadeLinkTargets(bx, by) {
   return barricades.filter(b => dist2(bx, by, b.x, b.y) <= BARRICADE_LINK_DIST * BARRICADE_LINK_DIST);
+}
+
+function brickWallCardinalDir(dx, dy) {
+  if (Math.hypot(dx, dy) > BRICKWALL_LINK_DIST * 1.12) return null;
+  if (Math.abs(dx) >= Math.abs(dy) && Math.abs(dy) <= BRICKWALL_CARDINAL_TOL)
+    return dx > 0 ? 'e' : 'w';
+  if (Math.abs(dy) > Math.abs(dx) && Math.abs(dx) <= BRICKWALL_CARDINAL_TOL)
+    return dy > 0 ? 's' : 'n';
+  return null;
+}
+function brickWallSnapPos(x, y) {
+  let best = null, bestScore = 1e9;
+  for (const w of brickWalls) {
+    const dx = x - w.x, dy = y - w.y;
+    const d = Math.hypot(dx, dy);
+    if (d < BRICKWALL_MIN_GAP * 0.85) return { x: w.x, y: w.y, overlap: true };
+    const dir = brickWallCardinalDir(dx, dy);
+    if (!dir) continue;
+    let sx = w.x, sy = w.y;
+    if (dir === 'e') sx = w.x + BRICKWALL_LINK_DIST;
+    if (dir === 'w') sx = w.x - BRICKWALL_LINK_DIST;
+    if (dir === 's') sy = w.y + BRICKWALL_LINK_DIST;
+    if (dir === 'n') sy = w.y - BRICKWALL_LINK_DIST;
+    const score = Math.hypot(x - sx, y - sy);
+    if (score < bestScore && score < 42) {
+      bestScore = score;
+      best = { x: sx, y: sy, overlap: false };
+    }
+  }
+  return best || { x, y, overlap: false };
+}
+function brickWallSpotBlocked(bx, by) {
+  if (!BRICKWALL_ENABLED) return true;
+  return obstacles.some(o => dist2(bx, by, o.x, o.y) < (o.r + 36) ** 2) ||
+    barricades.some(b => dist2(bx, by, b.x, b.y) < (b.r + BRICKWALL_PILLAR_R - 4) ** 2) ||
+    brickWalls.some(w => dist2(bx, by, w.x, w.y) < BRICKWALL_MIN_GAP * BRICKWALL_MIN_GAP) ||
+    structures.some(s => dist2(bx, by, s.x, s.y) < (s.r + 34) ** 2) ||
+    goldVeins.some(g => dist2(bx, by, g.x, g.y) < (g.r + 34) ** 2);
+}
+function brickWallLinkTargets(bx, by) {
+  return brickWalls.filter(w => {
+    const dx = bx - w.x, dy = by - w.y;
+    return !!brickWallCardinalDir(dx, dy);
+  });
 }
 
 // ===================== RTS LAYER (v2.11) ==========================
@@ -3070,6 +3145,7 @@ function countStruct(kind) { return structures.filter(s => s.kind === kind).leng
 function structureSpotBlocked(bx, by, r) {
   return obstacles.some(o => dist2(bx, by, o.x, o.y) < (o.r + r) ** 2) ||
     barricades.some(b => dist2(bx, by, b.x, b.y) < (b.r + r - 6) ** 2) ||
+    brickWalls.some(w => dist2(bx, by, w.x, w.y) < (BRICKWALL_PILLAR_R + r - 4) ** 2) ||
     structures.some(s => dist2(bx, by, s.x, s.y) < (s.r + r) ** 2) ||
     goldMines.some(g => dist2(bx, by, g.x, g.y) < (g.r + r) ** 2) ||
     Math.hypot(bx - CAMP.x, by - CAMP.y) < 90;
@@ -3108,8 +3184,25 @@ function renderBuildPick() {
   bOpt.innerHTML = `<h4>⛨ Energy Barricade</h4>
     <small>Linked fence post · sentry mount · exit pulse</small>
     <div class="price">⬡ ${BARRICADE_COST} · ${barricades.length}/${BARRICADE_MAX}</div>`;
-  bOpt.onclick = () => { if (tryPlaceBarricade()) closeBuildPick(); };
+  bOpt.onclick = () => {
+    buildGhostKind = 'barricade';
+    if (tryPlaceBarricade()) closeBuildPick();
+  };
   grid.appendChild(bOpt);
+  if (BRICKWALL_ENABLED) {
+    const cost = BRICKWALL_COST;
+    const locked = brickWalls.length >= BRICKWALL_MAX || !canAffordCosts(cost);
+    const wOpt = document.createElement('button');
+    wOpt.className = 'buildopt' + (locked ? ' locked' : '');
+    wOpt.innerHTML = `<h4>🧱 Cloister Wall</h4>
+      <small>Brick stronghold · auto-link straights · corners & T-junctions</small>
+      <div class="price">${costLabel(cost)} · ${brickWalls.length}/${BRICKWALL_MAX}</div>`;
+    wOpt.onclick = () => {
+      buildGhostKind = 'brickwall';
+      if (tryPlaceBrickWall()) closeBuildPick();
+    };
+    grid.appendChild(wOpt);
+  }
   const order = ['keep', 'timber', 'farm', 'golddepot', 'muster', 'aetherpit'];
   for (const kind of order) {
     const def = STRUCT_KINDS[kind];
@@ -3148,6 +3241,50 @@ function tryPlaceBarricade() {
     spawnParticles(bx, by, 18, '#7CFC00', 4);
   }
   spawnRing(bx, by, 40);
+  return true;
+}
+function tryPlaceBrickWall() {
+  if (!BRICKWALL_ENABLED) return false;
+  if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || riftNetOpen || player.downed) return false;
+  if (brickWalls.length >= BRICKWALL_MAX) {
+    addFloater(player.x, player.y - 40, `MAX ${BRICKWALL_MAX} CLOISTER`, '#ff8a93', false); return false;
+  }
+  if (!canAffordCosts(BRICKWALL_COST)) {
+    addFloater(player.x, player.y - 40, 'NEED ' + costLabel(BRICKWALL_COST), '#ffd54a', false); return false;
+  }
+  const aim = barricadeAimPos();
+  const snap = brickWallSnapPos(aim.x, aim.y);
+  if (snap.overlap) {
+    addFloater(player.x, player.y - 40, 'NO ROOM HERE', '#ff8a93', false); return false;
+  }
+  const bx = clamp(snap.x, 40, WORLD.w - 40);
+  const by = clamp(snap.y, 40, WORLD.h - 40);
+  if (brickWallSpotBlocked(bx, by)) {
+    addFloater(player.x, player.y - 40, 'NO ROOM HERE', '#ff8a93', false); return false;
+  }
+  spendCosts(BRICKWALL_COST);
+  const baseHp = BRICKWALL_HP + wave * 10;
+  brickWalls.push({
+    x: bx, y: by, r: BRICKWALL_PILLAR_R,
+    hp: baseHp, maxHp: baseHp, baseHp,
+    neighbors: 0, links: { n: null, e: null, s: null, w: null },
+  });
+  refreshBrickWallLinks();
+  const placed = brickWalls.find(w => Math.hypot(w.x - bx, w.y - by) < 1);
+  const n = placed ? placed.neighbors : 0;
+  const jType = placed ? brickWallJunctionType(placed) : 'post';
+  if (n > 0) {
+    const label = jType === 'tee' ? 'T-JUNCTION'
+      : jType === 'corner' ? 'CORNER LINK'
+      : jType === 'cross' ? 'CROSS LINK'
+      : 'LINK ×' + n;
+    addFloater(bx, by - 36, label, '#c8a06a', true);
+    spawnParticles(bx, by, 20, '#c8a06a', 4);
+  } else {
+    spawnParticles(bx, by, 16, '#d4a574', 3);
+    addFloater(bx, by - 36, 'CLOISTER POST', '#d4a574', false);
+  }
+  spawnRing(bx, by, 36);
   return true;
 }
 function tryPlaceStructure(kind) {
@@ -3933,6 +4070,50 @@ function refreshBarricadeLinks() {
   }
 }
 
+function brickWallJunctionType(w) {
+  const L = w.links || {};
+  const dirs = [L.n, L.e, L.s, L.w].filter(Boolean);
+  const n = dirs.length;
+  if (n >= 4) return 'cross';
+  if (n === 3) return 'tee';
+  if (n === 2) {
+    const hasNS = !!(L.n && L.s);
+    const hasEW = !!(L.e && L.w);
+    if (hasNS || hasEW) return 'straight';
+    return 'corner';
+  }
+  if (n === 1) return 'end';
+  return 'post';
+}
+function refreshBrickWallLinks() {
+  if (!BRICKWALL_ENABLED) return;
+  for (const w of brickWalls) {
+    w.links = { n: null, e: null, s: null, w: null };
+    let n = 0;
+    for (const o of brickWalls) {
+      if (o === w) continue;
+      const dir = brickWallCardinalDir(o.x - w.x, o.y - w.y);
+      if (!dir) continue;
+      // keep nearest along each cardinal
+      const cur = w.links[dir];
+      const d2o = dist2(w.x, w.y, o.x, o.y);
+      if (!cur || dist2(w.x, w.y, cur.x, cur.y) > d2o) w.links[dir] = o;
+    }
+    for (const d of ['n', 'e', 's', 'w']) if (w.links[d]) n++;
+    w.neighbors = n;
+    if (!w.baseHp) w.baseHp = w.maxHp || (BRICKWALL_HP + wave * 10);
+    // braced junctions tougher (T / corner / cross)
+    const jt = brickWallJunctionType(w);
+    const hpMul = jt === 'cross' ? 2.0 : jt === 'tee' ? 1.85 : jt === 'corner' ? 1.7
+      : jt === 'straight' ? 1.55 : jt === 'end' ? 1.25 : 1;
+    const newMax = Math.round(w.baseHp * hpMul);
+    const ratio = w.maxHp > 0 ? clamp(w.hp / w.maxHp, 0, 1) : 1;
+    w.r = BRICKWALL_PILLAR_R;
+    w.maxHp = newMax;
+    w.hp = Math.max(1, Math.round(newMax * ratio));
+  }
+}
+
 // sentry turrets mounted on barricades: auto-target the nearest enemy in
 // range and pepper it with tracers (ally damage — see directDamage)
 function updateSentries(dt) {
@@ -4012,6 +4193,58 @@ function collideBarricades(e, dt) {
   const before = barricades.length;
   barricades = barricades.filter(b => b.hp > 0);
   if (barricades.length !== before) refreshBarricadeLinks();
+}
+
+function pointNearSegment(px, py, ax, ay, bx, by, thick) {
+  const abx = bx - ax, aby = by - ay;
+  const len2 = abx * abx + aby * aby;
+  if (len2 < 1) return dist2(px, py, ax, ay) < thick * thick;
+  let t = ((px - ax) * abx + (py - ay) * aby) / len2;
+  t = clamp(t, 0, 1);
+  const qx = ax + abx * t, qy = ay + aby * t;
+  return dist2(px, py, qx, qy) < thick * thick;
+}
+function collideBrickWalls(e, dt) {
+  if (!BRICKWALL_ENABLED || !brickWalls.length) return;
+  for (const w of brickWalls) {
+    const d2 = dist2(e.x, e.y, w.x, w.y), minD = w.r + e.r;
+    if (d2 < minD * minD && d2 > 0.01) {
+      const d = Math.sqrt(d2);
+      e.x = w.x + (e.x - w.x) / d * minD;
+      e.y = w.y + (e.y - w.y) / d * minD;
+      let smash = (e.boss ? 4.5 : 1.6); // tougher brick soak
+      const jt = brickWallJunctionType(w);
+      if (jt === 'tee' || jt === 'cross') smash *= 0.55;
+      else if (jt === 'corner' || jt === 'straight') smash *= 0.65;
+      w.hp -= e.dmg * dt * smash;
+      if (Math.random() < dt * 7) spawnParticles(w.x + (e.x - w.x) / d * w.r, w.y + (e.y - w.y) / d * w.r, 2, '#c8a06a', 2);
+      if (w.hp <= 0) {
+        spawnParticles(w.x, w.y, 22, '#a87850', 5);
+        addFloater(w.x, w.y - 30, 'CLOISTER DOWN!', '#ff8a93', true);
+        camera.shake = Math.max(camera.shake, 4);
+      }
+    }
+    // segment collision along cardinal links (draw once per undirected edge via x/y order)
+    const L = w.links || {};
+    for (const [dir, o] of [['e', L.e], ['s', L.s]]) {
+      if (!o) continue;
+      if (!pointNearSegment(e.x, e.y, w.x, w.y, o.x, o.y, BRICKWALL_SEG_THICK + e.r)) continue;
+      // push off the segment midline
+      const abx = o.x - w.x, aby = o.y - w.y;
+      const len = Math.hypot(abx, aby) || 1;
+      const nx = -aby / len, ny = abx / len;
+      const side = ((e.x - w.x) * nx + (e.y - w.y) * ny) >= 0 ? 1 : -1;
+      e.x += nx * side * 2.5;
+      e.y += ny * side * 2.5;
+      let smash = (e.boss ? 4.2 : 1.5);
+      w.hp -= e.dmg * dt * smash * 0.5;
+      o.hp -= e.dmg * dt * smash * 0.5;
+      if (Math.random() < dt * 5) spawnParticles(e.x, e.y, 2, '#b89068', 2);
+    }
+  }
+  const before = brickWalls.length;
+  brickWalls = brickWalls.filter(w => w.hp > 0);
+  if (brickWalls.length !== before) refreshBrickWallLinks();
 }
 
 function tryTransform() {
@@ -4305,6 +4538,7 @@ function update(dt) {
     e.y = clamp(e.y + e.vy * dt, e.r, WORLD.h - e.r);
     collideObstacles(e);
     collideBarricades(e, dt);
+    collideBrickWalls(e, dt);
     collideStructures(e, dt);
     e.walk += dt * (Math.hypot(e.vx, e.vy) * 0.085); // clearer gait cadence (visual only)
     e.facing = e.vx >= 0 ? 1 : -1;
@@ -4904,6 +5138,11 @@ function drawMinimap() {
   g.fillStyle = '#7CFC00';
   for (const b of barricades) {
     g.fillRect(toX(b.x) - 1, toY(b.y) - 1, 2, 2);
+  }
+  // cloister / brick walls
+  g.fillStyle = '#c07040';
+  for (const w of brickWalls) {
+    g.fillRect(toX(w.x) - 1, toY(w.y) - 1, 2, 2);
   }
   g.fillStyle = '#c8a06a';
   for (const s of structures) {
@@ -7095,6 +7334,111 @@ function drawPitSprite(s) {
   ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
   return true;
 }
+// Cloister / brick stronghold modular sheets — systems ON for master testing;
+// store ship deferred with Continuity + building-art batch.
+const brickWallSpr = {
+  pillar: null, pillarDamaged: null,
+  segment: null, segmentDamaged: null,
+  corner: null, tee: null, ok: false,
+};
+(function loadBrickWallSprites() {
+  if (!BRICKWALL_SPRITE_ENABLED) return;
+  const keys = [
+    ['pillar', 'pillar'], ['pillarDamaged', 'pillar-damaged'],
+    ['segment', 'segment'], ['segmentDamaged', 'segment-damaged'],
+    ['corner', 'corner'], ['tee', 'tee'],
+  ];
+  let left = keys.length, good = 0;
+  for (const [prop, file] of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) brickWallSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) brickWallSpr.ok = good > 0; };
+    img.src = 'assets/buildings/brickwall/' + file + '.png';
+    brickWallSpr[prop] = img;
+  }
+})();
+function brickWallSpriteReady(img) {
+  return !!(BRICKWALL_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+function drawBrickWallProceduralPillar(w, hurt) {
+  const pulse = 0.85 + Math.sin(performance.now() / 280 + w.x) * 0.1;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(w.x, w.y + 2, 10, 4, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = hurt ? '#7a4a32' : '#a85a38';
+  ctx.strokeStyle = '#5a3420'; ctx.lineWidth = 1.5;
+  ctx.fillRect(w.x - 7, w.y - 28, 14, 28);
+  ctx.strokeRect(w.x - 7, w.y - 28, 14, 28);
+  ctx.fillStyle = '#c8c0b0';
+  ctx.beginPath();
+  ctx.moveTo(w.x, w.y - 40); ctx.lineTo(w.x + 8, w.y - 30); ctx.lineTo(w.x - 8, w.y - 30);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = pulse;
+  ctx.strokeStyle = 'rgba(200,160,106,0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(w.x, w.y, w.r + 2, 0, TAU); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+function drawBrickWallSegmentBetween(a, b, hurt) {
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  const ang = Math.atan2(b.y - a.y, b.x - a.x);
+  const len = Math.hypot(b.x - a.x, b.y - a.y) - 16;
+  if (len < 8) return;
+  const segImg = (hurt && brickWallSpriteReady(brickWallSpr.segmentDamaged))
+    ? brickWallSpr.segmentDamaged
+    : brickWallSpriteReady(brickWallSpr.segment) ? brickWallSpr.segment : null;
+  if (segImg) {
+    const drawH = BRICKWALL_SEG_DRAWH;
+    const drawW = Math.min(len + 8, drawH * (segImg.naturalWidth / segImg.naturalHeight));
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(ang);
+    ctx.drawImage(segImg, -drawW / 2, -drawH + 4, drawW, drawH);
+    ctx.restore();
+    return;
+  }
+  ctx.save();
+  ctx.translate(mx, my);
+  ctx.rotate(ang);
+  ctx.fillStyle = hurt ? '#6e4430' : '#9a5535';
+  ctx.fillRect(-len / 2, -10, len, 12);
+  ctx.fillStyle = '#b8b0a0';
+  ctx.fillRect(-len / 2, -14, len, 4);
+  ctx.strokeStyle = '#2a2830'; ctx.lineWidth = 1.4;
+  for (let i = 0; i < 5; i++) {
+    const px = -len / 2 + 6 + i * (len - 12) / 4;
+    ctx.beginPath(); ctx.moveTo(px, -14); ctx.lineTo(px, -26); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawBrickWallPillar(w) {
+  const hurt = w.hp < w.maxHp * 0.45;
+  const jt = brickWallJunctionType(w);
+  let img = null;
+  if (jt === 'tee' && brickWallSpriteReady(brickWallSpr.tee)) img = brickWallSpr.tee;
+  else if (jt === 'corner' && brickWallSpriteReady(brickWallSpr.corner)) img = brickWallSpr.corner;
+  else if (hurt && brickWallSpriteReady(brickWallSpr.pillarDamaged)) img = brickWallSpr.pillarDamaged;
+  else if (brickWallSpriteReady(brickWallSpr.pillar)) img = brickWallSpr.pillar;
+  if (img) {
+    const drawH = BRICKWALL_SPRITE_DRAWH;
+    const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+    ctx.drawImage(img, w.x - drawW / 2, w.y - drawH + 2, drawW, drawH);
+  } else {
+    drawBrickWallProceduralPillar(w, hurt);
+  }
+  if (w.hp < w.maxHp) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(w.x - 16, w.y - 42, 32, 3.5);
+    ctx.fillStyle = '#c8a06a';
+    ctx.fillRect(w.x - 16, w.y - 42, 32 * clamp(w.hp / w.maxHp, 0, 1), 3.5);
+  }
+  if ((w.neighbors || 0) > 0) {
+    ctx.font = 'bold 8px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(200,160,106,0.9)';
+    const tag = jt === 'tee' ? 'T' : jt === 'corner' ? '⌞' : jt === 'cross' ? '+' : 'LINK×' + w.neighbors;
+    ctx.fillText(tag, w.x, w.y + w.r + 11);
+  }
+}
 function drawStructure(s) {
   const def = STRUCT_KINDS[s.kind];
   const pulse = 0.7 + Math.sin(performance.now() / 280 + s.x) * 0.2;
@@ -7437,6 +7781,21 @@ function render() {
       }
     }});
   }
+  // cloister / brick stronghold walls (modular pillars + segments)
+  if (BRICKWALL_ENABLED) {
+    for (const w of brickWalls) {
+      draws.push({ y: w.y, f: () => {
+        const L = w.links || {};
+        // segments once per undirected edge (east / south only)
+        for (const o of [L.e, L.s]) {
+          if (!o) continue;
+          const hurt = (w.hp < w.maxHp * 0.45) || (o.hp < o.maxHp * 0.45);
+          drawBrickWallSegmentBetween(w, o, hurt);
+        }
+        drawBrickWallPillar(w);
+      }});
+    }
+  }
   // end-of-wave supply cache
   if (chest) {
     draws.push({ y: chest.y, f: () => {
@@ -7586,46 +7945,90 @@ function render() {
   draws.sort((a, b) => a.y - b.y);
   for (const d of draws) d.f();
 
-  // ---- barricade place ghost + link preview (v2.9.3) ----
+  // ---- barricade / cloister place ghost + link preview (v2.9.3 + brick walls) ----
   if (state === 'playing' && !player.downed && !paused && !dialogOpen && !vendorOpen &&
       !settingsOpen && !infirmaryOpen && !riftNetOpen && !treeOpen) {
-    const { x: gx, y: gy } = barricadeAimPos();
-    const blocked = barricadeSpotBlocked(gx, gy) || barricades.length >= BARRICADE_MAX;
-    const canAfford = cores >= BARRICADE_COST;
-    const links = barricadeLinkTargets(gx, gy);
-    const willLink = !blocked && links.length > 0;
-    const col = blocked || !canAfford ? '255,100,110' : willLink ? '158,240,255' : '124,252,0';
-    const ghostR = willLink ? BARRICADE_BASE_R * 2 : BARRICADE_BASE_R;
-    const pulse = 0.55 + Math.sin(performance.now() / 180) * 0.25;
-    ctx.save();
-    ctx.globalAlpha = 0.55 + pulse * 0.2;
-    for (const o of links) {
-      ctx.strokeStyle = `rgba(158,240,255,${0.55 + pulse * 0.3})`;
-      ctx.lineWidth = 3;
-      ctx.setLineDash([7, 5]);
-      ctx.beginPath(); ctx.moveTo(gx, gy - 8); ctx.lineTo(o.x, o.y - 8); ctx.stroke();
+    if (buildGhostKind === 'brickwall' && BRICKWALL_ENABLED) {
+      const aim = barricadeAimPos();
+      const snap = brickWallSnapPos(aim.x, aim.y);
+      const gx = clamp(snap.x, 40, WORLD.w - 40);
+      const gy = clamp(snap.y, 40, WORLD.h - 40);
+      const blocked = snap.overlap || brickWallSpotBlocked(gx, gy) || brickWalls.length >= BRICKWALL_MAX;
+      const canAfford = canAffordCosts(BRICKWALL_COST);
+      const links = brickWallLinkTargets(gx, gy);
+      const willLink = !blocked && links.length > 0;
+      const col = blocked || !canAfford ? '255,100,110' : willLink ? '200,160,106' : '212,165,116';
+      const pulse = 0.55 + Math.sin(performance.now() / 180) * 0.25;
+      ctx.save();
+      ctx.globalAlpha = 0.55 + pulse * 0.2;
+      for (const o of links) {
+        ctx.strokeStyle = `rgba(200,160,106,${0.55 + pulse * 0.3})`;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath(); ctx.moveTo(gx, gy - 8); ctx.lineTo(o.x, o.y - 8); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = `rgba(200,160,106,${0.35 * pulse})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 4, 0, TAU); ctx.stroke();
+      }
+      ctx.strokeStyle = `rgba(${col},0.75)`;
+      ctx.lineWidth = willLink ? 3.5 : 2.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.arc(gx, gy, BRICKWALL_PILLAR_R + (willLink ? 6 : 2), 0, TAU); ctx.stroke();
       ctx.setLineDash([]);
-      // highlight neighbor that will fortify
-      ctx.strokeStyle = `rgba(158,240,255,${0.35 * pulse})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 4, 0, TAU); ctx.stroke();
+      ctx.fillStyle = `rgba(${col},0.12)`;
+      ctx.beginPath(); ctx.arc(gx, gy, BRICKWALL_PILLAR_R + 2, 0, TAU); ctx.fill();
+      // ghost pillar stub
+      ctx.fillStyle = `rgba(${col},0.55)`;
+      ctx.fillRect(gx - 5, gy - 22, 10, 22);
+      ctx.font = 'bold 10px Segoe UI'; ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
+      let label = !canAfford ? 'NEED ' + costLabel(BRICKWALL_COST)
+        : blocked ? 'NO ROOM'
+        : willLink ? (links.length >= 2 ? `JUNCTION ×${links.length}` : `LINK ×${links.length}`)
+        : 'CLOISTER';
+      ctx.strokeText(label, gx, gy + BRICKWALL_PILLAR_R + 16);
+      ctx.fillStyle = `rgba(${col},0.95)`;
+      ctx.fillText(label, gx, gy + BRICKWALL_PILLAR_R + 16);
+      ctx.restore();
+    } else {
+      const { x: gx, y: gy } = barricadeAimPos();
+      const blocked = barricadeSpotBlocked(gx, gy) || barricades.length >= BARRICADE_MAX;
+      const canAfford = cores >= BARRICADE_COST;
+      const links = barricadeLinkTargets(gx, gy);
+      const willLink = !blocked && links.length > 0;
+      const col = blocked || !canAfford ? '255,100,110' : willLink ? '158,240,255' : '124,252,0';
+      const ghostR = willLink ? BARRICADE_BASE_R * 2 : BARRICADE_BASE_R;
+      const pulse = 0.55 + Math.sin(performance.now() / 180) * 0.25;
+      ctx.save();
+      ctx.globalAlpha = 0.55 + pulse * 0.2;
+      for (const o of links) {
+        ctx.strokeStyle = `rgba(158,240,255,${0.55 + pulse * 0.3})`;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath(); ctx.moveTo(gx, gy - 8); ctx.lineTo(o.x, o.y - 8); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = `rgba(158,240,255,${0.35 * pulse})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 4, 0, TAU); ctx.stroke();
+      }
+      ctx.strokeStyle = `rgba(${col},${0.75})`;
+      ctx.lineWidth = willLink ? 3.5 : 2.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.arc(gx, gy, ghostR, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(${col},0.12)`;
+      ctx.beginPath(); ctx.arc(gx, gy, ghostR, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(${col},0.9)`;
+      ctx.beginPath(); ctx.arc(gx, gy - 22, 3.5, 0, TAU); ctx.fill();
+      ctx.font = 'bold 10px Segoe UI'; ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
+      let label = !canAfford ? `NEED ${BARRICADE_COST}⬡` : blocked ? 'NO ROOM' : willLink ? `LINK ×${links.length}` : 'BUILD';
+      ctx.strokeText(label, gx, gy + ghostR + 14);
+      ctx.fillStyle = `rgba(${col},0.95)`;
+      ctx.fillText(label, gx, gy + ghostR + 14);
+      ctx.restore();
     }
-    ctx.strokeStyle = `rgba(${col},${0.75})`;
-    ctx.lineWidth = willLink ? 3.5 : 2.5;
-    ctx.setLineDash([5, 4]);
-    ctx.beginPath(); ctx.arc(gx, gy, ghostR, 0, TAU); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = `rgba(${col},0.12)`;
-    ctx.beginPath(); ctx.arc(gx, gy, ghostR, 0, TAU); ctx.fill();
-    ctx.fillStyle = `rgba(${col},0.9)`;
-    ctx.beginPath(); ctx.arc(gx, gy - 22, 3.5, 0, TAU); ctx.fill();
-    ctx.font = 'bold 10px Segoe UI'; ctx.textAlign = 'center';
-    ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
-    let label = !canAfford ? `NEED ${BARRICADE_COST}⬡` : blocked ? 'NO ROOM' : willLink ? `LINK ×${links.length}` : 'BUILD';
-    ctx.strokeText(label, gx, gy + ghostR + 14);
-    ctx.fillStyle = `rgba(${col},0.95)`;
-    ctx.fillText(label, gx, gy + ghostR + 14);
-    ctx.restore();
   }
 
   // ---- projectiles over actors ----
@@ -8199,6 +8602,7 @@ function newGame() {
   questIdx = 0; questStage = 'offer'; questProgress = 0;
   miraIdx = 0; miraRewarded = false;
   chest = null; graceT = 0; barricades = []; pulseCd = 0;
+  brickWalls = []; buildGhostKind = 'barricade';
   fenceTier = 1; graves = []; graveCount = 0;
   sentryTier = 0; sbolts = [];
   companions = []; cbolts = [];

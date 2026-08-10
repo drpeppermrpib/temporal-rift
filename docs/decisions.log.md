@@ -2,7 +2,7 @@
 
 **Append-only.** Newest entries at the top. Do not edit or delete prior rows; add a correcting entry instead.
 
-**Statuses:** `REMOVED` · `KEPT` · `DEFERRED` · `SHIPPED` · `WONTFIX` · `OPS`
+**Statuses:** `REMOVED` · `KEPT` · `SHIPPED` · `WONTFIX` · `OPS` · `DEFERRED`
 
 **Format:**
 
@@ -15,6 +15,12 @@
 ```
 
 ---
+
+### 2026-08-09 — DEFERRED — Cloister / brick stronghold walls systems+art (no APK)
+- Version / commit / APK: master code+art only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; systems ON for Continuity/source testing only
+- User intent: Mesh brick fence refs as modular sections (straight / corners / T-junctions); Continuity town save; no APK / no version bump; keep wooden barricades; store ship deferred
+- Agent action: Modular sprites `assets/buildings/brickwall/{pillar,segment,corner,tee}(+damaged).png` + `_refs`; BUILD → **Cloister Wall** (wood 10 / gold 4 / cores 2; HP 280; max 16) with cardinal auto-link straights + corners/T + LINK ghost (like barricades); collide + HP brace; Continuity `town.brickWalls` additive with barricades; `BRICKWALL_ENABLED`/`BRICKWALL_SPRITE_ENABLED=true`; docs `brickwall-art-plan.md` + CHANGE_MEMORY channel/pending/KEPT; Desktop `C:\Users\drpep\Desktop\TemporalRift-BrickWall-Sprites`; `test-town-save.js` covers `brickWalls`
+- Notes: **Not store-shipped.** Store ship still deferred with Continuity + ravager/building-art batch. Wooden barricades KEPT (Cloister additive). REMOVED list intact.
 
 ### 2026-08-09 — DEFERRED — #2e Aether Pit art drafted (flag OFF; no APK)
 - Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK** / **no live enable**

@@ -10,7 +10,7 @@ const gameSrc = fs.readFileSync(path.join(__dirname, 'game.js'), 'utf8') + `
   newGame, saveGame, loadGame, snapshot, applyTownSave,
   get() {
     return {
-      structures, laborers, militia, barricades,
+      structures, laborers, militia, barricades, brickWalls,
       wood, gold, waveTrainLeft, goldMines, wave, waveActive,
     };
   },
@@ -28,6 +28,15 @@ const gameSrc = fs.readFileSync(path.join(__dirname, 'game.js'), 'utf8') + `
     laborers[0].x = 900;
     laborers[0].y = 900;
     barricades.push({ x: 800, y: 800, r: 34, hp: 160, maxHp: 160, baseHp: 160, neighbors: 0 });
+    brickWalls.push({
+      x: 700, y: 700, r: 18, hp: 280, maxHp: 280, baseHp: 280, neighbors: 0,
+      links: { n: null, e: null, s: null, w: null },
+    });
+    brickWalls.push({
+      x: 796, y: 700, r: 18, hp: 280, maxHp: 280, baseHp: 280, neighbors: 0,
+      links: { n: null, e: null, s: null, w: null },
+    });
+    if (typeof refreshBrickWallLinks === 'function') refreshBrickWallLinks();
     wood = 77; gold = 55; wave = 3; waveActive = false; waveTrainLeft = 1;
     if (goldMines[0]) goldMines[0].goldLeft = 12;
   },
@@ -156,6 +165,7 @@ check('save has muster L2', raw.town.structures.some(s => s.kind === 'muster' &&
 check('save has militia skills', raw.town.militia.length === 1 && raw.town.militia[0].sk.dmg === 2);
 check('save has laborer order', raw.town.laborers[0].order === 'mine');
 check('save has barricade', raw.town.barricades.length === 1);
+check('save has brickWalls', Array.isArray(raw.town.brickWalls) && raw.town.brickWalls.length === 2);
 check('wood/gold saved', raw.wood === 77 && raw.gold === 55);
 
 check('loadGame ok', P.loadGame() === true);
@@ -164,6 +174,8 @@ check('structures restored', st.structures.some(s => s.kind === 'muster' && s.lv
 check('militia restored', st.militia.length === 1 && st.militia[0].sk.dmg === 2 && st.militia[0].x === 1100);
 check('laborer restored', st.laborers[0].order === 'mine' && st.laborers[0].x === 900);
 check('barricades restored', st.barricades.length === 1 && st.barricades[0].x === 800);
+check('brickWalls restored', st.brickWalls.length === 2 && st.brickWalls[0].x === 700);
+check('brickWalls linked', st.brickWalls.some(w => (w.neighbors || 0) >= 1));
 check('resources restored', st.wood === 77 && st.gold === 55);
 check('waveTrainLeft restored', st.waveTrainLeft === 1);
 check('gold mine stock restored', !st.goldMines[0] || st.goldMines[0].goldLeft === 12);

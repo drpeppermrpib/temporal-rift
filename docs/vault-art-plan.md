@@ -73,17 +73,15 @@ checker variants / `preview-idle-damaged.png` for Photos review.
 
 ## Optional note — Aether Pit
 
-Aether Pit (`aetherpit`, r=38) remains procedural; no sprite draft this pass
-unless a later #2 part adds it. Vault only for #2d remesh.
+Aether Pit drafted in #2e (`docs/pit-art-plan.md`); `PIT_SPRITE_ENABLED=false`.
 
 ## Apply / ship (later batch)
 
-1. Optional: Aether Pit art if user sends refs
-2. Set `VAULT_SPRITE_ENABLED = true` (and peer building flags) with stronghold + town Continuity save
-3. Do **not** enable in live store build until that apply — **no BETA / Play this pass**
+1. Set `VAULT_SPRITE_ENABLED = true` (and peer building flags including pit) with stronghold + town Continuity save
+2. Do **not** enable in live store build until that apply — **no BETA / Play this pass**
 
 ## Next batch order
 
 (1) ~~ravager~~ → (2a) ~~Keep~~ → (2b) ~~camps~~ → (2c) ~~Muster Hall~~ →
-**(2d) ~~Gold Vault~~ remeshed mine-mouth, flag OFF** → pit optional → (3) allies →
+**(2d) ~~Gold Vault~~ remeshed mine-mouth, flag OFF** → **(2e) ~~Aether Pit~~ drafted, flag OFF** → (3) allies →
 (4) fence brick stronghold → (5) one update apply

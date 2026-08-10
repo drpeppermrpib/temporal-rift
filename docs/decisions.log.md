@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #2e Aether Pit art drafted (flag OFF; no APK)
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK** / **no live enable**
+- User intent: Mesh stone well / earth pit / tiered quarry / rocky crater structure refs + Razer lamp **glow mood only** into Aether Pit; soft-wire OFF; Desktop Photos; no APK / no version bump / no live enable; same pipeline as keep/camp/hall/vault
+- Agent action: Generated original Aether Pit idle/damaged (512×512 transparent); refs under `assets/buildings/pit/_refs/` incl. `aether-glow-mood-insp` (README: glow/lighting mood ONLY — no lamp object/logo/product); size lock `r=38` / `drawH=48` (collision r unchanged); soft-wire `PIT_SPRITE_ENABLED=false`; docs `pit-art-plan.md` + UNIT_SIZES + CHANGE_MEMORY; Desktop `C:\Users\drpep\Desktop\TemporalRift-Pit-Sprites`; www sync sheets (no `_refs`)
+- Notes: Keep/camp/hall/vault already drafted flag OFF. Building-art batch #2a–#2e complete (all flags OFF). Apply pit (flag ON) with stronghold + town-save batch. REMOVED list intact — nothing added to REMOVED. No lamp/logo/branded product in sheets.
+
 ### 2026-08-09 — DEFERRED — #2d Gold Vault remesh to mine-mouth (flag OFF; no APK)
 - Version / commit / APK: assets+docs only (no APP_VERSION / versionCode bump) / **no BETA APK** / **no live enable**
 - User intent: Remesh Gold Vault from freestanding stronghouse/arcade vault look to dug-into-hill / fortified mine-mouth aesthetic; soft-wire stays OFF; Desktop Photos; no APK / no version bump / no live enable

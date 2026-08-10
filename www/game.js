@@ -7061,6 +7061,40 @@ function drawVaultSprite(s) {
   ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
   return true;
 }
+// Aether Pit sheets — soft-wire OFF until building-art ship batch.
+// Collision r stays STRUCT_KINDS.aetherpit.r (38). Flag ON → drawH=48 (low crater; between supply 46 and vault 52).
+const PIT_SPRITE_ENABLED = false;
+const PIT_SPRITE_DRAWH = 48; // SIZE LOCK — dug crater / well, squat << hall / Keep
+const pitSpr = { idle: null, damaged: null, ok: false };
+(function loadPitSprites() {
+  if (!PIT_SPRITE_ENABLED) return;
+  const keys = ['idle', 'damaged'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) pitSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) pitSpr.ok = good > 0; };
+    img.src = 'assets/buildings/pit/' + k + '.png';
+    pitSpr[k] = img;
+  }
+})();
+function pitSpriteReady(img) {
+  return !!(PIT_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+function drawPitSprite(s) {
+  if (!PIT_SPRITE_ENABLED || s.kind !== 'aetherpit') return false;
+  const hurt = s.hp < s.maxHp * 0.45;
+  const img = (hurt && pitSpriteReady(pitSpr.damaged)) ? pitSpr.damaged
+    : pitSpriteReady(pitSpr.idle) ? pitSpr.idle
+    : pitSpriteReady(pitSpr.damaged) ? pitSpr.damaged
+    : null;
+  if (!img) return false;
+  const drawH = PIT_SPRITE_DRAWH;
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  ctx.drawImage(img, s.x - drawW / 2, s.y - drawH + 2, drawW, drawH);
+  return true;
+}
 function drawStructure(s) {
   const def = STRUCT_KINDS[s.kind];
   const pulse = 0.7 + Math.sin(performance.now() / 280 + s.x) * 0.2;
@@ -7074,14 +7108,15 @@ function drawStructure(s) {
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.stroke();
   ctx.fillStyle = `rgba(${col},0.1)`;
   ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
-  // Keep / camp / hall / vault sheets when flags ON; other kinds / fallback stay procedural
+  // Keep / camp / hall / vault / pit sheets when flags ON; other kinds / fallback stay procedural
   const usedKeepSpr = drawKeepSprite(s);
   const usedCampH = usedKeepSpr ? false : drawCampSprite(s);
   const usedHallSpr = (usedKeepSpr || usedCampH) ? false : drawHallSprite(s);
   const usedVaultSpr = (usedKeepSpr || usedCampH || usedHallSpr) ? false : drawVaultSprite(s);
+  const usedPitSpr = (usedKeepSpr || usedCampH || usedHallSpr || usedVaultSpr) ? false : drawPitSprite(s);
   // building body — Keep is taller (skipped when building sprite draws)
   const bw = s.kind === 'keep' ? 42 : 32, bh = s.kind === 'keep' ? 40 : 28;
-  if (!usedKeepSpr && !usedCampH && !usedHallSpr && !usedVaultSpr) {
+  if (!usedKeepSpr && !usedCampH && !usedHallSpr && !usedVaultSpr && !usedPitSpr) {
     ctx.fillStyle = '#2a2218';
     ctx.fillRect(s.x - bw / 2, s.y - bh, bw, bh);
     ctx.strokeStyle = `rgba(${col},0.9)`; ctx.lineWidth = 2;
@@ -7102,6 +7137,7 @@ function drawStructure(s) {
   const barH = usedKeepSpr ? KEEP_SPRITE_DRAWH
     : usedHallSpr ? HALL_SPRITE_DRAWH
     : usedVaultSpr ? VAULT_SPRITE_DRAWH
+    : usedPitSpr ? PIT_SPRITE_DRAWH
     : (usedCampH || bh);
   const w = 34;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';

@@ -17,7 +17,7 @@
 ---
 
 ### 2026-08-09 — DEFERRED — #3b Ashen Warden articulation+barks (flag ON Continuity; no APK)
-- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; `WARDEN_SPRITE_ENABLED=true` for Continuity/source testing; commit pinned after push
+- Version / commit / APK: master code only — **APP_VERSION stays 2.13.2** (versionCode 46); **no BETA APK / no Play / no version bump**; `WARDEN_SPRITE_ENABLED=true` for Continuity/source testing; commit **be9e02**
 - User intent: Next for articulation movement — same as Rover pass; articulate move + bark; flag ON master Continuity; no APK / no version bump
 - Agent action: Gait idle↔walk + attack on swipeT pulse-cannon + death sheet; heavy plant squash/bob/lean on sprite path; armored-robot guardian bark voice (`voice:'warden'`) + original CONTACT/FIRE/HOLD LINE lines (alert/attack/combat/hurt); size lock `r=13` / `drawH=48` unchanged; docs warden-art-plan + CHANGE_MEMORY + UNIT_SIZES + decisions; www sync game.js
 - Notes: **Not store-shipped.** Distinct from orc enemy barks and Rover dog woofs (deep metallic square synth). Procedural `companionFigure` remains fallback. Scout/Sentinel still pending. REMOVED list intact.

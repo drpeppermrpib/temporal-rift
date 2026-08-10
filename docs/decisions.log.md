@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #3b Ashen Warden art drafted (flag OFF; no APK)
+- Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK** / **no live enable** / **no articulation yet**
+- User intent: Mesh knight + yellow mech refs into original Ashen Warden (yellowish priority); soft-wire OFF; Desktop Photos; size lock r=13; no APK / no version bump; articulate later like Rover
+- Agent action: Generated original Ashen Warden idle/walk/attack/death (512×512 transparent); refs under `assets/allies/warden/_refs/` (knight structure + yellow mech palette; not Warframe/Destiny IP); size lock collision `r=13` unchanged, flag ON → `drawH=48`; soft-wire `WARDEN_SPRITE_ENABLED=false`; docs `warden-art-plan.md` + UNIT_SIZES + CHANGE_MEMORY; Desktop `C:\Users\drpep\Desktop\TemporalRift-Warden-Sprites` (+ Pictures); www sync sheets (no `_refs`)
+- Notes: Ally **#3b Warden art only**. Procedural cannon figure still live. Scout/Sentinel still pending. REMOVED list intact.
+
 ### 2026-08-09 — DEFERRED — #3a Ashen Rover articulation+barks post-ship confirm (4b9b2ea; flag ON Continuity; no APK)
 - Version / commit / APK: **2.13.2** / vc46 unchanged / commit **`4b9b2ea`** pushed `origin/master` / **no BETA APK** / **no version bump** / **no Play**
 - User intent: Append post-ship change memory after Rover articulation+barks; do not mark store-shipped; REMOVED untouched; #3b still next

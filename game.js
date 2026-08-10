@@ -6979,7 +6979,7 @@ function drawWarlordProcedural(e, alpha) {
 
 // ================== COMPANION SPRITES (v2.8) ======================
 // Rover: quadruped robot dog with a cyan visor. Warden/Scout reuse the
-// shared humanoid rig with cannon/crossbow arms.
+// shared humanoid rig with cannon/crossbow arms (Warden sheets drafted, flag OFF).
 //
 // ============ ASHEN ROVER / RIFT HOUND SPRITES (articulation+barks ON for Continuity; store deferred) ============
 // assets/allies/rover/{idle,walk,attack,death}.png — companion footprint, NOT boss.
@@ -7080,6 +7080,66 @@ function drawRoverSprite(c) {
   return true;
 }
 
+// ============ ASHEN WARDEN SPRITES (art drafted, flag OFF; articulate later like Rover) ============
+// assets/allies/warden/{idle,walk,attack,death}.png — tank companion footprint, NOT boss.
+// Soft-wire OFF: procedural companionFigure (cannon) stays live. Flip flag when user says go.
+// Size lock: collision r=13 always; drawH=48 (= 36*s1.25 + pad). No Warframe/Destiny IP.
+const WARDEN_SPRITE_ENABLED = false;
+const WARDEN_SPRITE_DRAWH = 48; // SIZE LOCK — matches procedural H=36*1.25≈45 + pad; << husk 56 / Gharok 228
+const wardenSpr = { idle: null, walk: null, attack: null, death: null, ok: false };
+(function loadWardenSprites() {
+  if (!WARDEN_SPRITE_ENABLED) return; // soft-load only when enabled
+  const keys = ['idle', 'walk', 'attack', 'death'];
+  let left = keys.length, good = 0;
+  for (const k of keys) {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { good++; if (--left === 0) wardenSpr.ok = good > 0; };
+    img.onerror = () => { if (--left === 0) wardenSpr.ok = good > 0; };
+    img.src = 'assets/allies/warden/' + k + '.png';
+    wardenSpr[k] = img;
+  }
+})();
+
+function wardenSpriteReady(img) {
+  return !!(WARDEN_SPRITE_ENABLED && img && img.complete && img.naturalWidth > 0);
+}
+
+function wardenSpriteFrame(c) {
+  // Basic frame pick only — full articulation (plant squash / lean) deferred until user says go
+  if (c.downed && wardenSpriteReady(wardenSpr.death)) return wardenSpr.death;
+  if ((c.swipeT || 0) > 0 && wardenSpriteReady(wardenSpr.attack)) return wardenSpr.attack;
+  const moving = Math.hypot(c.vx || 0, c.vy || 0) > 20 && !c.downed;
+  if (moving && wardenSpriteReady(wardenSpr.walk) && wardenSpriteReady(wardenSpr.idle)) {
+    return (Math.floor((c.walk || 0) / Math.PI) & 1) ? wardenSpr.walk : wardenSpr.idle;
+  }
+  if (wardenSpriteReady(wardenSpr.idle)) return wardenSpr.idle;
+  if (wardenSpriteReady(wardenSpr.walk)) return wardenSpr.walk;
+  if (wardenSpriteReady(wardenSpr.attack)) return wardenSpr.attack;
+  return null;
+}
+
+function drawWardenSprite(c) {
+  if (!WARDEN_SPRITE_ENABLED) return false;
+  const img = wardenSpriteFrame(c);
+  if (!img) return false;
+  const drawH = WARDEN_SPRITE_DRAWH; // 48 — tank companion, not boss
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const flash = c.hurtT > 0.35;
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  if (c.downed) ctx.globalAlpha = 0.55;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 13, 4.8, 0, 0, TAU); ctx.fill();
+  ctx.scale(c.facing || 1, 1);
+  if (c.downed) ctx.rotate(0.12);
+  if (flash) ctx.filter = 'brightness(2.5) saturate(0.15)';
+  ctx.drawImage(img, -drawW / 2, -drawH + 2, drawW, drawH);
+  ctx.filter = 'none';
+  ctx.restore();
+  return true;
+}
+
 function drawRover(c) {
   if (drawRoverSprite(c)) return;
   const flash = c.hurtT > 0.35;
@@ -7156,6 +7216,7 @@ function companionFigure(c) {
 }
 function drawCompanion(c) {
   if (c.type === 'rover') drawRover(c);
+  else if (c.type === 'warden' && drawWardenSprite(c)) { /* sheet path when flag ON */ }
   else drawFigure(c.x, c.y, companionFigure(c));
   // downed marker
   if (c.downed) {

@@ -16,6 +16,12 @@
 
 ---
 
+### 2026-08-09 — DEFERRED — #3a Ashen Rover post-ship confirm (cd8a042; flag OFF; no APK)
+- Version / commit / APK: **2.13.2** / vc46 unchanged / commit **`cd8a042`** pushed `origin/master` / **no BETA APK** / **no version bump** / **no live enable**
+- User intent: Record post-ship change memory after ally #3a dog art draft; do not mark shipped/live; do not re-add REMOVED
+- Agent action: Confirmed master-only soft-wire `ROVER_SPRITE_ENABLED=false` (procedural `drawRover` live); sheets `assets/allies/rover/{idle,walk,attack,death}.png` + `_refs/` (cybernetic dog mesh; not Boston Dynamics / branded IP); size lock collision `r=11` unchanged, flag ON → `drawH=26`; Desktop `C:\Users\drpep\Desktop\TemporalRift-Rover-Sprites`; www sync sheets (no `_refs`); CHANGE_MEMORY channel/pending already aligned
+- Notes: **Not shipped/live** — flag stays OFF. Ally batch **#3a dog only**; **#3b** Warden/Scout/Sentinel next when user photos or says go. REMOVED list intact.
+
 ### 2026-08-09 — DEFERRED — #3a Ashen Rover / Rift Hound art drafted (flag OFF; no APK)
 - Version / commit / APK: assets+docs+soft-wire only (no APP_VERSION / versionCode bump) / **no BETA APK** / **no live enable**
 - User intent: Allies art pass start with dog only; mesh cybernetic/robot dog refs into original Temporal Rift Rover; soft-wire OFF; Desktop Photos; no APK / no version bump; Warden/Scout/Sentinel later

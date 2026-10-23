@@ -4,10 +4,9 @@ Original Temporal Rift **Ashen Scout** (shop name **Scout**) sheets —
 lighter archer companion soft-wire pipeline (same as Rover / Warden / buildings).
 Companion footprint (not boss, not yellow Warden tank).
 
-**Status (2026-08-10):** **Art drafted on master** — `SCOUT_SPRITE_ENABLED=false`
-(live procedural `companionFigure` ranger). Soft-load stub present; **no articulation /
-barks yet** (user: next later). **No APK / no version bump / no Play.** Ally batch
-**#3b remainder** Scout after Warden.
+**Status (2026-08-10):** **Articulation + barks on master** — `SCOUT_SPRITE_ENABLED=true`
+for Continuity/source testing. Store ship deferred with peer batch.
+**No APK / no version bump / no Play.** Ally **#3c** Scout after Warden.
 
 ## Size lock (enforced)
 
@@ -28,24 +27,25 @@ but drawn at companion scale (`drawH=38`) when flag ON.
 - `assets/allies/scout/attack.png` (full-draw bow / aether arrow)
 - `assets/allies/scout/death.png` (kneeling / powered-down)
 
-Transparent background. Soft-load path ready when `SCOUT_SPRITE_ENABLED === true`;
-procedural `companionFigure` (crossbow) remains live while flag OFF.
-Attack frame maps to `swipeT`; death when `downed` (basic frame pick only until articulate pass).
+Transparent background. Soft-load when `SCOUT_SPRITE_ENABLED === true`;
+procedural `companionFigure` (crossbow) remains fallback if sheets fail.
+Attack frame maps to `swipeT`; death when `downed`.
 
 Process: `node scripts/process-scout-sprites.mjs` (mid-grey studio flood-key → 512).
 www sync sheets only (no `_refs` / `_raw`).
 
-## Articulation (deferred — do not ship this pass)
+## Articulation (wired)
 
-Same sheet gait pattern as Rover / Warden — **not wired yet**:
+Same sheet gait pattern as Rover / Warden:
 
-| Pose | Trigger (planned) |
-|------|-------------------|
+| Pose | Trigger |
+|------|---------|
 | idle ↔ walk | gait half-cycle while moving (`walk` / π) |
 | attack | `swipeT` bow draw / bolt fire |
 | death | `downed` |
 | plant squash / bob / lean | lighter plant than Warden tank |
-| barks | distinct scout ranger voice (later) |
+| barks | `voice:'scout'` — bright ranger recon chirp (MARKED / LOOSE / ON POINT / DRAW / SUPPLY etc — alert/attack/combat/hurt/pack; not orc, not dog, not Warden tank vox) |
+| attack glow | purple aether on bow draw / arrow telegraph |
 
 ## Design (original — mesh of power-armor bulk + armored archer refs)
 
@@ -76,7 +76,7 @@ Under `assets/allies/scout/_refs/` (stripped from APK — not copied to `www/`):
 ## Soft-wire
 
 ```js
-SCOUT_SPRITE_ENABLED = false   // art draft; live procedural; articulate later
+SCOUT_SPRITE_ENABLED = true    // master Continuity testing; store ship deferred
 SCOUT_SPRITE_DRAWH = 38        // size lock
 // collision r=13 always (syncCompanions)
 ```
@@ -89,5 +89,7 @@ Also mirrored under `C:\Users\drpep\Pictures\TemporalRift-Scout-Sprites\`
 ## Ship notes
 
 - **No APK / no version bump / no Play** this pass
-- Flip flag + articulate + barks = later user ask
+- Flag ON for Continuity/source testing only
 - Store ship deferred with peer companion batch
+- Commit **unpinned** (not committed yet) — pin hash when landed
+- Sentinel still pending

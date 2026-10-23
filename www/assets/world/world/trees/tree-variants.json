@@ -1,0 +1,42 @@
+{
+  "generated": "2026-08-25T05:33:15.752Z",
+  "pipeline": "GenerateImage remesh + flood-key (refs inspiration only)",
+  "ship": [
+    "pine_small",
+    "pine_med",
+    "pine_tall",
+    "tree_single_broad",
+    "tree_single_short",
+    "tree_single_slender",
+    "tree_single_leafy",
+    "tree_single_fir",
+    "tree_few_pair",
+    "tree_few_grove",
+    "tree_few_classic",
+    "tree_few_mix",
+    "tree_bunch_spruce",
+    "tree_bunch_mix"
+  ],
+  "roles": {
+    "one": [
+      "pine_small",
+      "pine_med",
+      "pine_tall",
+      "tree_single_broad",
+      "tree_single_short",
+      "tree_single_slender",
+      "tree_single_leafy",
+      "tree_single_fir"
+    ],
+    "few": [
+      "tree_few_pair",
+      "tree_few_grove",
+      "tree_few_classic",
+      "tree_few_mix"
+    ],
+    "bunch": [
+      "tree_bunch_spruce",
+      "tree_bunch_mix"
+    ]
+  }
+}

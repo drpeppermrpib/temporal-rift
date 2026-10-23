@@ -107,6 +107,12 @@ try {
         Write-Host '-- aapt.exe not found; skipped package-name dump (channel verified above)'
     }
 
+    $desktop = Join-Path $env:USERPROFILE "Desktop\TemporalRift-BETA-$ver.apk"
+    if (Test-Path (Split-Path $desktop -Parent)) {
+        Copy-Item $out $desktop -Force
+        Write-Host "-- Desktop copy: $desktop"
+    }
+
     Write-Host "`n== BETA DONE: $out =="
 } finally {
     # ---- always restore the stock identity + resync android -----------------

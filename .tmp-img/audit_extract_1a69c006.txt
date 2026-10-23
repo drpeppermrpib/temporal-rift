@@ -1,0 +1,259 @@
+=== CHAT 1a69c006-dfda-4453-b468-8b8556dbfcad users=3 assists=12 ===
+
+--- USER line 1 ---
+Continue Temporal Rift at C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift from current v2.8.7 (sound engine + sprite pines/rocks). User loved that update. Implement the following in ONE coherent version bump (2.8.8 or 2.9 — pick sensible), BETA APK, commit+push, no store/GitHub release unless easy.
+
+## Must ship (gameplay)
+1. **Aether purchases for health + squad revive**
+   - In field lab / shop (or camp NPC interaction): spend **aether** (not only cores) to buy healing (restore player HP) and to **revive downed companions**.
+   - Clear costs UI; balance so mid-run recovery is possible but not free (e.g. heal chunk costs aether scaling with missing HP; revive per companion costs aether).
+   - Persist nothing weird — just spend current aether.
+
+2. **Companion durability (especially Rover/dog)**
+   - User: dog dies right away, squad dies fast. Buff HP / damage reduction / revive-at-wave-end already exists — increase base HP especially Rover, maybe slight DR while near player, or lower enemy focus on companions unless Warden taunting.
+   - Keep them useful but not immortal.
+
+3. **Build area / barricades**
+   - Increase upgrade steps toward **shield** (more tiers or clearer progression on Fence Grid / Sentry / barricade defense).
+   - When barricades (or buildables) are **placed adjacent**, they should **merge/double in effective size** OR get a linked bonus: stronger HP/defense when neighbors touch (user said "double in size when placed next to each other with stronger defence to break them").
+   - Implement adjacency bonus clearly (visual hint OK).
+
+4. **Boss knockback resistance**
+   - Gharok currently gets pushed back too easily when attacked. Keep some knockback but require **much more accumulated damage / heavier hits** to shove him; light rifle ticks shouldn't skate him across the map. Tune knockback mass/resistance on warlord.
+
+5. **Endless**
+   - Confirm/keep no hard ending (waves continue). Don't add a forced finale.
+
+6. **Texture polish**
+   - Same game, more detail: polish player/NPC/camp tents/ground accents or enemy husks slightly without full art rewrite — procedural detail or small sprite upgrades consistent with new world sprites. Don't break performance.
+
+## Multiplayer (start for real, not vapor)
+7. **Rift Host NPC** — add a camp NPC (original name, e.g. "Riftwarden") who opens dialogue to **Create room** (generates short passkey) or **Join room** (enter passkey). Goal: other players join your map with revive support.
+   - Implement a **working foundation**: prefer browser-friendly P2P (e.g. PeerJS free cloud) OR a minimal shared-room sync of player positions/HP if full combat sync is too large for one pass.
+   - Minimum viable: create/join with passkey, second client can connect and see host player + shared wave state OR clear "co-op lobby" that syncs presence; document limits in README.
+   - If full combat sync isn't realistic in one pass: ship NPC + room UI + PeerJS connection + sync player avatars/positions/HP and revive requests; enemies stay host-authoritative if possible.
+   - Capacitor/Android: ensure it doesn't crash offline (graceful "need network").
+   - Copyright-safe original NPC.
+
+## Ship
+- Read game.js shop, companions, barricades, boss knockback, NPCs thoroughly first.
+- Version bump, README notes, BETA APK → rollouts\TemporalRift-BETA-2.8.8.apk (or 2.9.0).
+- Preview screenshots of shop aether options + adjacent barricade bonus + Riftwarden if possible.
+- Commit + push. Explorer on APK.
+- Test what you can (headless/harness for costs, knockback numbers, adjacency).
+
+Report: costs/numbers, companion buffs, barricade rules, boss knockback change, MP what works vs deferred, APK path, commit.
+
+--- USER line 45 ---
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+--- USER line 49 ---
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+
+===== KEYWORD HITS =====
+
+--- USER line 1 ---
+Continue Temporal Rift at C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift from current v2.8.7 (sound engine + sprite pines/rocks). User loved that update. Implement the following in ONE coherent version bump (2.8.8 or 2.9 — pick sensible), BETA APK, commit+push, no store/GitHub release unless easy.
+
+## Must ship (gameplay)
+1. **Aether purchases for health + squad revive**
+   - In field lab / shop (or camp NPC interaction): spend **aether** (not only cores) to buy healing (restore player HP) and to **revive downed companions**.
+   - Clear costs UI; balance so mid-run recovery is possible but not free (e.g. heal chunk costs aether scaling with missing HP; revive per companion costs aether).
+   - Persist nothing weird — just spend current aether.
+
+2. **Companion durability (especially Rover/dog)**
+   - User: dog dies right away, squad dies fast. Buff HP / damage reduction / revive-at-wave-end already exists — increase base HP especially Rover, maybe slight DR while near player, or lower enemy focus on companions unless Warden taunting.
+   - Keep them useful but not immortal.
+
+3. **Build area / barricades**
+   - Increase upgrade steps toward **shield** (more tiers or clearer
+
+--- ASST line 2 ---
+I'll pick up Temporal Rift from 2.8.7 and ship this as one coherent bump—starting by reading shop, companions, barricades, boss knockback, and NPC code.
+[tool:UpdateCurrentStep {"current_step":"Exploring Temporal Rift codebase","final_summary":"Starting Temporal Rift 2.8.8 work: reading shop, companions, barricades, boss knockback, and]
+[tool:Shell {"command":"ls && git status && git log -5 --oneline && git branch -v","working_directory":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift","d]
+[tool:Glob {"glob_pattern":"**/*.{js,json,md,html,css}","target_directory":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift"}]
+
+--- ASST line 4 ---
+Next I'll dig into shop, companions, barricades, knockback, and NPC systems so the 2.8.8 changes land cleanly.
+[tool:UpdateCurrentStep {"current_step":"Reading core game systems"}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":980,"limit":250}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":1168,"limit":200}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":1540,"limit":280}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":2000,"limit":200}]
+[tool:Grep {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","pattern":"knockback|kbMass|push|warlord|applyKnock|hurtEnemy|directDamage|o]
+
+--- ASST line 8 ---
+Moving the workspace to Temporal Rift, then implementing 2.9.0 as one coherent pass.
+[tool:CallMcpTool {"server":"cursor-app-control","toolName":"move_agent_to_root","description":"Switch workspace to temporal-rift","arguments":{"rootPath":"C:\\Users\\drpep\\.cur]
+[tool:Read {"limit":40,"offset":3130,"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js"}]
+[tool:Read {"limit":80,"offset":150,"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\README.md"}]
+[tool:Read {"limit":40,"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\test-v28.mjs"}]
+
+--- ASST line 9 ---
+Implementing core gameplay systems first, then multiplayer and polish.
+[tool:UpdateCurrentStep {"current_step":"Implementing gameplay systems"}]
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+
+--- ASST line 14 ---
+Fixing Bramm infirmary flow so quests stay reachable, then updating the shop and multiplayer layers.
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+
+--- ASST line 31 ---
+Knockback only sets velocity until `update` runs — fixing the harness to assert on `vx` instead of position.
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\test-v29.mjs]
+[tool:Shell {"block_until_ms":90000,"command":"node test-v29.mjs","description":"Re-run v2.9 harness after KB fix","working_directory":"C:\\Users\\drpep\\.cursor\\agents\\v]
+
+--- ASST line 32 ---
+All tests passed. Building the BETA APK next, then committing and pushing.
+[tool:Shell {"block_until_ms":0,"command":"powershell -File build-beta.ps1","description":"Build Temporal Rift BETA APK 2.9.0","working_directory":"C:\\Users\\drpep\\.curso]
+[tool:TodoWrite {"merge":true,"todos":[{"id":"1","status":"completed"},{"id":"2","status":"completed"},{"id":"3","status":"completed"},{"id":"4","status":"completed"},{"id":"5"]
+
+--- ASST line 35 ---
+APK is ready. Checking Android `versionName` (still shows 2.8.7) and finishing commit/push.
+[tool:Grep {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\android\\app\\build.gradle","pattern":"versionName|versionCode"}]
+[tool:Shell {"block_until_ms":20000,"command":"node .tmp-img/shot-riftwarden.mjs; Get-Item rollouts\\TemporalRift-BETA-2.9.0.apk | Select-Object FullName, Length, LastWrite]
+
+--- ASST line 37 ---
+Fixing the float HP display on Aether Mend, then rebuilding the APK with the version bump.
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+
+--- ASST line 44 ---
+**Temporal Rift 2.9.0** shipped — commit `15035e0` pushed; BETA APK in Explorer.
+
+### Costs / numbers
+| Action | Cost |
+|---|---|
+| **Aether Mend** | `max(10, ceil(missingHP × 0.30))` aether → heal `min(miss, max(28, 38% maxHP))` |
+| **Revive Rover / Scout / Warden** | **20 / 24 / 28** aether → 65% HP |
+| Available in | Field lab, Vex, Bramm infirmary (when hurt / squad downed) |
+| Wave-end auto-revive | Still free |
+
+### Companion buffs
+- HP: Rover **185** (was 90), Scout **165**, Warden **300**
+- ~42% DR within 115px of player; Rover extra plating; lower melee splash on non-Wardens
+- Only **Warden** body-blocks enemy projectiles
+
+### Barricades
+- Adjacent (gap ≥52, link ≤86): **2× radius**, **1.8× HP** (1 neighbor) / **2.2×** (2+); cyan beams + `LINK×N`
+- Fence **5 tiers** (shield membrane → fortress); Sentry **4 tiers** (overcharge chips armor)
+
+### Boss knockback
+- Mass resistance on warlord: light rifle ticks barely shove; heavy/grenade still push; extra velocity drag
+
+### Multiplayer
+- **Works:** Riftwarden Kael → Create/Join passkey (PeerJS), avatar pos/HP/wave sync, revive ping/pulse, offline-safe
+- **Deferred:** Full combat/enemy sync (stays local)
+
+### Ship
+- APK: `C:\Use
+
+--- ASST line 47 ---
+BETA APK build finished successfully.
+
+**`rollouts\TemporalRift-BETA-2.9.0.apk`** — package `com.drpep.temporalrift.beta`, versionName **2.9.0** (already committed & pushed as v2.9.0).
+
+--- ASST line 50 ---
+The local preview server (`http-server` on port 8322) was stopped — it was only used for the v2.9.0 harness and screenshots. The BETA APK and git push are unaffected.
+
+
+===== ALL ASSISTANT TEXT SNIPPETS =====
+
+--- ASST line 2 ---
+I'll pick up Temporal Rift from 2.8.7 and ship this as one coherent bump—starting by reading shop, companions, barricades, boss knockback, and NPC code.
+[tool:UpdateCurrentStep {"current_step":"Exploring Temporal Rift codebase","final_summary":"Starting Temporal Rift 2.8.8 work: reading shop, companions, barricades, boss knockback, and]
+[tool:Shell {"command":"ls && git status && git log -5 --oneline && git branch -v","working_directory":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift","d]
+[tool:Glob {"glob_pattern":"**/*.{js,json,md,html,css}","target_directory":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift"}]
+
+--- ASST line 4 ---
+Next I'll dig into shop, companions, barricades, knockback, and NPC systems so the 2.8.8 changes land cleanly.
+[tool:UpdateCurrentStep {"current_step":"Reading core game systems"}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":980,"limit":250}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":1168,"limit":200}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":1540,"limit":280}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":2000,"limit":200}]
+[tool:Grep {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","pattern":"knockback|kbMass|push|warlord|applyKnock|hurtEnemy|directDamage|o]
+
+--- ASST line 8 ---
+Moving the workspace to Temporal Rift, then implementing 2.9.0 as one coherent pass.
+[tool:CallMcpTool {"server":"cursor-app-control","toolName":"move_agent_to_root","description":"Switch workspace to temporal-rift","arguments":{"rootPath":"C:\\Users\\drpep\\.cur]
+[tool:Read {"limit":40,"offset":3130,"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js"}]
+[tool:Read {"limit":80,"offset":150,"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\README.md"}]
+[tool:Read {"limit":40,"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\test-v28.mjs"}]
+
+--- ASST line 9 ---
+Implementing core gameplay systems first, then multiplayer and polish.
+[tool:UpdateCurrentStep {"current_step":"Implementing gameplay systems"}]
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+
+--- ASST line 14 ---
+Fixing Bramm infirmary flow so quests stay reachable, then updating the shop and multiplayer layers.
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+
+--- ASST line 31 ---
+Knockback only sets velocity until `update` runs — fixing the harness to assert on `vx` instead of position.
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\test-v29.mjs]
+[tool:Shell {"block_until_ms":90000,"command":"node test-v29.mjs","description":"Re-run v2.9 harness after KB fix","working_directory":"C:\\Users\\drpep\\.cursor\\agents\\v]
+
+--- ASST line 32 ---
+All tests passed. Building the BETA APK next, then committing and pushing.
+[tool:Shell {"block_until_ms":0,"command":"powershell -File build-beta.ps1","description":"Build Temporal Rift BETA APK 2.9.0","working_directory":"C:\\Users\\drpep\\.curso]
+[tool:TodoWrite {"merge":true,"todos":[{"id":"1","status":"completed"},{"id":"2","status":"completed"},{"id":"3","status":"completed"},{"id":"4","status":"completed"},{"id":"5"]
+
+--- ASST line 35 ---
+APK is ready. Checking Android `versionName` (still shows 2.8.7) and finishing commit/push.
+[tool:Grep {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\android\\app\\build.gradle","pattern":"versionName|versionCode"}]
+[tool:Shell {"block_until_ms":20000,"command":"node .tmp-img/shot-riftwarden.mjs; Get-Item rollouts\\TemporalRift-BETA-2.9.0.apk | Select-Object FullName, Length, LastWrite]
+
+--- ASST line 37 ---
+Fixing the float HP display on Aether Mend, then rebuilding the APK with the version bump.
+[tool:StrReplace path=C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\game.js]
+
+--- ASST line 44 ---
+**Temporal Rift 2.9.0** shipped — commit `15035e0` pushed; BETA APK in Explorer.
+
+### Costs / numbers
+| Action | Cost |
+|---|---|
+| **Aether Mend** | `max(10, ceil(missingHP × 0.30))` aether → heal `min(miss, max(28, 38% maxHP))` |
+| **Revive Rover / Scout / Warden** | **20 / 24 / 28** aether → 65% HP |
+| Available in | Field lab, Vex, Bramm infirmary (when hurt / squad downed) |
+| Wave-end auto-revive | Still free |
+
+### Companion buffs
+- HP: Rover **185** (was 90), Scout **165**, Warden **300**
+- ~42% DR within 115px of player; Rover extra plating; lower melee splash on non-Wardens
+- Only **Warden** body-blocks enemy projectiles
+
+### Barricades
+- Adjacent (gap ≥52, link ≤86): **2× radius**, **1.8× HP** (1 neighbor) / **2.2×** (2+); cyan beams + `LINK×N`
+- Fence **5 tiers** (shield membrane → fortress); Sentry **4 tiers** (overcharge chips armor)
+
+### Boss knockback
+- Mass resistance on warlord: light rifle ticks barely shove; heavy/grenade still push; extra velocity drag
+
+### Multiplayer
+- **Works:** Riftwarden Kael → Create/Join passkey (PeerJS), avatar pos/HP/wave sync, revive ping/pulse, offline-safe
+- **Deferred:** Full combat/enemy sync (stays local)
+
+### Ship
+- APK: `C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift\rollouts\TemporalRift-BETA-2.9.0.apk` (versionName 2.9.0 / code 36)
+- Tests: `test-v29.mjs` — **21/21 pass**
+- Previews: `preview-2.9.0-shop.png`, `preview-2.9.0-barricades.png`, `preview-2.9.0-riftwarden.png`
+- Endless: unchanged (wave-15 victory → CONTINUE)
+
+--- ASST line 47 ---
+BETA APK build finished successfully.
+
+**`rollouts\TemporalRift-BETA-2.9.0.apk`** — package `com.drpep.temporalrift.beta`, versionName **2.9.0** (already committed & pushed as v2.9.0).
+
+--- ASST line 50 ---
+The local preview server (`http-server` on port 8322) was stopped — it was only used for the v2.9.0 harness and screenshots. The BETA APK and git push are unaffected.
+

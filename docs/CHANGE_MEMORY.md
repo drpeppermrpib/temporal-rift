@@ -220,6 +220,9 @@ Do not invent extras. Skip boss art / combat â€œfeelâ€ polish unless us
 
 Append new versions at the top of this list when shipping.
 
+### 4.5.0 (Controller update — branch `update-4.5-controller-hero`, NOT shipped yet)
+- **APP_VERSION 4.5.0** / gradle versionCode **103**. **Gamepad support** via the HTML5 Gamepad API (Android WebView passes Bluetooth/USB pads): twin-stick move/aim (auto-aim when the right stick rests), RT/A fire, LT beam, B dash, X nova, Y talk/revive, LB grenade, RB ascend, D-pad vehicle/build/mend/colossus, R3 inspect, Start pause, Back skills; every menu navigable with D-pad + A/B and a gold focus ring. **Touch controls**: Settings ▸ *Touch controls* AUTO (hide while a pad is used, return on touch) / ALWAYS SHOW / ALWAYS HIDE (keeps ⚙). **Hero refresh**: new procedural `drawHero()` — armor, ash cloak, scarf, detailed rifle, side/front/back views, recoil/nova/throw/hurt/dash/downed poses, gear visuals; hitbox + size lock unchanged; `HERO_V45_ENABLED` flag restores the old stick hero. Native: `MainActivity` swallows unhandled pad keys. Release notes: `playstore\release-notes-4.5.0.txt`.
+
 ### 4.4.0 (Continuity — Step 10.7 arc gate — Ashmere lake / dock / skiff / isle)
 - Closes Step 10: water body, Emberfall Dock, Ashen Rift Skiff, Driftwood Isle, shaman swim + water rules, placement gate + balance lock.
 - **BETA** `rollouts\TemporalRift-BETA-4.4.0.apk` (+ Desktop) — `com.drpep.temporalrift.beta` / TR_CHANNEL=github / vc102.

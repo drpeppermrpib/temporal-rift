@@ -4479,6 +4479,11 @@ $('touchNote').textContent = IS_TOUCH
 const keys = {};
 let mouse = { x: 0, y: 0, down: false, rdown: false };
 const touch = { fire: false, beamHeld: false, joy: { x: 0, y: 0, active: false } };
+// v4.5.0 gamepad state (filled by pollGamepad each frame; see GAMEPAD section near the end)
+const pad = { active: false, connected: false, id: '', mx: 0, my: 0, ax: 0, ay: 0, aimActive: false, fire: false, beam: false, talk: false };
+const TOUCH_NOTE_DEFAULT = IS_TOUCH
+  ? '📱 Touch mode: left thumb = move · right buttons = fight · auto-aim assists you'
+  : 'Tip: this build also runs with full touch controls on phones / as an APK.';
 let talkHeld = false;
 
 addEventListener('keydown', e => {
@@ -4613,8 +4618,8 @@ $('btnMenu').addEventListener('pointerdown', e => { if (layoutEditing) return; e
 
 // ==================== VERSION & UPDATE CHECK ======================
 // BETA-3 Continuity apply batch (sideload test only — Play store stays 2.13.2 / vc46).
-const APP_VERSION = '4.4.0';
-const APP_VCODE = 102; // keep in step with android/app/build.gradle versionCode
+const APP_VERSION = '4.5.0'; // v4.5.0 — controller support, touch-control hiding, hero refresh
+const APP_VCODE = 103; // keep in step with android/app/build.gradle versionCode
 $('appVer').textContent = 'v' + APP_VERSION;
 
 // Distribution channel gate. 'github' = sideloaded APK / web demo, where the
@@ -6435,6 +6440,7 @@ function toggleSettings() {
   if (!settingsOpen) {
     soundMenuOpen = false;
     $('soundMenu').classList.add('hidden');
+    if (typeof controlsMenuOpen !== 'undefined') { controlsMenuOpen = false; if ($('controlsMenu')) $('controlsMenu').classList.add('hidden'); }
     $('settingsMain').classList.remove('hidden');
   } else {
     refreshToggles();
@@ -6447,6 +6453,7 @@ function refreshToggles() {
   $('togVibro').classList.toggle('on', settings.vibro);
   if ($('togAdaptHide')) $('togAdaptHide').classList.toggle('on', !!settings.adaptHidden);
   if ($('togWaveCoachSkip')) $('togWaveCoachSkip').classList.toggle('on', !!settings.waveCoachSkip);
+  if ($('touchCtlVal')) { try { refreshControlsMenu(); } catch (e) {} } // v4.5.0 (TDZ-safe during boot)
   if ($('rowFogMode')) {
     $('rowFogMode').style.display = FOG_DISCOVERY_ENABLED ? '' : 'none';
     if ($('fogModeVal')) $('fogModeVal').textContent = fogDiscoveryModeLabel(settings.fogDiscoveryMode);
@@ -6502,24 +6509,28 @@ const WAVE_COACH_LESSONS = {
     id: '1-1', title: '1-1 MOVE & FIGHT',
     touch: 'Left thumb = move · FIRE = shoot · auto-aim helps',
     desk: 'WASD move · mouse aim · click / hold to fire',
+    pad: 'Left stick move · right stick aim (idle = auto-aim) · RT fire',
     targets: ['joyZone', 'btnFire'],
   },
   2: {
     id: '1-2', title: '1-2 BUILD',
     touch: 'BUILD → pick → tap to place (horde freezes)',
     desk: 'B opens BUILD · aim · click to place (horde freezes)',
+    pad: 'D-pad ↓ opens BUILD · aim · A / RT to place (horde freezes)',
     targets: ['btnBuild'],
   },
   3: {
     id: '1-3', title: '1-3 UPGRADE',
     touch: 'Loot ⬡ 🪵 ◈ · spend in field lab & ✦ SKILLS',
     desk: 'Loot cores / wood / gold · K skills · shop between waves',
+    pad: 'Loot ⬡ 🪵 ◈ · Back/Select = skills · shop between waves',
     targets: ['coreNum', 'btnMenu'],
   },
   4: {
     id: '1-4', title: '1-4 SQUAD',
     touch: 'Companions + COLOSSUS (C) — light intro, trees later',
     desk: 'Companions fight with you · C / COLOSSUS for the titan',
+    pad: 'Companions fight with you · D-pad → summons the COLOSSUS',
     targets: ['btnColossus', 'squadNum'],
   },
   5: {
@@ -9192,7 +9203,7 @@ function showWaveCoach(forWave) {
   if (!root) return;
   paintWaveCoachFinger();
   $('waveCoachTitle').textContent = lesson.title;
-  $('waveCoachBody').textContent = IS_TOUCH ? lesson.touch : lesson.desk;
+  $('waveCoachBody').textContent = (pad.active && lesson.pad) ? lesson.pad : IS_TOUCH ? lesson.touch : lesson.desk;
   waveCoach.active = true;
   waveCoach.wave = forWave;
   waveCoach.t = WAVE_COACH_HOLD;
@@ -9362,12 +9373,13 @@ function autoAim() {
   }
   if (best) player.aim = Math.atan2(best.y - player.y, best.x - player.x);
   else if (touch.joy.active) player.aim = Math.atan2(touch.joy.y, touch.joy.x);
+  else if (pad.active && (pad.mx || pad.my)) player.aim = Math.atan2(pad.my, pad.mx);
 }
 
 function fireWeapons(dt) {
   player.fireCd -= dt;
   player.fire2Cd -= dt;
-  const wantFire = mouse.down || touch.fire;
+  const wantFire = mouse.down || touch.fire || (pad.active && pad.fire);
   if (!wantFire || charging) return;
   if (player.fireCd <= 0) {
     player.fireCd = weaponStats(loadout.primary).interval;
@@ -9381,6 +9393,7 @@ function fireWeapons(dt) {
   }
 }
 function shootBolt(id, offHand) {
+  if (!offHand) player._shotAt = performance.now(); // v4.5.0 hero recoil pose
   const st = weaponStats(id);
   // Twin Channeling rank 2 halves the dual-wield spread penalty
   const spread = st.spread * (offHand ? 1.8 : 1) / (player.form > 0 && sk('w5') >= 2 ? 2 : 1);
@@ -9464,6 +9477,7 @@ function tryNova() {
   if (player.novaCd > 0) return;
   if (player.ki < 12) { addFloater(player.x, player.y - 40, 'NOT ENOUGH AETHER', '#4de1ff', false); return; }
   player.ki -= 12; player.novaCd = novaCooldown();
+  player._novaAt = performance.now(); // v4.5.0 hero nova pose
   const R = 130 + (player.form ? 30 : 0);
   spawnRing(player.x, player.y, R);
   camera.shake = 8;
@@ -9482,8 +9496,10 @@ function tryNova() {
 function tryGrenade() {
   if (state !== 'playing' || paused || buildPlaceMode || dialogOpen || treeOpen || vendorOpen || settingsOpen || player.downed) return;
   if (player.grenCd > 0 || player.grenades <= 0) return;
-  if (IS_TOUCH) autoAim();
+  if (pad.active && pad.aimActive) player.aim = Math.atan2(pad.ay, pad.ax);
+  else if (IS_TOUCH || pad.active) autoAim();
   player.grenades--; player.grenCd = 0.8;
+  player._grenAt = performance.now(); // v4.5.0 hero throw pose
   const a = player.aim;
   grenades.push({ x: player.x, y: player.y, vx: Math.cos(a) * 480, vy: Math.sin(a) * 480, t: 0.9 });
 }
@@ -11272,8 +11288,8 @@ function tryDash(fromButton) {
   if (state !== 'playing' || paused || dialogOpen || treeOpen || vendorOpen || settingsOpen || player.downed) return;
   if (bike.mounted || boat.mounted) return; // no dash on wheels or water (10.3 parity)
   if (player.dashCd > 0) return;
-  let dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x;
-  let dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y;
+  let dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x + (pad.active ? pad.mx : 0);
+  let dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y + (pad.active ? pad.my : 0);
   if (!dx && !dy) { dx = Math.cos(player.aim); dy = Math.sin(player.aim); }
   const m = Math.hypot(dx, dy) || 1;
   player.vx = dx / m * 900; player.vy = dy / m * 900;
@@ -11323,8 +11339,8 @@ function update(dt) {
   // ---- movement ----
   let dx = 0, dy = 0;
   if (!player.downed) {
-    dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x;
-    dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y;
+    dx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + touch.joy.x + (pad.active ? pad.mx : 0);
+    dy = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + touch.joy.y + (pad.active ? pad.my : 0);
     if (keys.ShiftLeft || keys.ShiftRight) tryDash();
   }
   const m = Math.hypot(dx, dy);
@@ -11354,7 +11370,12 @@ function update(dt) {
   updateRiftNet(dt);
 
   // ---- aim ----
-  if (IS_TOUCH) {
+  if (pad.active) {
+    // v4.5.0 controller: right stick aims; idle stick = touch-style auto-aim
+    if (pad.aimActive) player.aim = Math.atan2(pad.ay, pad.ax);
+    else if (buildPlaceMode) { if (pad.mx || pad.my) player.aim = Math.atan2(pad.my, pad.mx); }
+    else autoAim();
+  } else if (IS_TOUCH) {
     // During place mode, aim from joystick (not enemy auto-aim) so ghost follows look
     if (buildPlaceMode) {
       if (touch.joy.active) player.aim = Math.atan2(touch.joy.y, touch.joy.x);
@@ -11442,7 +11463,7 @@ function update(dt) {
   // ---- weapons ----
   wdMark('weapons');
   if (!player.downed && !buildPlaceMode) fireWeapons(dt);
-  const wantCharge = !player.downed && !buildPlaceMode && (mouse.rdown || touch.beamHeld);
+  const wantCharge = !player.downed && !buildPlaceMode && (mouse.rdown || touch.beamHeld || (pad.active && pad.beam));
   if (wantCharge && !beam) {
     charging = true;
     beamCharge = clamp(beamCharge + dt * 0.9, 0, 1);
@@ -12229,6 +12250,7 @@ function hurtPlayer(dmg) {
   knockOffBike(dmg);
   player.hp -= dmg * (1 - armorReduce());
   player.hurtT = 0.45;
+  player._hurtAt = performance.now(); // v4.5.0 hero hurt recoil
   camera.shake = 9;
   sfx.play('hurt');
   buzz(dmg >= 25 ? 60 : 30); // heavy hits (boss slams) rumble harder
@@ -13040,6 +13062,625 @@ function drawFigure(x, y, o) {
   ctx.restore();
 }
 
+// ============ HERO — v4.5.0 "Ashen Vanguard" refresh ============
+// Procedural canvas only (no image assets, same as every other unit). Keeps drawFigure's
+// SIZE LOCK (H = 36*s, 12*s × 5.2*s shadow ellipse) so the on-screen footprint matches the
+// unchanged player.r hitbox. Adds real anatomy and readable layers: 2-bone IK legs with
+// knee plates + boots, tapered armored torso with chest aether core, layered pauldron,
+// tattered ash cloak + crimson scarf (wind/stride driven), detailed rifle (scope, mag,
+// shroud, emitter) gripped by both arms, face + tech headband + swept spiky hair, and
+// three view angles from aim (side / front / back). Pose layers: idle breath + blink,
+// walk, shoot recoil + muzzle flash, nova burst, grenade throw, hurt recoil/flash, dash
+// afterimages, downed slump. Gear visuals: armor plates, anti-grav boot glow, grenade
+// bandolier, aether cell vials, weapon variant (rifle / Gusher / Sticker), ascension gold.
+// Flip HERO_V45_ENABLED=false to restore the pre-4.5 stick hero (drawFigure path).
+const HERO_V45_ENABLED = true;
+const HERO_ACCENT = { rifle: '#4de1ff', gusher: '#3ef0c8', sticker: '#ff6bd8' };
+function heroPalette(o) {
+  const gold = (o.form || 0) > 0;
+  const P = gold ? {
+    armor: '#e89b2e', armorD: '#9a5a12', armorL: '#ffd98a',
+    cloak: '#3a2610', cloakD: '#24170a', lining: '#ffcf5a', hem: '#fff2a8',
+    scarf: '#fff2a8', scarfD: '#e0b040', hair: '#ffe27a', hairL: '#fffbe0',
+    core: '#fff2a8', visor: '#ffd54a',
+  } : {
+    armor: '#2f6df2', armorD: '#1a3d9a', armorL: '#8fbaff',
+    cloak: '#1c2340', cloakD: '#121729', lining: '#6a2230', hem: '#ff8a3d',
+    scarf: '#d8423a', scarfD: '#8e2420', hair: '#252533', hairL: '#55557a',
+    core: '#4de1ff', visor: '#4de1ff',
+  };
+  if (o.armorTint) { P.armor = o.armorTint; P.armorD = o.armorTintD || '#1e4f6a'; P.armorL = o.armorTintL || '#bff4ff'; }
+  P.skin = '#e8b98a'; P.skinD = '#c48a5c';
+  P.suit = '#1d2230'; P.legs = '#242b3c'; P.legsD = '#181d29';
+  P.boot = '#14171f'; P.bootTrim = (o.bootsLvl || 0) >= 1 ? '#5f7fa8' : '#3a4458';
+  P.steel = '#c8d6ea'; P.steelD = '#7a89a6'; P.gun = '#3a4256'; P.gunD = '#262c3a';
+  P.pauldron = o.pauldron || P.armorL;
+  P.accent = HERO_ACCENT[o.weaponKind] || HERO_ACCENT.rifle;
+  return P;
+}
+function heroKnee(hx, hy, fx, fy, L1, L2) {
+  const dx = fx - hx, dy = fy - hy;
+  const d = Math.min(Math.hypot(dx, dy) || 0.001, L1 + L2 - 0.001);
+  const a = Math.atan2(dy, dx);
+  const ca = clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1);
+  const k = a - Math.acos(ca); // knee bends toward +x (the facing side)
+  return { x: hx + Math.cos(k) * L1, y: hy + Math.sin(k) * L1 };
+}
+function drawHero(x, y, o) {
+  const s = o.s || 1.06;
+  const H = 36 * s;                       // SIZE LOCK — same as drawFigure
+  const t = o.walk || 0;
+  const now = performance.now();
+  const downed = !!o.downed;
+  const moving = !!o.moving && !downed;
+  const view = downed ? 'side' : (o.view || 'side');
+  const P = heroPalette(o);
+  const fl = (o.flashK || 0) > 0.5;
+  const C = c => (fl ? '#ffffff' : c);
+  const hurtK = o.hurtK || 0, shotK = o.shotK || 0, novaK = o.novaK || 0;
+  const throwK = o.throwK || 0, dashK = o.dashK || 0;
+  const baseAlpha = o.alpha !== undefined ? o.alpha : 1;
+  const breath = Math.sin(now / 520);
+  const bob = moving ? Math.abs(Math.sin(t)) * 2.0 * s : (breath * 0.5 + 0.5) * 0.6 * s;
+  const plant = moving ? Math.max(0, Math.cos(t * 2)) : 0;
+  const wind = Math.sin(now / 170 + t * 0.5);
+  const trail = (moving ? 6 * s : 2.2 * s) + dashK * 6 * s;   // cloak / scarf drag
+  const blink = (now % 3900) < 110;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.globalAlpha = baseAlpha;
+  // shadow — SIZE LOCK ellipse
+  ctx.fillStyle = 'rgba(0,0,0,0.52)';
+  ctx.beginPath(); ctx.ellipse(0, 0, 12 * s * (1 + plant * 0.04), 5.2 * s, 0, 0, TAU); ctx.fill();
+  // anti-grav boots (gear) — soft hover glow under the feet
+  if ((o.bootsLvl || 0) >= 2 && !downed) {
+    const g = ctx.createRadialGradient(0, -1, 1, 0, -1, 11 * s);
+    g.addColorStop(0, (o.form ? 'rgba(255,213,74,' : 'rgba(77,225,255,') + (0.28 + plant * 0.12) + ')');
+    g.addColorStop(1, 'rgba(77,225,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(0, -1, 11 * s, 4.4 * s, 0, 0, TAU); ctx.fill();
+  }
+  // dash afterimages (world space, behind the hero)
+  if (dashK > 0) {
+    const ddx = o.dashDirX || 0, ddy = o.dashDirY || 0;
+    ctx.fillStyle = o.form ? '#ffd54a' : '#4de1ff';
+    for (let i = 3; i >= 1; i--) {
+      ctx.globalAlpha = baseAlpha * 0.16 * dashK * (4 - i) / 3;
+      ctx.beginPath();
+      ctx.ellipse(-ddx * i * 8 * s, -ddy * i * 8 * s - H * 0.48, 6.5 * s, H * 0.44, 0, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = baseAlpha;
+  }
+
+  ctx.scale(o.facing || 1, 1);
+  ctx.translate(0, -bob + (downed ? 3 * s : 0));
+  ctx.rotate(-hurtK * 0.17 + dashK * 0.2 + (moving ? 0.045 : 0) - shotK * 0.03 + (downed ? 0.32 : 0));
+  if (plant > 0) ctx.scale(1 + plant * 0.02, 1 - plant * 0.025);
+
+  const hipY = -H * 0.42 + (downed ? 6 * s : 0);
+  const shY = -H * 0.72 + (downed ? 7 * s : 0);
+  const headY = -H * 0.88 + (downed ? 9 * s : 0) + breath * 0.25 * s - hurtK * 0.6 * s;
+  const headR = 5.6 * s;
+  const lean = (moving ? 1.4 * s : 0) + dashK * 3 * s - hurtK * 2 * s + (downed ? 4 * s : 0);
+  const sx = lean * 0.7;                  // shoulder center x
+  const hx = lean * 0.85 + (downed ? 2 * s : 0); // head center x
+
+  // ascension aura (behind everything) — same read as before, softer edge
+  if (o.aura && /^#[0-9a-fA-F]{6}$/.test(o.aura)) {
+    const ar = H * 0.64 + Math.sin(now / 70) * 3 * s;
+    const ag = ctx.createRadialGradient(lean * 0.5, hipY, 3, lean * 0.5, hipY, ar);
+    ag.addColorStop(0, o.aura + '99'); ag.addColorStop(0.6, o.aura + '33'); ag.addColorStop(1, o.aura + '00');
+    ctx.fillStyle = ag;
+    ctx.beginPath(); ctx.ellipse(lean * 0.5, hipY, ar * 0.8, ar, 0, 0, TAU); ctx.fill();
+  }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  // ---------- cloak ----------
+  const drawCloakSide = () => {
+    const ax = sx - 3.6 * s, ay = shY - 0.4 * s;      // back shoulder anchor
+    const bx = sx + 1.2 * s, by = shY - 1.2 * s;      // collar
+    const kx = -5 * s - trail, ky = -7 * s - wind * 0.9 * s;     // back hem corner
+    const fx = -0.6 * s - trail * 0.25, fy = -5.4 * s + wind * 0.6 * s; // front hem corner
+    ctx.fillStyle = C(P.cloak);
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(ax, ay);
+    ctx.quadraticCurveTo(sx - 6.5 * s - trail * 0.45, shY + 9 * s, kx, ky);
+    // tattered hem: 3 notches between back and front corners
+    for (let i = 1; i <= 3; i++) {
+      const u = i / 4;
+      const mx = kx + (fx - kx) * u, my = ky + (fy - ky) * u;
+      ctx.lineTo(mx - 0.8 * s, my + (i % 2 ? 2.4 : 0.6) * s + Math.sin(now / 140 + i) * 0.6 * s);
+      ctx.lineTo(mx + 0.9 * s, my - 0.4 * s);
+    }
+    ctx.lineTo(fx, fy);
+    ctx.quadraticCurveTo(sx - 0.8 * s, hipY + 1 * s, bx, by);
+    ctx.closePath(); ctx.fill();
+    // inner lining peeking along the trailing edge
+    ctx.strokeStyle = C(P.lining); ctx.lineWidth = 1.3 * s;
+    ctx.beginPath(); ctx.moveTo(ax + 0.6 * s, ay + 1 * s);
+    ctx.quadraticCurveTo(sx - 6 * s - trail * 0.45, shY + 9 * s, kx + 0.8 * s, ky - 0.6 * s); ctx.stroke();
+    // ember hem (the "Ashen" read)
+    ctx.strokeStyle = C(P.hem); ctx.lineWidth = 0.9 * s; ctx.globalAlpha = baseAlpha * (0.55 + 0.25 * Math.sin(now / 230));
+    ctx.beginPath(); ctx.moveTo(kx, ky + 0.4 * s); ctx.lineTo(fx, fy + 0.3 * s); ctx.stroke();
+    ctx.globalAlpha = baseAlpha;
+  };
+  const drawCloakBack = (over) => {
+    const sway = wind * 1.2 * s;
+    ctx.fillStyle = C(over ? P.cloak : P.cloakD);
+    ctx.beginPath();
+    ctx.moveTo(sx - 4.8 * s, shY - 0.6 * s);
+    ctx.lineTo(sx + 4.8 * s, shY - 0.6 * s);
+    ctx.quadraticCurveTo(sx + 7.5 * s, hipY, 7 * s + sway, -5.6 * s);
+    for (let i = 1; i <= 5; i++) {
+      const xx = 7 * s + sway - i * (14 * s / 6);
+      ctx.lineTo(xx + 1.1 * s, -5.6 * s + (i % 2 ? 2.2 : 0.4) * s + Math.sin(now / 150 + i) * 0.5 * s);
+    }
+    ctx.lineTo(-7 * s + sway, -5.6 * s);
+    ctx.quadraticCurveTo(sx - 7.5 * s, hipY, sx - 4.8 * s, shY - 0.6 * s);
+    ctx.closePath(); ctx.fill();
+    if (over) {
+      // fold shading + rift sigil
+      ctx.strokeStyle = C(P.cloakD); ctx.lineWidth = 1 * s;
+      ctx.beginPath();
+      ctx.moveTo(sx - 2 * s, shY + 2 * s); ctx.lineTo(-2.6 * s + sway * 0.6, -7 * s);
+      ctx.moveTo(sx + 2.2 * s, shY + 2 * s); ctx.lineTo(3 * s + sway * 0.6, -7 * s);
+      ctx.stroke();
+      ctx.fillStyle = C(P.core); ctx.shadowColor = P.core; ctx.shadowBlur = fl ? 0 : 5;
+      const ey = (shY + hipY) * 0.5;
+      ctx.beginPath(); ctx.moveTo(sx, ey - 2.4 * s); ctx.lineTo(sx + 1.6 * s, ey); ctx.lineTo(sx, ey + 2.4 * s); ctx.lineTo(sx - 1.6 * s, ey);
+      ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+    }
+    ctx.strokeStyle = C(P.hem); ctx.lineWidth = 0.9 * s; ctx.globalAlpha = baseAlpha * 0.6;
+    ctx.beginPath(); ctx.moveTo(-7 * s + sway, -5.3 * s); ctx.lineTo(7 * s + sway, -5.3 * s); ctx.stroke();
+    ctx.globalAlpha = baseAlpha;
+  };
+
+  // ---------- legs ----------
+  const L1 = 7.5 * s, L2 = 7.3 * s;  // ~1.06× hip→ankle span → slight, natural knee bend
+  const stride = moving ? 5.6 * s : 0.7 * s;
+  const ph = Math.sin(t), vph = Math.cos(t);
+  const drawLeg = (hipX, footX, lift, far) => {
+    const fy = -1.4 * s - lift;
+    let k;
+    if (view === 'side') k = heroKnee(hipX, hipY, footX, fy, L1, L2);
+    else k = { x: (hipX + footX) * 0.5 + (hipX < 0 ? -0.5 : 0.5) * s, y: (hipY + fy) * 0.5 };
+    ctx.strokeStyle = C(far ? P.legsD : P.legs);
+    ctx.lineWidth = 3.9 * s;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(k.x, k.y); ctx.stroke();
+    ctx.lineWidth = 3.3 * s;
+    ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.lineTo(footX, fy); ctx.stroke();
+    // greave plate on the shin
+    ctx.strokeStyle = C(far ? P.armorD : P.armor); ctx.lineWidth = 2.1 * s;
+    ctx.beginPath();
+    ctx.moveTo(k.x + (footX - k.x) * 0.18, k.y + (fy - k.y) * 0.18);
+    ctx.lineTo(k.x + (footX - k.x) * 0.72, k.y + (fy - k.y) * 0.72); ctx.stroke();
+    // knee plate
+    ctx.fillStyle = C(far ? P.armorD : P.pauldron);
+    ctx.beginPath(); ctx.arc(k.x, k.y, 1.3 * s, 0, TAU); ctx.fill();
+    // boot
+    ctx.fillStyle = C(P.boot);
+    ctx.beginPath();
+    if (view === 'side') {
+      ctx.moveTo(footX - 1.7 * s, fy - 1.6 * s);
+      ctx.lineTo(footX + 1.4 * s, fy - 1.6 * s);
+      ctx.quadraticCurveTo(footX + 3.6 * s, fy - 0.6 * s, footX + 3.4 * s, fy + 0.9 * s);
+      ctx.lineTo(footX - 1.9 * s, fy + 0.9 * s);
+    } else {
+      ctx.ellipse(footX, fy, 2.1 * s, 1.7 * s, 0, 0, TAU);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = C(P.bootTrim); ctx.lineWidth = 0.8 * s;
+    ctx.beginPath(); ctx.moveTo(footX - 1.6 * s, fy - 1.4 * s); ctx.lineTo(footX + 1.3 * s, fy - 1.4 * s); ctx.stroke();
+  };
+  const drawLegs = () => {
+    if (view === 'side') {
+      drawLeg(-1.3 * s, -1.0 * s - ph * stride + (downed ? 3 * s : 0), moving ? Math.max(0, -vph) * 2.6 * s : 0, true);
+      drawLeg(1.3 * s, 1.0 * s + ph * stride + (downed ? 5 * s : 0), moving ? Math.max(0, vph) * 2.6 * s : 0, false);
+    } else {
+      // front/back: legs apart, stride reads as alternating lift
+      drawLeg(-2.2 * s, -2.6 * s, moving ? Math.max(0, ph) * 3.2 * s : 0, view === 'back');
+      drawLeg(2.2 * s, 2.6 * s, moving ? Math.max(0, -ph) * 3.2 * s : 0, view === 'back');
+    }
+  };
+
+  // ---------- torso ----------
+  const drawTorso = () => {
+    ctx.save();
+    ctx.translate(0, hipY); ctx.scale(1, 1 + breath * 0.014); ctx.translate(0, -hipY);
+    // undersuit neck
+    ctx.fillStyle = C(P.suit);
+    ctx.fillRect(hx - 1.8 * s, shY - 3 * s, 3.6 * s, 3.6 * s);
+    const wide = view === 'side' ? 0 : 1;
+    ctx.fillStyle = C(P.armor);
+    ctx.beginPath();
+    if (!wide) {
+      ctx.moveTo(-3.1 * s, hipY + 1.6 * s);
+      ctx.lineTo(sx - 3.9 * s, shY + 0.8 * s);
+      ctx.quadraticCurveTo(sx + 0.2 * s, shY - 1.6 * s, sx + 3.9 * s, shY + 1.2 * s);
+      ctx.quadraticCurveTo(sx + 4.6 * s, (shY + hipY) * 0.5, 3.1 * s, hipY + 1.6 * s);
+    } else {
+      ctx.moveTo(-3.6 * s, hipY + 1.6 * s);
+      ctx.lineTo(sx - 5.2 * s, shY + 1 * s);
+      ctx.quadraticCurveTo(sx, shY - 1.8 * s, sx + 5.2 * s, shY + 1 * s);
+      ctx.lineTo(3.6 * s, hipY + 1.6 * s);
+    }
+    ctx.closePath(); ctx.fill();
+    // abdomen plates
+    ctx.fillStyle = C(P.armorD);
+    ctx.beginPath();
+    ctx.moveTo(-3 * s, hipY + 1.4 * s); ctx.lineTo(-3.3 * s, hipY - 3.4 * s);
+    ctx.lineTo(3.4 * s + (wide ? 0 : sx * 0.4), hipY - 3.4 * s); ctx.lineTo(3 * s, hipY + 1.4 * s);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = C('rgba(0,0,0,0.35)'); ctx.lineWidth = 0.6 * s;
+    ctx.beginPath(); ctx.moveTo(-3 * s, hipY - 1.2 * s); ctx.lineTo(3.2 * s, hipY - 1.2 * s); ctx.stroke();
+    if (view !== 'back') {
+      // highlight edge + chest seam
+      ctx.strokeStyle = C(P.armorL); ctx.lineWidth = 0.9 * s;
+      ctx.beginPath();
+      if (!wide) { ctx.moveTo(sx + 3.6 * s, shY + 1.6 * s); ctx.quadraticCurveTo(sx + 4.2 * s, (shY + hipY) * 0.5, 3 * s, hipY - 2.6 * s); }
+      else { ctx.moveTo(sx - 4.4 * s, shY + 1.4 * s); ctx.lineTo(sx - 1.4 * s, shY + 3.4 * s); ctx.moveTo(sx + 4.4 * s, shY + 1.4 * s); ctx.lineTo(sx + 1.4 * s, shY + 3.4 * s); }
+      ctx.stroke();
+      // Riftsteel chest ridge (armor ≥ 4)
+      if ((o.armorLvl || 0) >= 4) {
+        ctx.strokeStyle = C('#dfe7f2'); ctx.lineWidth = 0.9 * s;
+        const cx0 = wide ? sx : sx + 1.2 * s;
+        ctx.beginPath(); ctx.moveTo(cx0 - 2.6 * s, shY + 6.5 * s); ctx.lineTo(cx0, shY + 8.4 * s); ctx.lineTo(cx0 + 2.6 * s, shY + 6.5 * s); ctx.stroke();
+      }
+      // bandolier strap + grenades (gear)
+      ctx.strokeStyle = C('#4a3424'); ctx.lineWidth = 1.3 * s;
+      const bx0 = sx - 3 * s, by0 = shY + 1 * s, bx1 = 2.6 * s, by1 = hipY - 1 * s;
+      ctx.beginPath(); ctx.moveTo(bx0, by0); ctx.lineTo(bx1, by1); ctx.stroke();
+      const gn = Math.min(4, Math.max(0, o.grenades || 0));
+      for (let i = 0; i < gn; i++) {
+        const u = 0.25 + i * 0.17;
+        const gx = bx0 + (bx1 - bx0) * u, gy = by0 + (by1 - by0) * u;
+        ctx.fillStyle = C('#5a6478'); ctx.beginPath(); ctx.arc(gx, gy, 1.05 * s, 0, TAU); ctx.fill();
+        ctx.fillStyle = C(P.accent); ctx.beginPath(); ctx.arc(gx, gy, 0.45 * s, 0, TAU); ctx.fill();
+      }
+      // chest aether core
+      const cx = wide ? sx : sx + 1.9 * s, cy = shY + 4.6 * s;
+      ctx.fillStyle = C('#0d1220'); ctx.beginPath(); ctx.arc(cx, cy, 2 * s, 0, TAU); ctx.fill();
+      ctx.fillStyle = C(P.core); ctx.shadowColor = P.core; ctx.shadowBlur = fl ? 0 : 7 + novaK * 10;
+      ctx.beginPath(); ctx.arc(cx, cy, (1.25 + 0.2 * Math.sin(now / 260) + novaK * 0.6) * s, 0, TAU); ctx.fill();
+      ctx.shadowBlur = 0;
+    } else {
+      // back plate spine
+      ctx.strokeStyle = C(P.armorD); ctx.lineWidth = 1.2 * s;
+      ctx.beginPath(); ctx.moveTo(sx, shY + 1 * s); ctx.lineTo(0, hipY - 2 * s); ctx.stroke();
+    }
+    // belt + buckle + aether vials (gear)
+    ctx.fillStyle = C('#3a2a1e');
+    ctx.fillRect(-3.5 * s, hipY - 1.1 * s, 7 * s + (wide ? 0.2 * s : 0.4 * s), 2.4 * s);
+    if (view !== 'back') {
+      ctx.fillStyle = C('#d8b860'); ctx.fillRect((wide ? -0.9 : 1.2) * s, hipY - 0.9 * s, 1.8 * s, 2 * s);
+      const vials = Math.min(3, Math.ceil((o.kiLvl || 0) / 2));
+      for (let i = 0; i < vials; i++) {
+        ctx.fillStyle = C(P.core); ctx.globalAlpha = baseAlpha * (0.7 + 0.3 * Math.sin(now / 300 + i));
+        ctx.fillRect((wide ? 1.6 + i * 1.1 : -2.8 + i * 1.1) * s, hipY - 0.6 * s, 0.7 * s, 1.5 * s);
+      }
+      ctx.globalAlpha = baseAlpha;
+    }
+    // hip pouch
+    ctx.fillStyle = C('#4a3424');
+    ctx.fillRect((view === 'side' ? -4.1 : -4.4) * s, hipY + 0.2 * s, 2.2 * s, 2.6 * s);
+    ctx.restore();
+  };
+
+  // ---------- pauldron ----------
+  const drawPauldron = (px, far) => {
+    const pr = 4.4 * s;
+    ctx.fillStyle = C(far ? P.armorD : P.pauldron);
+    ctx.beginPath(); ctx.arc(px, shY + 1.2 * s, pr, Math.PI * 1.05, Math.PI * 2.05); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C(far ? P.armorD : P.armor);
+    ctx.beginPath(); ctx.arc(px, shY + 3.1 * s, pr * 0.8, Math.PI * 1.08, Math.PI * 1.98); ctx.closePath(); ctx.fill();
+    if (!far) {
+      ctx.strokeStyle = C('rgba(255,255,255,0.55)'); ctx.lineWidth = 0.8 * s;
+      ctx.beginPath(); ctx.arc(px, shY + 1.2 * s, pr - 0.6 * s, Math.PI * 1.2, Math.PI * 1.75); ctx.stroke();
+      if ((o.armorLvl || 0) >= 1) {
+        ctx.fillStyle = C('#e8eef8');
+        ctx.beginPath(); ctx.arc(px - 2 * s, shY + 0.4 * s, 0.45 * s, 0, TAU); ctx.arc(px + 2 * s, shY + 0.4 * s, 0.45 * s, 0, TAU); ctx.fill();
+      }
+    }
+  };
+
+  // ---------- rifle + arms ----------
+  const ga = o.gunAngle || 0;
+  const drawGun = (kind, compact) => {
+    const L = compact ? 0.62 : 1;
+    const acc = HERO_ACCENT[kind] || P.accent;
+    // stock
+    ctx.fillStyle = C(P.gun);
+    ctx.beginPath(); ctx.moveTo(-3 * s * L, -1.4 * s); ctx.lineTo(2 * s, -1.8 * s); ctx.lineTo(2 * s, 2 * s); ctx.lineTo(-3.2 * s * L, 2.6 * s); ctx.closePath(); ctx.fill();
+    // receiver
+    ctx.fillStyle = C(P.steel); ctx.fillRect(2 * s, -2.2 * s, 12 * s * L, 2.2 * s);
+    ctx.fillStyle = C(P.steelD); ctx.fillRect(2 * s, 0, 12 * s * L, 1.9 * s);
+    // grip + mag
+    ctx.fillStyle = C(P.gunD);
+    ctx.beginPath(); ctx.moveTo(4.4 * s, 1.8 * s); ctx.lineTo(6.2 * s, 1.8 * s); ctx.lineTo(5.6 * s, 4.6 * s); ctx.lineTo(4 * s, 4.4 * s); ctx.closePath(); ctx.fill();
+    if (!compact) {
+      ctx.fillStyle = C(P.gun);
+      ctx.beginPath(); ctx.moveTo(8 * s, 1.8 * s); ctx.lineTo(10.6 * s, 1.8 * s); ctx.lineTo(10.1 * s, 5.4 * s); ctx.lineTo(8.3 * s, 5.1 * s); ctx.closePath(); ctx.fill();
+      // rail + scope
+      ctx.fillStyle = C('#5a6478'); ctx.fillRect(4 * s, -3 * s, 8 * s, 0.9 * s);
+      ctx.fillStyle = C('#2a3040'); ctx.fillRect(6.4 * s, -4.7 * s, 4.6 * s, 1.8 * s);
+      ctx.fillStyle = C(acc); ctx.fillRect(10.6 * s, -4.4 * s, 0.7 * s, 1.2 * s);
+    }
+    // barrel / shroud (variant)
+    const bx = 2 * s + 12 * s * L;
+    const bh = kind === 'gusher' ? 3.2 * s : 2.2 * s;
+    ctx.fillStyle = C('#9aa8bc'); ctx.fillRect(bx, -bh / 2, 6.5 * s * L, bh);
+    ctx.fillStyle = C(P.gunD);
+    for (let i = 0; i < 3; i++) ctx.fillRect(bx + (1 + i * 1.7) * s * L, -bh / 2 + 0.4 * s, 0.7 * s, bh - 0.8 * s);
+    if (kind === 'sticker' && !compact) {
+      ctx.fillStyle = C('#5a3a58'); ctx.beginPath(); ctx.arc(9 * s, -0.2 * s, 2.3 * s, 0, TAU); ctx.fill();
+      ctx.fillStyle = C(acc); ctx.beginPath(); ctx.arc(9 * s, -0.2 * s, 0.9 * s, 0, TAU); ctx.fill();
+    }
+    // energy line along the receiver
+    ctx.strokeStyle = C(acc); ctx.lineWidth = 0.6 * s; ctx.globalAlpha = baseAlpha * (0.6 + 0.4 * Math.sin(now / 180));
+    ctx.beginPath(); ctx.moveTo(3 * s, -0.4 * s); ctx.lineTo(bx - 0.6 * s, -0.4 * s); ctx.stroke();
+    ctx.globalAlpha = baseAlpha;
+    // emitter
+    const ex = bx + 6.5 * s * L;
+    ctx.fillStyle = C(acc); ctx.shadowColor = acc; ctx.shadowBlur = fl ? 0 : 6;
+    ctx.fillRect(ex, -bh / 2 - 0.4 * s, 2.4 * s * L, bh + 0.8 * s);
+    ctx.shadowBlur = 0;
+    return ex + 2.4 * s * L;
+  };
+  const drawArmSeg = (x0, y0, x1, y1, far) => {
+    // upper arm (suit) → forearm (armored vambrace) with elbow
+    const mx = (x0 + x1) * 0.5 - 0.6 * s, my = (y0 + y1) * 0.5 + 2.6 * s;
+    ctx.strokeStyle = C(far ? P.legsD : P.suit); ctx.lineWidth = 3 * s;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(mx, my); ctx.stroke();
+    ctx.strokeStyle = C(far ? P.armorD : P.armor); ctx.lineWidth = 3.1 * s;
+    ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.fillStyle = C(far ? '#2a3040' : '#3a4256');
+    ctx.beginPath(); ctx.arc(x1, y1, 1.6 * s, 0, TAU); ctx.fill(); // gauntlet
+  };
+  const drawWeaponRig = () => {
+    const rk = shotK * 2.2 * s;
+    const pivX = sx + 0.4 * s, pivY = shY + 2.4 * s;
+    // off-hand blaster (ascension dual wield)
+    if (o.dualGun) {
+      ctx.save();
+      ctx.translate(pivX - 0.6 * s, pivY + 3.2 * s);
+      ctx.rotate(ga + 0.18);
+      drawArmSeg(-0.6 * s, -1 * s, 4.8 * s, 1.4 * s, true);
+      drawGun(o.dualKind || 'gusher', true);
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.translate(pivX, pivY);
+    ctx.rotate(ga - shotK * 0.06);
+    ctx.translate(-rk, 0);
+    // support (far) arm to the foregrip, unless mid grenade throw
+    if (throwK <= 0.05) drawArmSeg(-1.2 * s + rk, -0.6 * s, 12.4 * s, 1.1 * s, true);
+    const muzzle = drawGun(o.weaponKind || 'rifle', false);
+    if (shotK > 0.3) {
+      const fr = (2.2 + shotK * 2.4) * s;
+      ctx.fillStyle = C(P.accent); ctx.shadowColor = P.accent; ctx.shadowBlur = fl ? 0 : 10;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4, r = i % 2 ? fr * 0.45 : fr;
+        ctx.lineTo(muzzle + 0.8 * s + Math.cos(a) * r, Math.sin(a) * r);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(muzzle + 0.8 * s, 0, fr * 0.32, 0, TAU); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    // trigger (near) arm
+    drawArmSeg(0.6 * s + rk, 0, 5.2 * s, 2.2 * s, false);
+    ctx.restore();
+    // grenade follow-through: far arm sweeps overhead then returns to the grip
+    if (throwK > 0.05) {
+      const ang = -0.6 - 1.5 * throwK;
+      const ex = sx - 1 * s + Math.cos(ang) * 9 * s, ey = shY + 1.5 * s + Math.sin(ang) * 9 * s;
+      drawArmSeg(sx - 1.2 * s, shY + 1.6 * s, ex, ey, true);
+    }
+  };
+
+  // ---------- scarf ----------
+  const drawScarfTails = () => {
+    const nx = hx - 2.2 * s, ny = shY - 1.4 * s;
+    const fl2 = wind * 1.6 * s;
+    ctx.strokeStyle = C(P.scarfD); ctx.lineWidth = 1.7 * s;
+    ctx.beginPath(); ctx.moveTo(nx, ny);
+    ctx.quadraticCurveTo(nx - 4 * s - trail * 0.4, ny + 2.2 * s + fl2, nx - 7 * s - trail * 0.9, ny + 4.8 * s - fl2);
+    ctx.stroke();
+    ctx.strokeStyle = C(P.scarf); ctx.lineWidth = 2.1 * s;
+    ctx.beginPath(); ctx.moveTo(nx, ny - 0.4 * s);
+    ctx.quadraticCurveTo(nx - 4.5 * s - trail * 0.5, ny - 0.6 * s - fl2, nx - 8.5 * s - trail, ny + 1.4 * s + fl2 * 1.2);
+    ctx.stroke();
+  };
+  const drawScarfWrap = () => {
+    ctx.fillStyle = C(P.scarf);
+    ctx.beginPath(); ctx.ellipse(hx, shY - 1.6 * s, view === 'side' ? 3.3 * s : 3.9 * s, 1.7 * s, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = C(P.scarfD); ctx.lineWidth = 0.6 * s;
+    ctx.beginPath(); ctx.moveTo(hx - 2.6 * s, shY - 1.2 * s); ctx.lineTo(hx + 2.6 * s, shY - 1.9 * s); ctx.stroke();
+  };
+
+  // ---------- head ----------
+  const drawHair = (spikes) => {
+    ctx.fillStyle = C(P.hair);
+    if (o.form && !fl) { ctx.shadowColor = '#ffe27a'; ctx.shadowBlur = 10; }
+    ctx.beginPath();
+    ctx.moveTo(spikes[0][0], spikes[0][1]);
+    for (let i = 1; i < spikes.length; i++) ctx.lineTo(spikes[i][0], spikes[i][1]);
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+  };
+  const drawHead = () => {
+    const hy = headY;
+    const sp = o.form ? 1.3 : 1;            // ascension: taller, glowing spikes
+    if (view === 'back') {
+      ctx.fillStyle = C(P.skinD); ctx.fillRect(hx - 1.6 * s, hy + headR * 0.4, 3.2 * s, 2.6 * s);
+      drawHair([
+        [hx - headR - 0.4 * s, hy + headR * 0.55],
+        [hx - headR - 2.4 * s, hy - 1.5 * s * sp],
+        [hx - headR * 0.6, hy - headR - 1 * s],
+        [hx - 1.6 * s, hy - headR - 5 * s * sp],
+        [hx, hy - headR - 1.4 * s],
+        [hx + 1.8 * s, hy - headR - 5.4 * s * sp],
+        [hx + headR * 0.6, hy - headR - 1 * s],
+        [hx + headR + 2.4 * s, hy - 1.5 * s * sp],
+        [hx + headR + 0.4 * s, hy + headR * 0.55],
+        [hx, hy + headR * 0.8],
+      ]);
+      // headband knot + tails
+      ctx.fillStyle = C(P.visor); ctx.fillRect(hx - headR, hy - 2.4 * s, headR * 2, 1.4 * s);
+      ctx.strokeStyle = C(P.visor); ctx.lineWidth = 0.9 * s;
+      ctx.beginPath(); ctx.moveTo(hx, hy - 1.7 * s); ctx.lineTo(hx - 1.4 * s + wind * 0.8 * s, hy + 3 * s);
+      ctx.moveTo(hx, hy - 1.7 * s); ctx.lineTo(hx + 1.6 * s + wind * 0.8 * s, hy + 2.6 * s); ctx.stroke();
+      return;
+    }
+    // neck + head
+    ctx.fillStyle = C(P.skinD); ctx.fillRect(hx - 1.5 * s, hy + headR * 0.4, 3 * s, 2.6 * s);
+    ctx.fillStyle = C(P.skin);
+    ctx.beginPath(); ctx.arc(hx, hy, headR, 0, TAU); ctx.fill();
+    if (view === 'side') {
+      // jaw forward + shading on the back of the skull
+      ctx.beginPath(); ctx.moveTo(hx + headR * 0.2, hy + headR * 0.5);
+      ctx.lineTo(hx + headR * 1.02, hy + headR * 0.32); ctx.lineTo(hx + headR * 0.7, hy + headR * 0.95);
+      ctx.lineTo(hx - headR * 0.1, hy + headR * 0.92); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = C(P.skinD);
+      ctx.beginPath(); ctx.arc(hx - headR * 0.25, hy + 0.4 * s, headR * 0.82, Math.PI * 0.55, Math.PI * 1.25); ctx.fill();
+      // ear
+      ctx.fillStyle = C(P.skin); ctx.beginPath(); ctx.ellipse(hx - headR * 0.18, hy + 0.6 * s, 1.1 * s, 1.5 * s, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = C(P.skinD); ctx.beginPath(); ctx.arc(hx - headR * 0.18, hy + 0.7 * s, 0.5 * s, 0, TAU); ctx.fill();
+      // eye + brow (squint on hurt, gold glow when ascended)
+      const ex = hx + headR * 0.55, ey = hy - 0.2 * s;
+      if (hurtK > 0.25 || blink) {
+        ctx.strokeStyle = C('#20141a'); ctx.lineWidth = 0.8 * s;
+        ctx.beginPath(); ctx.moveTo(ex - 1 * s, ey - (hurtK > 0.25 ? 0.4 : 0) * s); ctx.lineTo(ex + 1 * s, ey); ctx.stroke();
+      } else {
+        ctx.fillStyle = C('#f4f7ff'); ctx.beginPath(); ctx.ellipse(ex, ey, 1.15 * s, 0.95 * s, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = o.form ? '#ffb000' : '#18202e';
+        if (o.form && !fl) { ctx.shadowColor = '#ffd54a'; ctx.shadowBlur = 5; }
+        ctx.beginPath(); ctx.arc(ex + 0.35 * s, ey + 0.05 * s, 0.6 * s, 0, TAU); ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      ctx.strokeStyle = C('#1a1420'); ctx.lineWidth = 0.75 * s;
+      ctx.beginPath(); ctx.moveTo(ex - 1.3 * s, ey - 1.5 * s - hurtK * 0.4 * s); ctx.lineTo(ex + 1.3 * s, ey - 1.15 * s + hurtK * 0.5 * s); ctx.stroke();
+      // mouth (open on hurt)
+      ctx.strokeStyle = C('#7a3a2a'); ctx.lineWidth = 0.6 * s;
+      ctx.beginPath(); ctx.moveTo(hx + headR * 0.55, hy + headR * 0.58); ctx.lineTo(hx + headR * 0.88, hy + headR * (0.5 + hurtK * 0.15)); ctx.stroke();
+      // tech headband (clipped to the skull) + trailing ties
+      ctx.save(); ctx.beginPath(); ctx.arc(hx, hy, headR + 0.1 * s, 0, TAU); ctx.clip();
+      ctx.fillStyle = C(P.visor); ctx.shadowColor = P.visor; ctx.shadowBlur = fl ? 0 : 4;
+      ctx.fillRect(hx - headR, hy - 2.9 * s, headR * 2, 1.4 * s);
+      ctx.restore(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = C(P.visor); ctx.lineWidth = 0.8 * s;
+      ctx.beginPath(); ctx.moveTo(hx - headR + 0.4 * s, hy - 2.2 * s);
+      ctx.lineTo(hx - headR - 3 * s - trail * 0.25, hy - 1.4 * s + wind * 1.2 * s);
+      ctx.moveTo(hx - headR + 0.4 * s, hy - 2 * s);
+      ctx.lineTo(hx - headR - 2.4 * s - trail * 0.2, hy + 0.2 * s - wind * s); ctx.stroke();
+      // swept spiky hair (crest leans back)
+      drawHair([
+        [hx + headR * 0.95, hy - headR * 0.42],
+        [hx + headR * 1.05, hy - headR - 2.4 * s * sp],
+        [hx + headR * 0.3, hy - headR - 0.5 * s],
+        [hx - 0.4 * s, hy - headR - 5.4 * s * sp],
+        [hx - headR * 0.5, hy - headR - 0.8 * s],
+        [hx - headR - 2.6 * s, hy - headR - 3.6 * s * sp],
+        [hx - headR - 0.3 * s, hy - headR * 0.35],
+        [hx - headR - 3 * s, hy + 0.8 * s * sp],
+        [hx - headR * 0.7, hy + headR * 0.3],
+        [hx - headR * 0.15, hy - headR * 0.45],
+        [hx + headR * 0.6, hy - headR * 0.62],
+      ]);
+      ctx.strokeStyle = C(P.hairL); ctx.lineWidth = 0.7 * s;
+      ctx.beginPath(); ctx.moveTo(hx - 0.4 * s, hy - headR - 4.6 * s * sp); ctx.lineTo(hx - headR * 0.25, hy - headR - 0.2 * s);
+      ctx.moveTo(hx + headR * 0.95, hy - headR - 1.8 * s * sp); ctx.lineTo(hx + headR * 0.55, hy - headR - 0.1 * s); ctx.stroke();
+    } else {
+      // front view: symmetric face
+      ctx.fillStyle = C(P.skinD);
+      ctx.beginPath(); ctx.ellipse(hx, hy + headR * 0.72, headR * 0.6, headR * 0.28, 0, 0, Math.PI); ctx.fill();
+      const ey = hy - 0.1 * s;
+      for (const dx of [-headR * 0.4, headR * 0.4]) {
+        if (hurtK > 0.25 || blink) {
+          ctx.strokeStyle = C('#20141a'); ctx.lineWidth = 0.8 * s;
+          ctx.beginPath(); ctx.moveTo(hx + dx - 0.9 * s, ey); ctx.lineTo(hx + dx + 0.9 * s, ey); ctx.stroke();
+        } else {
+          ctx.fillStyle = C('#f4f7ff'); ctx.beginPath(); ctx.ellipse(hx + dx, ey, 1.05 * s, 0.9 * s, 0, 0, TAU); ctx.fill();
+          ctx.fillStyle = o.form ? '#ffb000' : '#18202e';
+          ctx.beginPath(); ctx.arc(hx + dx, ey + 0.1 * s, 0.55 * s, 0, TAU); ctx.fill();
+        }
+        ctx.strokeStyle = C('#1a1420'); ctx.lineWidth = 0.7 * s;
+        ctx.beginPath(); ctx.moveTo(hx + dx - 1.2 * s, ey - 1.4 * s); ctx.lineTo(hx + dx + 1.2 * s, ey - 1.4 * s + (dx < 0 ? 0.3 : -0.3) * s); ctx.stroke();
+      }
+      ctx.strokeStyle = C('#7a3a2a'); ctx.lineWidth = 0.6 * s;
+      ctx.beginPath(); ctx.moveTo(hx - 1 * s, hy + headR * 0.55); ctx.lineTo(hx + 1 * s, hy + headR * 0.55); ctx.stroke();
+      ctx.save(); ctx.beginPath(); ctx.arc(hx, hy, headR + 0.1 * s, 0, TAU); ctx.clip();
+      ctx.fillStyle = C(P.visor); ctx.shadowColor = P.visor; ctx.shadowBlur = fl ? 0 : 4;
+      ctx.fillRect(hx - headR, hy - 3 * s, headR * 2, 1.4 * s);
+      ctx.restore(); ctx.shadowBlur = 0;
+      drawHair([
+        [hx - headR - 0.2 * s, hy - headR * 0.1],
+        [hx - headR - 2.6 * s, hy - headR - 1.6 * s * sp],
+        [hx - headR * 0.55, hy - headR - 0.6 * s],
+        [hx - 1.8 * s, hy - headR - 5 * s * sp],
+        [hx, hy - headR - 1 * s],
+        [hx + 1.6 * s, hy - headR - 5.6 * s * sp],
+        [hx + headR * 0.55, hy - headR - 0.6 * s],
+        [hx + headR + 2.6 * s, hy - headR - 1.6 * s * sp],
+        [hx + headR + 0.2 * s, hy - headR * 0.1],
+        [hx + headR * 0.5, hy - headR * 0.62],
+        [hx, hy - headR * 0.48],
+        [hx - headR * 0.5, hy - headR * 0.62],
+      ]);
+    }
+  };
+
+  // ---------- nova burst ring ----------
+  const drawNova = () => {
+    if (novaK <= 0) return;
+    ctx.strokeStyle = C(P.core); ctx.lineWidth = 1.6 * s; ctx.globalAlpha = baseAlpha * novaK * 0.85;
+    ctx.shadowColor = P.core; ctx.shadowBlur = fl ? 0 : 12;
+    const rr = (9 + (1 - novaK) * 15) * s;
+    ctx.beginPath(); ctx.ellipse(0, hipY * 0.55, rr, rr * 0.6, 0, 0, TAU); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.globalAlpha = baseAlpha;
+  };
+
+  // ---------- draw order per view ----------
+  if (view === 'back') {
+    drawWeaponRig();          // aiming away from camera → rifle sits behind the body
+    drawLegs();
+    drawTorso();
+    drawPauldron(sx - 4.6 * s, false); drawPauldron(sx + 4.6 * s, false);
+    drawCloakBack(true);
+    drawScarfWrap();
+    drawHead();
+  } else if (view === 'front') {
+    drawCloakBack(false);
+    drawLegs();
+    drawTorso();
+    drawPauldron(sx - 4.6 * s, true);
+    drawScarfWrap();
+    drawHead();
+    drawWeaponRig();
+    drawPauldron(sx + 4.6 * s, false);
+  } else {
+    drawCloakSide();
+    drawScarfTails();
+    drawLegs();
+    drawTorso();
+    drawScarfWrap();
+    drawHead();
+    drawWeaponRig();
+    drawPauldron(sx + 0.6 * s, false);
+  }
+  drawNova();
+  ctx.restore();
+}
+/** Pose timing for the hero (all visual-only; timestamps never enter the save). */
+function heroPoseK(stamp, ms) {
+  if (!stamp) return 0;
+  const k = 1 - (performance.now() - stamp) / ms;
+  return k > 0 ? Math.min(1, k) : 0;
+}
+
 // per-type figure configs
 function enemyFigure(e) {
   const moving = Math.hypot(e.vx || 0, e.vy || 0) > 12;
@@ -13075,6 +13716,7 @@ function enemyFigure(e) {
 }
 function playerFigure() {
   const gold = player.form > 0;
+  const sinA = Math.sin(player.aim || 0);
   return {
     s: 1.06, walk: player.walk, facing: player.facing, moving: player.moving,
     skin: '#e8b98a',
@@ -13091,7 +13733,27 @@ function playerFigure() {
     flash: 0,
     alpha: player.hurtT > 0 && Math.sin(performance.now() / 40) > 0 ? 0.4 : 1,
     vestTrim: true, // v2.9: harness stitch detail
+    // v4.5.0 hero refresh — pose + gear inputs for drawHero (visual only)
+    form: player.form || 0,
+    view: sinA < -0.74 ? 'back' : sinA > 0.74 ? 'front' : 'side',
+    weaponKind: loadout.primary || 'rifle',
+    dualKind: loadout.secondary || 'gusher',
+    armorLvl: gearLvl('armor'), bootsLvl: gearLvl('boots'), kiLvl: gearLvl('ki'),
+    grenades: player.grenades || 0,
+    shotK: heroPoseK(player._shotAt, 95),
+    novaK: heroPoseK(player._novaAt, 380),
+    throwK: heroPoseK(player._grenAt, 340),
+    hurtK: heroPoseK(player._hurtAt, 300),
+    flashK: heroPoseK(player._hurtAt, 80) > 0 ? 1 : 0,
+    dashK: player.dashT > 0 ? clamp(player.dashT / 0.14, 0, 1) : 0,
+    dashDirX: Math.sign(player.vx || 0), dashDirY: Math.sign(player.vy || 0) * 0.5,
+    downed: !!player.downed,
   };
+}
+/** v4.5.0 — routes the hero through the refreshed renderer (flag-gated fallback). */
+function drawPlayerFigure(x, y, fig) {
+  if (HERO_V45_ENABLED) drawHero(x, y, fig);
+  else drawFigure(x, y, fig);
 }
 function npcFigure(n) {
   const base = { s: 1, walk: performance.now() / 700, moving: false, facing: player.x < n.x ? -1 : 1 };
@@ -16530,12 +17192,12 @@ function render() {
       drawSkiffAt(player.x, player.y, 'ride', boat.wakeT);
       const bfig = playerFigure();
       bfig.moving = false; bfig.walk = 0; // standing braced on the hull — no leg cycle
-      drawFigure(player.x, player.y - 7, bfig);
+      drawPlayerFigure(player.x, player.y - 7, bfig);
       return;
     }
     const fig = playerFigure();
     if (player.downed) { fig.alpha = 0.45; fig.aura = null; }
-    drawFigure(player.x, player.y, fig);
+    drawPlayerFigure(player.x, player.y, fig);
     if (player.downed) {
       ctx.fillStyle = '#ff8a93';
       ctx.font = 'bold 13px Segoe UI'; ctx.textAlign = 'center';
@@ -16574,7 +17236,11 @@ function render() {
       const fig = playerFigure();
       fig.cloth = '#3aa0c8'; fig.pauldron = '#9ef0ff'; fig.aura = '#4de1ff';
       fig.alpha = r.downed ? 0.45 : 0.85; fig.vestTrim = true;
-      drawFigure(r.x, r.y, fig);
+      // v4.5.0 — co-op ally uses the new hero rig in teal (no local pose timers)
+      fig.armorTint = '#3aa0c8'; fig.form = 0; fig.view = 'side'; fig.facing = 1; fig.gunAngle = 0;
+      fig.shotK = fig.novaK = fig.throwK = fig.hurtK = fig.flashK = fig.dashK = 0; fig.downed = !!r.downed;
+      fig.moving = false;
+      drawPlayerFigure(r.x, r.y, fig);
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(r.x - 16, r.y - 52, 32, 4);
       ctx.fillStyle = r.downed ? '#ff8a93' : '#7CFC00';
@@ -17503,6 +18169,8 @@ function loop(now) {
   fpsMs = fpsMs * 0.92 + Math.min(500, Math.max(0, now - last)) * 0.08;
   last = now;
   wdFrameBegin();
+  try { pollGamepad(dt); } // v4.5.0 — controller input + menu navigation (never blocks the frame)
+  catch (err) { trapError('gamepad', err && err.message, err && err.stack); }
   // 4.1.3 — exceptions no longer kill the rAF chain (that was soft-lock mechanism #2):
   // a throw in update/render is trapped to the error ring and the NEXT frame proceeds.
   if (state === 'playing' && !paused && !dialogOpen && !treeOpen && !vendorOpen && !settingsOpen &&
@@ -17607,6 +18275,406 @@ tileTex.stone = makeTileTex('stone');
 tileTex.marsh = makeTileTex('marsh');
 tileTex.path = makeTileTex('path');
 tileTex.water = makeTileTex('water'); // Step 10.1 — Ashmere pattern source
+
+// ================ GAMEPAD + TOUCH-CONTROL VISIBILITY (v4.5.0) ================
+// Browser Gamepad API (Android WebView passes Bluetooth/USB pads through; MainActivity
+// swallows unhandled pad keys so B can't fall back to Android BACK and close the app).
+// Standard mapping only (gp.mapping === 'standard' on Chrome/WebView for XInput, DS4,
+// 8BitDo, etc.). Polled once per frame from loop(); gameplay reads pad.* the same way it
+// reads keys/touch. Menus get spatial D-pad navigation with a gold focus ring.
+// settings.touchCtl: 'auto' (hide while a pad is in use, back on first touch) | 'show' | 'hide'.
+const PAD_DEADZONE = 0.2, PAD_TRIGGER = 0.35;
+const PAD_BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, BACK: 8, START: 9, L3: 10, R3: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
+const PAD_LAYOUT = [ // shown in Settings ▸ Controller (and README); keep in sync with padGameplayFrame()
+  ['Left stick', 'Move'],
+  ['Right stick', 'Aim (release = auto-aim)'],
+  ['RT / A', 'Fire'],
+  ['LT (hold)', 'Charge Nova Beam · release to fire'],
+  ['B / L3', 'Dash'],
+  ['X', 'Nova pulse'],
+  ['Y', 'Talk · hold to revive'],
+  ['LB', 'Grenade'],
+  ['RB', 'Ascend'],
+  ['D-pad ↑', 'Bike / Skiff (mount · dismount)'],
+  ['D-pad ↓', 'Build menu'],
+  ['D-pad ←', 'Aether Mend'],
+  ['D-pad →', 'Summon Colossus'],
+  ['R3', 'Inspect nearest building / turret'],
+  ['Start', 'Pause menu'],
+  ['Back / Select', 'Skill tree'],
+  ['Menus', 'D-pad / stick move · A select · B back'],
+];
+const TOUCH_CTL_MODES = ['auto', 'show', 'hide'];
+const TOUCH_CTL_LABEL = { auto: 'AUTO', show: 'ALWAYS SHOW', hide: 'ALWAYS HIDE' };
+if (!TOUCH_CTL_MODES.includes(settings.touchCtl)) settings.touchCtl = 'auto';
+const padPrev = [];
+let padNav = { layer: null, el: null, idx: {}, repeatT: 0, heldDir: null };
+let padToastT = 0;
+
+function padAxis(v) {
+  const a = Math.abs(v || 0);
+  if (a < PAD_DEADZONE) return 0;
+  return Math.sign(v) * Math.min(1, (a - PAD_DEADZONE) / (1 - PAD_DEADZONE));
+}
+function padStick(x, y) { // radial deadzone + rescale (no square-gate drift)
+  const m = Math.hypot(x || 0, y || 0);
+  if (m < PAD_DEADZONE) return { x: 0, y: 0, m: 0 };
+  const k = Math.min(1, (m - PAD_DEADZONE) / (1 - PAD_DEADZONE)) / m;
+  return { x: x * k, y: y * k, m: Math.min(1, m) };
+}
+function padPick() {
+  let pads = [];
+  try { pads = navigator.getGamepads ? Array.from(navigator.getGamepads() || []) : []; } catch (e) { pads = []; }
+  let best = null;
+  for (const gp of pads) {
+    if (!gp || !gp.connected) continue;
+    if (!best || (gp.timestamp || 0) > (best.timestamp || 0)) best = gp;
+  }
+  return best;
+}
+function padBtnVal(gp, i) {
+  const b = gp.buttons && gp.buttons[i];
+  if (!b) return 0;
+  return typeof b === 'object' ? (b.pressed ? Math.max(1, b.value || 0) : (b.value || 0)) : (+b || 0);
+}
+function padDown(gp, i) { return padBtnVal(gp, i) > (i === PAD_BTN.LT || i === PAD_BTN.RT ? PAD_TRIGGER : 0.5); }
+
+/** Show/hide on-screen touch controls per settings.touchCtl + live input device. */
+function applyTouchCtlVisibility() {
+  const mode = settings.touchCtl || 'auto';
+  const b = document.body.classList;
+  b.toggle('pad-active', !!pad.active);
+  b.toggle('tc-hide', mode === 'hide');
+  b.toggle('touch-hidden', mode === 'hide' || (mode === 'auto' && pad.active));
+  if ($('touchNote')) $('touchNote').textContent = pad.active
+    ? '🎮 Controller: left stick move · right stick aim · RT fire · Start pause · A select'
+    : TOUCH_NOTE_DEFAULT;
+  const hint = $('padHint');
+  if (hint) hint.classList.toggle('hidden', !(pad.active && padNav.layer));
+}
+function setPadActive(on, why) {
+  on = !!on;
+  if (pad.active === on) return;
+  pad.active = on;
+  if (!on) {
+    pad.fire = false; pad.mx = pad.my = 0; pad.aimActive = false;
+    if (pad.beam) { pad.beam = false; releaseBeam(); }
+    if (pad.talk) { pad.talk = false; talkHeld = false; }
+    padClearFocus();
+  } else if (why === 'connect' || why === 'input') {
+    padToast(settings.touchCtl === 'show'
+      ? '🎮 Controller active'
+      : '🎮 Controller active — touch controls hidden (tap screen to show)');
+  }
+  applyTouchCtlVisibility();
+}
+function padToast(msg) {
+  const el = $('padToast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  padToastT = 2.6;
+}
+// touch / mouse / keyboard hand control back (touch brings the on-screen controls back)
+addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch' || e.pointerType === 'pen' || e.pointerType === 'mouse') setPadActive(false, 'pointer');
+}, true);
+addEventListener('mousemove', e => { if (pad.active && (Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0)) > 6) setPadActive(false, 'mouse'); }, true);
+addEventListener('keydown', e => {
+  // Some Android pads also emit DPAD/Enter/Back key events — those must not flip us out of pad mode.
+  if (!pad.active) return;
+  if (/^(Arrow|Enter|Escape|GoBack|Unidentified|Gamepad|Select|MediaPlay)/.test(e.code || e.key || '')) return;
+  if (e.key === 'Unidentified') return;
+  setPadActive(false, 'key');
+}, true);
+addEventListener('gamepadconnected', e => {
+  pad.connected = true; pad.id = (e.gamepad && e.gamepad.id) || 'Controller';
+  if (settings.touchCtl !== 'show') setPadActive(true, 'connect');
+  refreshControlsMenu();
+});
+addEventListener('gamepaddisconnected', () => {
+  const gp = padPick();
+  pad.connected = !!gp; pad.id = gp ? gp.id : '';
+  if (!gp) { setPadActive(false, 'disconnect'); padToast('🎮 Controller disconnected'); }
+  refreshControlsMenu();
+});
+
+// ---------- menu layers (topmost first) ----------
+const PAD_LAYERS = [
+  { id: 'debug', back: 'debugCloseBtn' },
+  { id: 'settings', back: () => (controlsMenuOpen ? 'controlsBackBtn' : soundMenuOpen ? 'soundBackBtn' : 'resumeBtn') },
+  { id: 'skilltree', back: 'closeTreeBtn' },
+  { id: 'buildPick', back: 'buildPickCancel' },
+  { id: 'structPanel', back: 'structClose' },
+  { id: 'unitPanel', back: 'unitClose' },
+  { id: 'vendor', back: 'closeVendorBtn' },
+  { id: 'infirmary', back: 'closeInfirmaryBtn' },
+  { id: 'riftNet', back: 'riftNetCloseBtn' },
+  { id: 'gameover', back: null },
+  { id: 'shop', back: null },
+  { id: 'menu', back: null },
+];
+const PAD_FOCUSABLE = 'button, a[href], .togglerow, .shopitem, .skillnode, .buildopt, input';
+function padVisible(el) {
+  if (!el || el.classList.contains('hidden')) return false;
+  if (el.disabled) return false;
+  const r = el.getClientRects();
+  if (!r.length) return false;
+  const st = getComputedStyle(el);
+  return st.visibility !== 'hidden' && st.display !== 'none';
+}
+function padActiveLayer() {
+  if (layoutEditing) return null;
+  for (const L of PAD_LAYERS) {
+    const el = $(L.id);
+    if (el && padVisible(el)) return L;
+  }
+  return null;
+}
+function padFocusables(L) {
+  const root = $(L.id);
+  return Array.from(root.querySelectorAll(PAD_FOCUSABLE)).filter(el => {
+    if (!padVisible(el)) return false;
+    for (let p = el.parentElement; p && p !== root; p = p.parentElement) {
+      if (p.classList.contains('hidden')) return false;
+    }
+    return true;
+  });
+}
+function padClearFocus() {
+  if (padNav.el) padNav.el.classList.remove('pad-focus');
+  padNav.el = null;
+}
+function padSetFocus(el, list, L) {
+  if (padNav.el && padNav.el !== el) padNav.el.classList.remove('pad-focus');
+  padNav.el = el;
+  if (!el) return;
+  el.classList.add('pad-focus');
+  padNav.idx[L.id] = list.indexOf(el);
+  try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
+}
+function padDefaultFocus(list, L) {
+  const remembered = padNav.idx[L.id];
+  if (remembered != null && list[Math.min(remembered, list.length - 1)]) return list[Math.min(remembered, list.length - 1)];
+  // primary call-to-action first (CONTINUE / RESUME / NEXT WAVE …), else the first item
+  const pri = ['continueBtn', 'startBtn', 'resumeBtn', 'nextWaveBtn', 'retryBtn', 'respawnBtn'];
+  for (const id of pri) { const el = $(id); if (el && list.includes(el)) return el; }
+  return list[0] || null;
+}
+function padMoveFocus(dir, list, L) {
+  const cur = padNav.el;
+  if (!cur) { padSetFocus(padDefaultFocus(list, L), list, L); return; }
+  const cr = cur.getBoundingClientRect();
+  const cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
+  let best = null, bestScore = Infinity;
+  for (const el of list) {
+    if (el === cur) continue;
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const dx = x - cx, dy = y - cy;
+    let prim, orth;
+    if (dir === 'down') { prim = dy; orth = Math.abs(dx); if (r.top < cr.bottom - 4 && dy < 8) continue; }
+    else if (dir === 'up') { prim = -dy; orth = Math.abs(dx); if (r.bottom > cr.top + 4 && -dy < 8) continue; }
+    else if (dir === 'right') { prim = dx; orth = Math.abs(dy); if (r.left < cr.right - 4 && dx < 8) continue; }
+    else { prim = -dx; orth = Math.abs(dy); if (r.right > cr.left + 4 && -dx < 8) continue; }
+    if (prim <= 0) continue;
+    const score = prim + orth * 2.2;
+    if (score < bestScore) { bestScore = score; best = el; }
+  }
+  if (!best) { // wrap in DOM order
+    const i = list.indexOf(cur);
+    if (dir === 'down' || dir === 'right') best = list[(i + 1) % list.length];
+    else best = list[(i - 1 + list.length) % list.length];
+  }
+  if (best) { padSetFocus(best, list, L); sfx.play('click'); }
+}
+function padActivate(el) {
+  if (!el) return;
+  if (el.tagName === 'INPUT' && el.type !== 'range') { try { el.focus(); } catch (e) {} return; }
+  if (el.tagName === 'INPUT') return;
+  el.click();
+}
+function padBack(L) {
+  const id = typeof L.back === 'function' ? L.back() : L.back;
+  const el = id && $(id);
+  if (el && padVisible(el)) el.click();
+}
+
+/** Menu / overlay frame: returns true when a menu layer consumed the pad this frame. */
+function padMenuFrame(gp, pressed, dt) {
+  // dialog (non-overlay) — A / B / X advance
+  if (dialogOpen) {
+    if (pressed(PAD_BTN.A) || pressed(PAD_BTN.B) || pressed(PAD_BTN.X)) advanceDialog();
+    return true;
+  }
+  if (layoutEditing) {
+    if (pressed(PAD_BTN.B) || pressed(PAD_BTN.START) || pressed(PAD_BTN.A)) finishLayoutEdit();
+    return true;
+  }
+  const L = padActiveLayer();
+  if (L !== padNav.layer) { padClearFocus(); padNav.layer = L; padNav.repeatT = 0; padNav.heldDir = null; applyTouchCtlVisibility(); }
+  if (!L) return false;
+  const list = padFocusables(L);
+  if (!list.length) return true;
+  if (!padNav.el || !list.includes(padNav.el) || !document.body.contains(padNav.el)) {
+    // item lists re-render on purchase → restore by index so focus doesn't jump to the top
+    if (padNav.el) padNav.el.classList.remove('pad-focus');
+    padNav.el = null;
+    padSetFocus(padDefaultFocus(list, L), list, L);
+  } else if (!padNav.el.classList.contains('pad-focus')) padNav.el.classList.add('pad-focus');
+  const lx = padAxis(gp.axes[0]), ly = padAxis(gp.axes[1]);
+  let dir = null;
+  if (padDown(gp, PAD_BTN.UP) || ly < -0.55) dir = 'up';
+  else if (padDown(gp, PAD_BTN.DOWN) || ly > 0.55) dir = 'down';
+  else if (padDown(gp, PAD_BTN.LEFT) || lx < -0.55) dir = 'left';
+  else if (padDown(gp, PAD_BTN.RIGHT) || lx > 0.55) dir = 'right';
+  if (dir) {
+    const fresh = dir !== padNav.heldDir;
+    padNav.repeatT -= dt;
+    if (fresh || padNav.repeatT <= 0) {
+      padNav.repeatT = fresh ? 0.38 : 0.11;
+      const el = padNav.el;
+      if (el && el.tagName === 'INPUT' && el.type === 'range' && (dir === 'left' || dir === 'right')) {
+        el.value = clamp((+el.value || 0) + (dir === 'right' ? 5 : -5), +el.min || 0, +el.max || 100);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      } else padMoveFocus(dir, list, L);
+    }
+  }
+  padNav.heldDir = dir;
+  // right stick scrolls long panels (skill tree, shop)
+  const ry = padAxis(gp.axes[3]);
+  if (ry) {
+    const sc = padNav.el && padNav.el.closest('.panel, .wrap, .overlay');
+    if (sc) sc.scrollTop += ry * 900 * dt;
+  }
+  if (pressed(PAD_BTN.A)) padActivate(padNav.el);
+  if (pressed(PAD_BTN.B)) padBack(L);
+  if (pressed(PAD_BTN.START) && L.id === 'settings') toggleSettings();
+  if (pressed(PAD_BTN.BACK) && L.id === 'skilltree') toggleTree();
+  return true;
+}
+
+function padInspectNearest() {
+  let best = null, bd = 180 * 180, by = 0;
+  for (const st of structures) { const d2 = dist2(st.x, st.y, player.x, player.y); if (d2 < bd) { bd = d2; best = st; by = st.y - 10; } }
+  for (const b of barricades) { const d2 = dist2(b.x, b.y, player.x, player.y); if (d2 < bd) { bd = d2; best = b; by = b.y - 12; } }
+  if (!best) { addFloater(player.x, player.y - 40, 'NOTHING TO INSPECT NEARBY', '#9fb2c9', false); return; }
+  trySelectStructureAt(best.x - camera.x, by - camera.y);
+}
+
+/** Gameplay frame: stick + trigger state and edge-triggered actions (mirrors the keyboard map). */
+function padGameplayFrame(gp, pressed, released) {
+  const L = padStick(gp.axes[0], gp.axes[1]);
+  const R = padStick(gp.axes[2], gp.axes[3]);
+  pad.mx = L.x; pad.my = L.y;
+  pad.aimActive = R.m > 0;
+  pad.ax = R.x; pad.ay = R.y;
+  if (buildPlaceMode) {
+    pad.fire = false;
+    if (pressed(PAD_BTN.A) || pressed(PAD_BTN.RT)) confirmBuildPlace();
+    if (pressed(PAD_BTN.B)) cancelBuildPlaceMode();
+  } else {
+    pad.fire = padDown(gp, PAD_BTN.RT) || padDown(gp, PAD_BTN.A);
+  }
+  const beamNow = padDown(gp, PAD_BTN.LT) && !buildPlaceMode;
+  if (pad.beam && !beamNow) { pad.beam = false; releaseBeam(); }
+  pad.beam = beamNow;
+  if (!buildPlaceMode && (pressed(PAD_BTN.B) || pressed(PAD_BTN.L3))) tryDash(true);
+  if (pressed(PAD_BTN.X)) tryNova();
+  if (pressed(PAD_BTN.LB)) tryGrenade();
+  if (pressed(PAD_BTN.RB)) tryTransform();
+  if (pressed(PAD_BTN.Y)) {
+    pad.talk = true; talkHeld = true;
+    if (!nearestDownedCompanion() && !nearestDownedMilitia() && !nearestDownedLaborer() && !nearestDownedAlly() && !nearestDownedColossus()) tryTalk();
+  }
+  if (released(PAD_BTN.Y) && pad.talk) { pad.talk = false; talkHeld = false; }
+  if (pressed(PAD_BTN.UP)) tryVehicleAction();
+  if (pressed(PAD_BTN.DOWN)) { if (buildPlaceMode) cancelBuildPlaceMode(); else openBuildPick(); }
+  if (pressed(PAD_BTN.LEFT)) tryAetherMend();
+  if (pressed(PAD_BTN.RIGHT)) trySummonColossus();
+  if (pressed(PAD_BTN.R3)) padInspectNearest();
+  if (pressed(PAD_BTN.START)) {
+    if (buildPlaceMode) cancelBuildPlaceMode();
+    else toggleSettings();
+  }
+  if (pressed(PAD_BTN.BACK)) toggleTree();
+}
+
+/** Called once per animation frame from loop(). */
+function pollGamepad(dt) {
+  if (padToastT > 0) { padToastT -= dt; if (padToastT <= 0 && $('padToast')) $('padToast').classList.add('hidden'); }
+  const gp = padPick();
+  if (!gp) {
+    if (pad.connected) { pad.connected = false; pad.id = ''; }
+    if (pad.active) setPadActive(false, 'gone');
+    padPrev.length = 0;
+    return;
+  }
+  if (!pad.connected) { pad.connected = true; pad.id = gp.id || 'Controller'; refreshControlsMenu(); }
+  const n = (gp.buttons || []).length;
+  const now = [];
+  let any = false;
+  for (let i = 0; i < n; i++) { now[i] = padDown(gp, i); if (now[i]) any = true; }
+  const axes = gp.axes || [];
+  if (padStick(axes[0], axes[1]).m > 0.35 || padStick(axes[2], axes[3]).m > 0.35) any = true;
+  // first real input from the pad flips the UI into controller mode (and hides touch controls)
+  if (any && !pad.active) setPadActive(true, 'input');
+  const pressed = i => !!now[i] && !padPrev[i];
+  const released = i => !now[i] && !!padPrev[i];
+  if (pad.active) {
+    const menu = padMenuFrame(gp, pressed, dt);
+    if (menu || state !== 'playing') {
+      pad.mx = pad.my = 0; pad.fire = false; pad.aimActive = false;
+      if (pad.beam) { pad.beam = false; releaseBeam(); }
+    } else padGameplayFrame(gp, pressed, released);
+  }
+  for (let i = 0; i < n; i++) padPrev[i] = now[i];
+}
+
+// ---------- Settings ▸ touch controls row + Controller panel ----------
+let controlsMenuOpen = false;
+function refreshControlsMenu() {
+  if ($('touchCtlVal')) $('touchCtlVal').textContent = TOUCH_CTL_LABEL[settings.touchCtl] || 'AUTO';
+  if ($('touchCtlVal2')) $('touchCtlVal2').textContent = TOUCH_CTL_LABEL[settings.touchCtl] || 'AUTO';
+  const st = $('padStatus');
+  if (st) st.textContent = pad.connected
+    ? '🎮 Connected: ' + String(pad.id || 'Controller').replace(/\s*\(.*?\)\s*/g, ' ').trim().slice(0, 48)
+    : 'No controller detected — pair a Bluetooth/USB gamepad, then press any button.';
+  const tb = $('padLayoutBody');
+  if (tb && !tb.childElementCount) {
+    for (const [k, v] of PAD_LAYOUT) {
+      const tr = document.createElement('tr');
+      const a = document.createElement('td'); a.textContent = k;
+      const b = document.createElement('td'); b.textContent = v;
+      tr.appendChild(a); tr.appendChild(b); tb.appendChild(tr);
+    }
+  }
+}
+function openControlsMenu() {
+  controlsMenuOpen = true;
+  $('settingsMain').classList.add('hidden');
+  $('controlsMenu').classList.remove('hidden');
+  refreshControlsMenu();
+  sfx.play('click');
+}
+function closeControlsMenu() {
+  if (!controlsMenuOpen) return;
+  controlsMenuOpen = false;
+  $('controlsMenu').classList.add('hidden');
+  $('settingsMain').classList.remove('hidden');
+  sfx.play('click');
+}
+function cycleTouchCtl() {
+  const i = TOUCH_CTL_MODES.indexOf(settings.touchCtl);
+  settings.touchCtl = TOUCH_CTL_MODES[(i + 1) % TOUCH_CTL_MODES.length];
+  persistSettings(); refreshControlsMenu(); applyTouchCtlVisibility();
+}
+if ($('rowTouchCtl')) $('rowTouchCtl').onclick = cycleTouchCtl;
+if ($('rowTouchCtl2')) $('rowTouchCtl2').onclick = cycleTouchCtl;
+if ($('controlsBtn')) $('controlsBtn').onclick = () => openControlsMenu();
+if ($('controlsBackBtn')) $('controlsBackBtn').onclick = () => closeControlsMenu();
+refreshControlsMenu();
+applyTouchCtlVisibility();
 
 // ---------- menu / settings wiring ----------
 $('startBtn').onclick = () => { $('menu').classList.add('hidden'); newGame(); };

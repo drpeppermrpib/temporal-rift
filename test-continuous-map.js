@@ -481,7 +481,7 @@ if (P.HOLD_CAPTAIN_ENABLED) {
 
 // Step 7.5 — independent soft-wires + harvest/captain tune + A-B Continuity defaults
 {
-  check('APP_VERSION 4.4.0', P.APP_VERSION === '4.4.0');
+  check('APP_VERSION 4.5.0', P.APP_VERSION === '4.5.0');
   check('harvest independent ON', P.EXTERIOR_HARVEST_ENABLED === true);
   check('chop/mine independent ON', P.EXTERIOR_CHOP_ENABLED === true && P.EXTERIOR_MINE_ENABLED === true);
   check('EXTERIOR_COAL_ENABLED on', P.EXTERIOR_COAL_ENABLED === true);

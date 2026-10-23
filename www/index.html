@@ -213,6 +213,40 @@
   body.btn-minimal .tbtn{border-width:1px;background:rgba(14,24,44,.3);opacity:.65;box-shadow:none}
   body.btn-minimal .tbtn:active,body.btn-minimal .tbtn.held{opacity:1;background:rgba(77,225,255,.3)}
   body.btn-minimal #joyBase{border-width:1px;background:rgba(20,32,54,.2)}
+  /* ---------- v4.5.0 controller support + touch-control visibility ---------- */
+  body.touch-hidden:not(.layout-editing) .touch-only{display:none!important}
+  body.touch-hidden:not(.layout-editing) .tbtn{display:none!important}
+  /* "Always hide" keeps the pause button so Settings stays reachable without a pad */
+  body.tc-hide:not(.pad-active):not(.layout-editing) #btnSettings:not(.hidden){display:flex!important}
+  /* while a pad drives the game, contextual actions return as non-touch button prompts */
+  body.pad-active:not(.layout-editing) #btnTalk:not(.hidden),
+  body.pad-active:not(.layout-editing) #btnMend:not(.hidden),
+  body.pad-active:not(.layout-editing) #btnColossus:not(.hidden),
+  body.pad-active:not(.layout-editing) #btnBike:not(.hidden){display:flex!important;flex-direction:row;align-items:center;pointer-events:none}
+  body.pad-active #btnTalk::before,body.pad-active #btnMend::before,
+  body.pad-active #btnColossus::before,body.pad-active #btnBike::before{display:inline-flex;align-items:center;justify-content:center;
+    min-width:20px;height:20px;padding:0 4px;margin-right:7px;border-radius:10px;font-size:11px;font-weight:800;
+    color:#0b0e05;background:#cfe2ff;font-family:inherit}
+  body.pad-active #btnTalk::before{content:'Y';background:#ffd54a}
+  body.pad-active #btnMend::before{content:'\25C0'}
+  body.pad-active #btnColossus::before{content:'\25B6'}
+  body.pad-active #btnBike::before{content:'\25B2'}
+  body.pad-active #waveCoachFinger{display:none!important}
+  body.pad-active .pad-focus{outline:3px solid var(--gold)!important;outline-offset:2px;
+    box-shadow:0 0 0 5px rgba(255,213,74,.22),0 0 18px rgba(255,213,74,.55)!important;position:relative;z-index:1}
+  #padHint{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;
+    background:rgba(8,14,26,.88);border:1px solid rgba(255,213,74,.45);border-radius:14px;padding:6px 14px;
+    font-size:12px;font-weight:700;letter-spacing:1px;color:#e8f2ff;pointer-events:none;white-space:nowrap}
+  #padHint b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+    font-size:10px;color:#0b0e05;margin:0 4px 0 10px}
+  #padHint b.a{background:#7CFC00}#padHint b.b{background:#ff6b6b}#padHint b.d{background:#cfe2ff;border-radius:4px}
+  #padToast{position:fixed;left:50%;top:calc(var(--safeTop, 8px) + 52px);transform:translateX(-50%);z-index:70;
+    background:rgba(8,14,26,.9);border:1px solid var(--cyan);border-radius:12px;padding:8px 16px;font-size:13px;
+    color:#e8f2ff;pointer-events:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+  #padLayout{width:100%;border-collapse:collapse;margin:8px 0 6px;font-size:12px;text-align:left}
+  #padLayout td{padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.08);color:#cfe2ff}
+  #padLayout td:first-child{color:var(--gold);font-weight:700;white-space:nowrap;width:40%}
+  #padStatus{font-size:12px;color:#9fb2c9;margin:4px 0 8px;line-height:1.4}
   /* ---------- controls placement editor ---------- */
   #layoutBar{position:fixed;top:calc(var(--safeTop) - 6px);left:50%;transform:translateX(-50%);z-index:60;
     display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--gold);
@@ -509,6 +543,7 @@
     <button class="setbtn gold" id="resumeBtn">RESUME</button>
     <button class="setbtn" id="saveGameBtn">💾 SAVE GAME</button>
     <button class="setbtn" id="soundBtn">SOUND ▸</button>
+    <button class="setbtn" id="controlsBtn">🎮 CONTROLS &amp; CONTROLLER ▸</button>
     <div class="togglerow on" id="togShake"><span>Screen shake</span><div class="pill"></div></div>
     <div class="togglerow" id="togVibro"><span>Vibration</span><div class="pill"></div></div>
     <div class="togglerow on" id="togDmg"><span>Damage numbers</span><div class="pill"></div></div>
@@ -520,11 +555,21 @@
     <div class="togglerow" id="rowHudOff"><span>HUD top offset</span><b id="hudOffVal" style="color:var(--cyan);letter-spacing:1px">+0 PX</b></div>
     <div class="togglerow" id="rowMapSize"><span>Mini-map size</span><b id="mapSizeVal" style="color:var(--cyan);letter-spacing:1px">MEDIUM</b></div>
     <div class="togglerow" id="rowCamView"><span>Camera view</span><b id="camViewVal" style="color:var(--cyan);letter-spacing:1px">NORMAL</b></div>
+    <div class="togglerow" id="rowTouchCtl"><span>Touch controls</span><b id="touchCtlVal" style="color:var(--cyan);letter-spacing:1px">AUTO</b></div>
     <button class="setbtn" id="layoutBtn">✥ EDIT LAYOUT</button>
     <button class="setbtn" id="debugBtn" style="display:none">🐞 DEBUG ▸</button>
     <button class="setbtn danger" id="restartBtn">↻ RESTART RUN</button>
     <button class="setbtn danger" id="quitBtn">⏏ SAVE &amp; QUIT TO TITLE</button>
     <p id="saveNote">Progress auto-saves after every wave.<br>Resuming continues from the start of your current wave.</p>
+  </div>
+  <div class="panel hidden" id="controlsMenu">
+    <h2>🎮 CONTROLS</h2>
+    <p id="padStatus">No controller detected.</p>
+    <div class="togglerow" id="rowTouchCtl2"><span>Touch controls</span><b id="touchCtlVal2" style="color:var(--cyan);letter-spacing:1px">AUTO</b></div>
+    <p style="font-size:11px;color:#8fa3bd;text-align:left;line-height:1.4;margin:2px 0 6px">AUTO hides the on-screen buttons while a controller is in use and brings them back the moment you touch the screen.</p>
+    <table id="padLayout"><tbody id="padLayoutBody"></tbody></table>
+    <p style="font-size:11px;color:#8fa3bd;text-align:left;line-height:1.4;margin:2px 0 6px">Keyboard: WASD move · mouse aim/fire · Shift dash · Q nova · E grenade · F ascend · T talk · B build · H mend · C colossus · V vehicle · K skills · P pause</p>
+    <button class="setbtn" id="controlsBackBtn">◂ BACK</button>
   </div>
   <div class="panel hidden" id="soundMenu">
     <h2>🔊 SOUND</h2>
@@ -666,6 +711,9 @@
   </div>
 </div>
 
+<!-- v4.5.0 controller prompts (outside overlays so they show over every menu) -->
+<div id="padHint" class="hidden"><b class="d">✚</b>MOVE<b class="a">A</b>SELECT<b class="b">B</b>BACK</div>
+<div id="padToast" class="hidden"></div>
 <!-- TR_CHANNEL: 'github' shows the GitHub-release update banner; the Play/AAB
      build swaps this to 'play' at build time (build-all.ps1) so the Play app
      never offers out-of-store updates (Play policy). -->

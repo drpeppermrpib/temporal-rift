@@ -14,6 +14,12 @@
 - Notes: …
 ```
 
+### 2026-10-23 — OPS — 4.5.0 controller + touch-hide + hero refresh (branch only, NOT shipped)
+- Version / commit / APK: **4.5.0** / versionCode **103**; branch `update-4.5-controller-hero` (based on `wip-snapshot-20261023` = exact Play 4.4.0 source, hash-verified against `playstore\TemporalRift-4.4.0.aab`); **not merged to master, not pushed, not uploaded to Play**
+- User intent: next update = (1) game controller support, (2) hide on-screen touch controls (auto when a pad is used + Settings toggle), (3) upgraded main-character look; build on the latest code; no publish/push/merge.
+- Agent action: Gamepad API layer (`pollGamepad` per frame; radial deadzone 0.20, trigger 0.35; twin-stick move/aim with auto-aim when right stick idle; RT/A fire, LT beam hold, B/L3 dash, X nova, Y talk/hold-revive, LB grenade, RB ascend, D-pad ↑ vehicle ↓ build ← mend → colossus, R3 inspect nearest building/turret, Start pause, Back skills); spatial D-pad navigation + gold focus ring for every overlay (title, shop, vendor, infirmary, Rift-Net, skill tree, build pick, struct/unit panels, pause/sound/controls, game over, dialogs); `settings.touchCtl` auto/show/hide (persisted in `tr_settings`); Settings ▸ CONTROLS panel with live pad status + full layout; contextual Talk/Mend/Colossus/Bike buttons become non-touch button prompts while a pad is active; new `drawHero()` (procedural, SIZE LOCK kept, hitbox unchanged, flag `HERO_V45_ENABLED`); `MainActivity.dispatchKeyEvent` swallows unhandled pad keys (B can't fall back to BACK); manifest `android.hardware.gamepad required=false`.
+- Notes: smoke town-save / build-place / continuous-map ALL PASS (version pin → 4.5.0); headless Chromium pad suite 43/43 with simulated XInput pad; 4.4.0 save + settings load clean. Needs on-device check with a real controller before Play upload. Weapon-cycle (LB/RB) not mapped — the game has no in-run weapon swap (loadout is chosen in the shop).
+
 ### 2026-09-22 — SHIPPED — Step 10.7 arc gate → 4.4.0 (BETA + Play AAB)
 - Version / commit / APK: **4.4.0** / versionCode **102** / BETA `rollouts\TemporalRift-BETA-4.4.0.apk` (+ Desktop) / Play `playstore\TemporalRift-4.4.0.aab` + `rollouts\` + Desktop + `mapping-4.4.0.txt`
 - User intent: close Step 10 with the arc gate; then give click-by-click Play Console steps for monetization/purchase; after drag-drop, agent takes over full publishing (pre-authorized 2026-09-17). User asked whether Google treats the upload as a new game.

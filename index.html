@@ -109,6 +109,7 @@
   .bar>i{display:block;height:100%;border-radius:5px;transition:width .12s linear}
   #hpfill{background:linear-gradient(90deg,#ff4d5e,#ff8a5e);width:100%}
   #kifill{background:linear-gradient(90deg,#2e9dff,var(--cyan));width:0%}
+  #fuelfill{background:linear-gradient(90deg,#5a5a62,#c8a882);width:0%}
   #xpfill{background:linear-gradient(90deg,#b96bff,#ff6bd8);width:0%;height:100%}
   .xpbar{height:4px;border-radius:2px;background:rgba(10,16,30,.8);border:1px solid rgba(185,107,255,.3);overflow:hidden;margin-top:3px}
   #questbox{position:static;max-width:100%;background:rgba(8,14,26,.82);
@@ -143,11 +144,35 @@
     letter-spacing:5px;color:var(--gold);text-shadow:0 0 30px rgba(255,190,50,.6);
     opacity:0;transition:opacity .4s;pointer-events:none;text-align:center;white-space:nowrap}
   #wavebanner small{display:block;font-size:15px;color:var(--cyan);letter-spacing:3px;margin-top:4px}
+  /* Continuity v4 Step 1 — in-run How-to-Play coach (non-blocking) */
+  #waveCoach{position:fixed;inset:0;z-index:28;pointer-events:none;opacity:0;transition:opacity .45s ease;
+    display:none}
+  #waveCoach.show{display:block;opacity:1}
+  #waveCoach.fade{opacity:0}
+  #waveCoachCard{position:fixed;left:50%;top:14%;transform:translateX(-50%);
+    max-width:min(340px,88vw);padding:12px 14px 10px;border-radius:14px;
+    background:rgba(8,14,28,.88);border:1px solid rgba(77,225,255,.45);
+    box-shadow:0 8px 28px rgba(0,0,0,.45);pointer-events:auto;text-align:center}
+  #waveCoachCard h4{margin:0 0 4px;font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:700}
+  #waveCoachCard p{margin:0;font-size:14px;line-height:1.35;color:#d8e6f8}
+  #waveCoachSkip{margin-top:10px;width:100%;padding:8px 10px;border-radius:10px;
+    border:1px solid rgba(255,213,74,.45);background:rgba(255,213,74,.12);color:var(--gold);
+    font-weight:700;letter-spacing:1px;font-size:12px;pointer-events:auto;cursor:pointer;
+    -webkit-tap-highlight-color:transparent}
+  #waveCoachSkip:active{background:rgba(255,213,74,.28)}
+  #waveCoachFinger{position:fixed;width:72px;height:72px;pointer-events:none;z-index:29;
+    transform:translate(-20%,-10%);filter:drop-shadow(0 3px 6px rgba(0,0,0,.55));
+    transition:left .35s ease,top .35s ease,opacity .3s;opacity:0}
+  #waveCoach.show #waveCoachFinger{opacity:1}
+  #waveCoachFinger canvas{width:100%;height:100%;display:block}
   #chapterbanner{position:fixed;top:36%;left:50%;transform:translateX(-50%);text-align:center;
     opacity:0;transition:opacity .6s;pointer-events:none}
   #chapterbanner h3{font-size:14px;color:var(--purple);letter-spacing:6px}
   #chapterbanner h2{font-size:30px;color:#e8f2ff;letter-spacing:3px;font-weight:600}
   #grenadeHud{position:static;font-size:11px;color:#9fb2c9;line-height:1.35;padding:0 2px}
+  #debuffHud{position:static;font-size:10px;letter-spacing:.6px;line-height:1.35;padding:1px 2px;
+    color:#c080e8;font-weight:600;text-shadow:0 1px 2px rgba(0,0,0,.65)}
+  #debuffHud.hidden{display:none}
   /* ---------- Touch controls ---------- */
   .touch-only{display:none}
   body.touch .touch-only{display:block}
@@ -188,6 +213,40 @@
   body.btn-minimal .tbtn{border-width:1px;background:rgba(14,24,44,.3);opacity:.65;box-shadow:none}
   body.btn-minimal .tbtn:active,body.btn-minimal .tbtn.held{opacity:1;background:rgba(77,225,255,.3)}
   body.btn-minimal #joyBase{border-width:1px;background:rgba(20,32,54,.2)}
+  /* ---------- v4.5.0 controller support + touch-control visibility ---------- */
+  body.touch-hidden:not(.layout-editing) .touch-only{display:none!important}
+  body.touch-hidden:not(.layout-editing) .tbtn{display:none!important}
+  /* "Always hide" keeps the pause button so Settings stays reachable without a pad */
+  body.tc-hide:not(.pad-active):not(.layout-editing) #btnSettings:not(.hidden){display:flex!important}
+  /* while a pad drives the game, contextual actions return as non-touch button prompts */
+  body.pad-active:not(.layout-editing) #btnTalk:not(.hidden),
+  body.pad-active:not(.layout-editing) #btnMend:not(.hidden),
+  body.pad-active:not(.layout-editing) #btnColossus:not(.hidden),
+  body.pad-active:not(.layout-editing) #btnBike:not(.hidden){display:flex!important;flex-direction:row;align-items:center;pointer-events:none}
+  body.pad-active #btnTalk::before,body.pad-active #btnMend::before,
+  body.pad-active #btnColossus::before,body.pad-active #btnBike::before{display:inline-flex;align-items:center;justify-content:center;
+    min-width:20px;height:20px;padding:0 4px;margin-right:7px;border-radius:10px;font-size:11px;font-weight:800;
+    color:#0b0e05;background:#cfe2ff;font-family:inherit}
+  body.pad-active #btnTalk::before{content:'Y';background:#ffd54a}
+  body.pad-active #btnMend::before{content:'\25C0'}
+  body.pad-active #btnColossus::before{content:'\25B6'}
+  body.pad-active #btnBike::before{content:'\25B2'}
+  body.pad-active #waveCoachFinger{display:none!important}
+  body.pad-active .pad-focus{outline:3px solid var(--gold)!important;outline-offset:2px;
+    box-shadow:0 0 0 5px rgba(255,213,74,.22),0 0 18px rgba(255,213,74,.55)!important;position:relative;z-index:1}
+  #padHint{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;
+    background:rgba(8,14,26,.88);border:1px solid rgba(255,213,74,.45);border-radius:14px;padding:6px 14px;
+    font-size:12px;font-weight:700;letter-spacing:1px;color:#e8f2ff;pointer-events:none;white-space:nowrap}
+  #padHint b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+    font-size:10px;color:#0b0e05;margin:0 4px 0 10px}
+  #padHint b.a{background:#7CFC00}#padHint b.b{background:#ff6b6b}#padHint b.d{background:#cfe2ff;border-radius:4px}
+  #padToast{position:fixed;left:50%;top:calc(var(--safeTop, 8px) + 52px);transform:translateX(-50%);z-index:70;
+    background:rgba(8,14,26,.9);border:1px solid var(--cyan);border-radius:12px;padding:8px 16px;font-size:13px;
+    color:#e8f2ff;pointer-events:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+  #padLayout{width:100%;border-collapse:collapse;margin:8px 0 6px;font-size:12px;text-align:left}
+  #padLayout td{padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.08);color:#cfe2ff}
+  #padLayout td:first-child{color:var(--gold);font-weight:700;white-space:nowrap;width:40%}
+  #padStatus{font-size:12px;color:#9fb2c9;margin:4px 0 8px;line-height:1.4}
   /* ---------- controls placement editor ---------- */
   #layoutBar{position:fixed;top:calc(var(--safeTop) - 6px);left:50%;transform:translateX(-50%);z-index:60;
     display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--gold);
@@ -320,6 +379,21 @@
     border-radius:50%;background:#8fa3bd;transition:left .15s,background .15s}
   .togglerow.on .pill{background:rgba(124,252,0,.35)}
   .togglerow.on .pill::after{left:25px;background:var(--green)}
+  /* ---------- 4.1.3 BETA debug panel (screenshot tool) ---------- */
+  #debug{z-index:60}
+  #debugPanel{background:#05070dee;border:1px solid rgba(62,240,200,.35);border-radius:14px;
+    padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(12px + env(safe-area-inset-bottom,0px));
+    width:min(560px,96vw);max-height:94vh;display:flex;flex-direction:column;pointer-events:auto}
+  #debugPanel h2{color:#3ef0c8;letter-spacing:2px;font-size:14px;margin-bottom:6px;
+    font-family:Consolas,Menlo,monospace;text-align:left}
+  #debugBody{flex:1;min-height:0;overflow:auto;text-align:left;white-space:pre-wrap;word-break:break-word;
+    font:10.5px/1.5 Consolas,Menlo,monospace;color:#bfe9d6;margin:0 0 8px;
+    background:rgba(10,16,26,.65);border:1px solid rgba(62,240,200,.15);border-radius:8px;padding:8px 10px}
+  #debugBody .bad{color:#ff5e6e;font-weight:700}
+  #debugBody .dim{color:#6d8296}
+  #debugBody .hd{color:#ffd54a}
+  #debugBtnRow{display:flex;gap:8px}
+  #debugBtnRow .setbtn{margin:0;padding:9px 6px;font-size:12px}
   .volrow{display:flex;align-items:center;gap:10px;margin:10px 0;padding:10px 12px;
     background:rgba(16,26,46,.7);border-radius:10px;pointer-events:auto}
   .volrow span{font-size:14px;color:#c4d2e6;min-width:58px;text-align:left}
@@ -360,8 +434,12 @@
     <span class="cyan">⬡ <b id="coreNum">0</b></span>
     <span style="color:#c8a06a">🪵 <b id="woodNum">0</b></span>
     <span style="color:#ffd54a">◈ <b id="goldNum">0</b></span>
+    <span style="color:#a0a0a0" title="Coal — refine at Keep/Timber">⬤ <b id="coalNum">0</b></span>
     <span style="color:#c8a06a">🪓 <b id="workerNum">0</b></span>
     <span style="color:#9ef0ff">⚔ <b id="squadNum">0</b></span>
+    <span style="color:#9a9a9a">✧ <b id="squadSpNum">0</b></span>
+    <span style="color:#8a92a0" title="Squad wood">🪵s <b id="squadWoodNum">0</b></span>
+    <span style="color:#a8a090" title="Squad gold">◈s <b id="squadGoldNum">0</b></span>
     <span>☠ <b id="killNum">0</b></span>
     <span class="sp">✦ <b id="spNum">0</b> SP</span>
     <span id="phaseLabel" class="cyan"></span>
@@ -383,14 +461,27 @@
           <div class="bar"><i id="hpfill"></i></div></div>
         <div class="barwrap"><div class="barlabel"><span>AETHER <span style="color:var(--gold)" id="ascendHint"></span></span><span id="kitext"></span></div>
           <div class="bar"><i id="kifill"></i></div></div>
+        <div class="barwrap" id="fuelHudWrap" style="display:none"><div class="barlabel"><span>FUEL</span><span id="fueltext"></span></div>
+          <div class="bar"><i id="fuelfill"></i></div></div>
         <div class="xpbar"><i id="xpfill"></i></div>
       </div>
     </div>
+    <div id="debuffHud" class="hidden" aria-live="polite"></div>
     <div id="grenadeHud"></div>
     <div id="questbox" class="hidden"><h4 id="questTitle"></h4><p id="questDesc"></p></div>
   </div>
   <div id="wavebanner"></div>
   <div id="chapterbanner"><h3 id="chapNum"></h3><h2 id="chapName"></h2></div>
+</div>
+
+<!-- Continuity v4 Step 1 — wave How-to-Play coach (overlay-only; Skip anytime) -->
+<div id="waveCoach" aria-live="polite">
+  <div id="waveCoachCard">
+    <h4 id="waveCoachTitle">HOW TO PLAY</h4>
+    <p id="waveCoachBody"></p>
+    <button type="button" id="waveCoachSkip">SKIP TIPS</button>
+  </div>
+  <div id="waveCoachFinger"><canvas id="waveCoachFingerCv" width="96" height="96"></canvas></div>
 </div>
 
 <!-- touch controls -->
@@ -409,13 +500,14 @@
 <div class="tbtn hidden" id="btnTalk">💬 TALK</div>
 <div class="tbtn hidden" id="btnMend">✧ MEND</div>
 <div class="tbtn hidden" id="btnColossus">⚔ COLOSSUS</div>
+<div class="tbtn hidden" id="btnBike">🏍 BIKE</div>
 <div class="tbtn hidden" id="btnSettings">⚙ MENU (P)</div>
 <div class="tbtn hidden" id="btnMenu">✦ SKILLS (K)</div>
 
 <div id="buildPick" class="overlay hidden">
   <div class="panel">
     <h2>⛨ BUILD — RAISE YOUR TOWN</h2>
-    <p class="hint">Aim then place · Start with Rift Keep (already raised) · Tap laborers for Chop / Mine · Muster trains fighters (+3/wave)</p>
+    <p class="hint">Select a build · aim with look · tap/click to place (horde freezes while placing) · B/Esc cancels · Start with Rift Keep · Tap laborers for Chop / Mine · Muster trains fighters (+3/wave)</p>
     <div id="buildPickGrid"></div>
     <button class="big" id="buildPickCancel" style="width:100%">CANCEL</button>
   </div>
@@ -451,22 +543,37 @@
     <button class="setbtn gold" id="resumeBtn">RESUME</button>
     <button class="setbtn" id="saveGameBtn">💾 SAVE GAME</button>
     <button class="setbtn" id="soundBtn">SOUND ▸</button>
+    <button class="setbtn" id="controlsBtn">🎮 CONTROLS &amp; CONTROLLER ▸</button>
     <div class="togglerow on" id="togShake"><span>Screen shake</span><div class="pill"></div></div>
     <div class="togglerow" id="togVibro"><span>Vibration</span><div class="pill"></div></div>
     <div class="togglerow on" id="togDmg"><span>Damage numbers</span><div class="pill"></div></div>
     <div class="togglerow" id="togAdaptHide"><span>Hide learning panel</span><div class="pill"></div></div>
+    <div class="togglerow" id="togWaveCoachSkip"><span>Skip How-to-Play coach</span><div class="pill"></div></div>
+    <div class="togglerow" id="rowFogMode"><span>Fog of war</span><b id="fogModeVal" style="color:var(--cyan);letter-spacing:1px">CORE VISIBLE (B)</b></div>
     <div class="togglerow" id="rowUiSize"><span>Controls layout size</span><b id="uiSizeVal" style="color:var(--cyan);letter-spacing:1px">NORMAL</b></div>
     <div class="togglerow" id="rowBtnStyle"><span>Button style</span><b id="btnStyleVal" style="color:var(--cyan);letter-spacing:1px">CLASSIC</b></div>
     <div class="togglerow" id="rowHudOff"><span>HUD top offset</span><b id="hudOffVal" style="color:var(--cyan);letter-spacing:1px">+0 PX</b></div>
     <div class="togglerow" id="rowMapSize"><span>Mini-map size</span><b id="mapSizeVal" style="color:var(--cyan);letter-spacing:1px">MEDIUM</b></div>
     <div class="togglerow" id="rowCamView"><span>Camera view</span><b id="camViewVal" style="color:var(--cyan);letter-spacing:1px">NORMAL</b></div>
+    <div class="togglerow" id="rowTouchCtl"><span>Touch controls</span><b id="touchCtlVal" style="color:var(--cyan);letter-spacing:1px">AUTO</b></div>
     <button class="setbtn" id="layoutBtn">✥ EDIT LAYOUT</button>
+    <button class="setbtn" id="debugBtn" style="display:none">🐞 DEBUG ▸</button>
     <button class="setbtn danger" id="restartBtn">↻ RESTART RUN</button>
     <button class="setbtn danger" id="quitBtn">⏏ SAVE &amp; QUIT TO TITLE</button>
     <p id="saveNote">Progress auto-saves after every wave.<br>Resuming continues from the start of your current wave.</p>
   </div>
+  <div class="panel hidden" id="controlsMenu">
+    <h2>🎮 CONTROLS</h2>
+    <p id="padStatus">No controller detected.</p>
+    <div class="togglerow" id="rowTouchCtl2"><span>Touch controls</span><b id="touchCtlVal2" style="color:var(--cyan);letter-spacing:1px">AUTO</b></div>
+    <p style="font-size:11px;color:#8fa3bd;text-align:left;line-height:1.4;margin:2px 0 6px">AUTO hides the on-screen buttons while a controller is in use and brings them back the moment you touch the screen.</p>
+    <table id="padLayout"><tbody id="padLayoutBody"></tbody></table>
+    <p style="font-size:11px;color:#8fa3bd;text-align:left;line-height:1.4;margin:2px 0 6px">Keyboard: WASD move · mouse aim/fire · Shift dash · Q nova · E grenade · F ascend · T talk · B build · H mend · C colossus · V vehicle · K skills · P pause</p>
+    <button class="setbtn" id="controlsBackBtn">◂ BACK</button>
+  </div>
   <div class="panel hidden" id="soundMenu">
     <h2>🔊 SOUND</h2>
+    
     <div class="volrow"><span>Master</span><input type="range" id="volMaster" min="0" max="100" step="1" value="80"><b id="volMasterVal">80%</b></div>
     <div class="volrow"><span>SFX</span><input type="range" id="volSfx" min="0" max="100" step="1" value="90"><b id="volSfxVal">90%</b></div>
     <div class="volrow"><span>Music</span><input type="range" id="volMusic" min="0" max="100" step="1" value="50"><b id="volMusicVal">50%</b></div>
@@ -474,6 +581,19 @@
     <div class="togglerow" id="togMuteSfx"><span>Mute SFX</span><div class="pill"></div></div>
     <div class="togglerow" id="togMuteMusic"><span>Mute music</span><div class="pill"></div></div>
     <button class="setbtn" id="soundBackBtn">◂ BACK</button>
+  </div>
+</div>
+
+<!-- 4.1.3 BETA debug panel — screenshot-friendly diagnostics (hidden on play channel) -->
+<div id="debug" class="overlay hidden">
+  <div id="debugPanel">
+    <h2>🐞 DEBUG — TEMPORAL RIFT</h2>
+    <pre id="debugBody">collecting…</pre>
+    <div id="debugBtnRow">
+      <button class="setbtn" id="debugCopyBtn">⧉ COPY REPORT</button>
+      <button class="setbtn" id="debugClearBtn">✕ CLEAR LOGS</button>
+      <button class="setbtn gold" id="debugCloseBtn">◂ BACK</button>
+    </div>
   </div>
 </div>
 
@@ -500,7 +620,7 @@
     <div><kbd>LMB</kbd> Pulse rifle &nbsp; <kbd>RMB</kbd> hold+release: Nova Beam</div>
     <div><kbd>Q</kbd> Aether nova &nbsp; <kbd>E</kbd> Grenade</div>
     <div><kbd>Shift</kbd> Dash &nbsp; <kbd>F</kbd> Ascend (full aether)</div>
-    <div><kbd>B</kbd> Build town (Rift Keep / Timber / Muster / farms) · ghost shows barricade links</div>
+    <div><kbd>B</kbd> Build town · select item · aim ghost · tap/click to place (horde pauses) · B/Esc cancel</div>
     <div><kbd>Tap unit</kbd> Laborer orders (Chop/Mine) · fighter skill nodes (dmg/armor/speed)</div>
     <div><kbd>H</kbd> Aether Mend (one-tap heal) · <kbd>T</kbd> Talk / hold near downed squad to revive</div>
     <div><kbd>P</kbd> Pause / settings / save &nbsp; 📱 Full touch controls on mobile</div>
@@ -561,7 +681,8 @@
 <div id="skilltree" class="overlay hidden">
   <div class="panel">
     <h2>✦ VANGUARD SKILL TREE</h2>
-    <p class="sp">Skill points: <b id="stPoints">0</b> — earned by leveling up</p>
+    <p class="sp">Skill points: <b id="stPoints">0</b> — earned by leveling up
+      · Squad ✧: <b id="stSquadPoints" style="color:#9a9a9a">0</b> — companions &amp; militia</p>
     <div class="treecols" id="treeCols"></div>
     <button class="big" id="closeTreeBtn">CLOSE</button>
   </div>
@@ -571,7 +692,8 @@
   <div class="panel">
     <h2>⬡ VANGUARD FIELD LAB — Wave <span id="shopWave"></span> cleared</h2>
     <p class="cores">Energy cores: <b id="shopCores"></b> · Aether: <b id="shopAether"></b> ◈ · Rift reopens in <b id="shopTimer"></b>s
-      &nbsp;·&nbsp; <a href="#" id="openTreeLink" style="color:#ff6bd8">open skill tree ✦</a></p>
+      &nbsp;·&nbsp; <a href="#" id="openTreeLink" style="color:#ff6bd8">open skill tree ✦</a>
+      &nbsp;·&nbsp; <a href="#" id="openSquadTreeLink" style="color:#9a9a9a">squad skills ✧</a></p>
     <div class="shopgrid" id="shopGrid"></div>
     <button class="big" id="nextWaveBtn">NEXT WAVE ➤</button>
   </div>
@@ -589,6 +711,9 @@
   </div>
 </div>
 
+<!-- v4.5.0 controller prompts (outside overlays so they show over every menu) -->
+<div id="padHint" class="hidden"><b class="d">✚</b>MOVE<b class="a">A</b>SELECT<b class="b">B</b>BACK</div>
+<div id="padToast" class="hidden"></div>
 <!-- TR_CHANNEL: 'github' shows the GitHub-release update banner; the Play/AAB
      build swaps this to 'play' at build time (build-all.ps1) so the Play app
      never offers out-of-store updates (Play policy). -->

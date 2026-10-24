@@ -1,0 +1,154 @@
+=== CHAT 15a7205d-7a42-4b16-ae4e-cce67229f15c users=2 assists=8 ===
+
+--- USER line 1 ---
+User approved the T-pose concept as perfect and said "next go" — implement Gharok as a real sprite based on that concept (not procedural shapes).
+
+Workspace: C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift
+
+Concept (READ and use as GenerateImage reference):
+- temporal-rift\gharok-tpose-flow-concept.png
+- also rollouts\gharok-tpose-flow-concept.png
+
+## Implementation
+1. Generate game-ready ORIGINAL sprite sheets from the concept (do not ship Hero Forge / Warcraft IP art — only our generated concept):
+   - Top-down or 3/4 view readable at boss scale in this canvas game (study how enemies are drawn/scaled in game.js)
+   - At minimum: idle facing (maybe 1–2 walk frames or a slight bob is enough), cleaver-raised / wind-up pose if possible
+   - Transparent PNG, bold silhouette, match concept colors (olive green, purple tunic, pauldrons, mace, cleaver)
+   - Save under something like `assets/gharok/` or `www/` path that Capacitor syncs — follow how the project serves static files (index.html + game.js at root; Capacitor copies to www — check build-all.ps1 / capacitor config). Put sprites where the game can load them (likely next to index.html or in an assets folder copied into www).
+
+2. Rewrite boss rendering in game.js to `drawImage` the sprite for Gharok/warlord body, keep procedural VFX: purple aura, armorCrack overlays or chip states, red cleaver telegraph glow, floaters, particles. Keep `drawWarlord_v282_template`. Fallback to procedural drawWarlord if image fails to load.
+
+3. Bigger readable size; collision/radius stay sensible with sprite bounds.
+
+4. Version 2.8.5 / versionCode 33. Capture preview screenshot, Read it. Build BETA APK → rollouts\TemporalRift-BETA-2.8.5.apk. Commit + push. Explorer on preview. No store/GitHub release.
+
+5. Stomps still deferred unless trivial.
+
+Report: sprite paths, how loading works, preview/APK, commit hash.
+
+--- USER line 29 ---
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+
+===== KEYWORD HITS =====
+
+--- USER line 1 ---
+User approved the T-pose concept as perfect and said "next go" — implement Gharok as a real sprite based on that concept (not procedural shapes).
+
+Workspace: C:\Users\drpep\.cursor\agents\videogamemakes\temporal-rift
+
+Concept (READ and use as GenerateImage reference):
+- temporal-rift\gharok-tpose-flow-concept.png
+- also rollouts\gharok-tpose-flow-concept.png
+
+## Implementation
+1. Generate game-ready ORIGINAL sprite sheets from the concept (do not ship Hero Forge / Warcraft IP art — only our generated concept):
+   - Top-down or 3/4 view readable at boss scale in this canvas game (study how enemies are drawn/scaled in game.js)
+   - At minimum: idle facing (maybe 1–2 walk frames or a slight bob is enough), cleaver-raised / wind-up pose if possible
+   - Transparent PNG, bold silhouette, match concept colors (olive green, purple tunic, pauldrons, mace, cleaver)
+   - Save under something like `assets/gharok/` or `www/` path that Capacitor syncs — follow how the project serves static files (index.html + game.js at root; Capacitor copies to www — check build-all.ps1 / capacitor config). Put sprites where the game can load them (likely next to index.html or in an assets folder copied into w
+
+--- ASST line 19 ---
+Sprites are clean with alpha. Next I'll wire sprite loading into `game.js` and update the build pipeline.
+[tool:UpdateCurrentStep {"current_step":"Wiring sprites into game"}]
+[tool:Grep {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","pattern":"boss.*hp|drawBoss|armor bar|e\\.boss|GHAROK_STOMP|tileTex|new Ima]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":3915,"limit":100}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":260,"limit":30}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\android\\app\\build.gradle","limit":40}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":475,"limit":20}]
+
+--- ASST line 28 ---
+**Gharok is a real sprite boss in v2.8.5** (`505ec95`, versionCode **33**).
+
+### Sprites
+- `assets/gharok/idle.png`
+- `assets/gharok/walk.png`
+- `assets/gharok/windup.png`  
+Mirrored into `www/assets/gharok/` for Capacitor. Transparent 512² PNGs from the approved T-pose concept (olive / purple / pauldrons / mace / cleaver).
+
+### Loading / draw
+- `game.js` preloads `assets/gharok/*.png` into `gharokSpr`
+- `drawWarlord()` → `drawImage` (idle/walk by gait; windup when `clawWind > 0`)
+- Procedural VFX kept: purple aura, armorCrack chips, red cleaver telegraph, shadow/bob/facing
+- Fallback: `drawWarlordProcedural` if images fail; `drawWarlord_v282_template` preserved
+- Draw height ~228px; collision `r: 54` unchanged
+- `build-all.ps1` / `build-beta.ps1` copy `assets/` into `www/` (omit `_raw`)
+
+### Artifacts
+- Preview: `gharok-2.8.5-preview.png` (+ `rollouts\`) — Windows Explorer opened on it
+- BETA APK: `rollouts\TemporalRift-BETA-2.8.5.apk` (~6.3 MB)
+- Commit: `505ec95` pushed to `origin/master`
+- Stomps still deferred (`GHAROK_STOMP_JUICE = false`)
+
+--- ASST line 31 ---
+Gharok v2.8.5 is shipped: real concept sprites in-game, BETA APK at `rollouts\TemporalRift-BETA-2.8.5.apk`, commit `505ec95` on master. The leftover Python-path search finished after the fact and wasn’t needed — sprites were processed with Node/sharp instead.
+
+
+===== ALL ASSISTANT TEXT SNIPPETS =====
+
+--- ASST line 2 ---
+I'll implement Gharok from the approved T-pose concept: first I'll study the concept art and how the game loads/draws bosses, then generate sprite sheets and wire them into `game.js`.
+[tool:UpdateCurrentStep {"current_step":"Studying Gharok concept"}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\gharok-tpose-flow-concept.png"}]
+[tool:Glob {"target_directory":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift","glob_pattern":"**/*.{js,html,ps1,json}"}]
+[tool:Grep {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift","pattern":"drawWarlord|Gharok|gharok|warlord","glob":"*.{js,html,ps1,json}"}]
+
+--- ASST line 6 ---
+Generating game-ready Gharok sprites from the concept, then wiring them into the asset pipeline and `drawWarlord`.
+[tool:UpdateCurrentStep {"current_step":"Generating Gharok sprites"}]
+[tool:Shell {"command":"New-Item -ItemType Directory -Force -Path \"assets\\gharok\", \"www\\assets\\gharok\" | Out-Null; Write-Host \"dirs ready\"","working_directory":"C:]
+[tool:GenerateImage {"description":"Game-ready character sprite of Gharok, a twin-headed olive-green orc warlord, for a top-down / 3-quarter view canvas game. FULL BODY, standing i]
+[tool:GenerateImage {"description":"Game-ready character sprite of Gharok, same twin-headed olive-green orc warlord as the reference concept, wind-up attack pose for a top-down / 3]
+[tool:GenerateImage {"description":"Game-ready character sprite of Gharok, same twin-headed olive-green orc warlord as the reference concept, mid walk / slight bob pose for a top-d]
+
+--- ASST line 7 ---
+Sprites look good — copying them into the game assets folder and checking for real transparency before wiring them in.
+[tool:UpdateCurrentStep {"current_step":"Processing sprite assets"}]
+[tool:Shell {"command":"Copy-Item \"C:\\Users\\drpep\\.cursor\\projects\\c-Users-drpep-cursor-agents-videogamemakes\\assets\\gharok-idle.png\" \"assets\\gharok\\idle.png\" ]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\projects\\c-Users-drpep-cursor-agents-videogamemakes\\assets\\gharok-idle.png"}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\projects\\c-Users-drpep-cursor-agents-videogamemakes\\assets\\gharok-windup.png"}]
+
+--- ASST line 10 ---
+Sprites have opaque light backgrounds — removing them and packing trimmed game-ready PNGs.
+[tool:Shell {"command":"& 'C:\\Users\\drpep\\AppData\\Local\\Python\\bin\\python.exe' - <<'PY'\nfrom PIL import Image\nimport os\n\nos.makedirs('assets/gharok', exist_ok=Tr]
+
+--- ASST line 19 ---
+Sprites are clean with alpha. Next I'll wire sprite loading into `game.js` and update the build pipeline.
+[tool:UpdateCurrentStep {"current_step":"Wiring sprites into game"}]
+[tool:Grep {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","pattern":"boss.*hp|drawBoss|armor bar|e\\.boss|GHAROK_STOMP|tileTex|new Ima]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":3915,"limit":100}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":260,"limit":30}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\android\\app\\build.gradle","limit":40}]
+[tool:Read {"path":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-rift\\game.js","offset":475,"limit":20}]
+
+--- ASST line 24 ---
+Preview looks solid with the real sprite. Committing, pushing, and opening Explorer on the preview.
+[tool:GetMcpTools {"server":"cursor-app-control","toolName":"open_resource"}]
+[tool:Shell {"command":"git status; git diff --stat; git log -5 --oneline; git branch -vv","working_directory":"C:\\Users\\drpep\\.cursor\\agents\\videogamemakes\\temporal-]
+
+--- ASST line 28 ---
+**Gharok is a real sprite boss in v2.8.5** (`505ec95`, versionCode **33**).
+
+### Sprites
+- `assets/gharok/idle.png`
+- `assets/gharok/walk.png`
+- `assets/gharok/windup.png`  
+Mirrored into `www/assets/gharok/` for Capacitor. Transparent 512² PNGs from the approved T-pose concept (olive / purple / pauldrons / mace / cleaver).
+
+### Loading / draw
+- `game.js` preloads `assets/gharok/*.png` into `gharokSpr`
+- `drawWarlord()` → `drawImage` (idle/walk by gait; windup when `clawWind > 0`)
+- Procedural VFX kept: purple aura, armorCrack chips, red cleaver telegraph, shadow/bob/facing
+- Fallback: `drawWarlordProcedural` if images fail; `drawWarlord_v282_template` preserved
+- Draw height ~228px; collision `r: 54` unchanged
+- `build-all.ps1` / `build-beta.ps1` copy `assets/` into `www/` (omit `_raw`)
+
+### Artifacts
+- Preview: `gharok-2.8.5-preview.png` (+ `rollouts\`) — Windows Explorer opened on it
+- BETA APK: `rollouts\TemporalRift-BETA-2.8.5.apk` (~6.3 MB)
+- Commit: `505ec95` pushed to `origin/master`
+- Stomps still deferred (`GHAROK_STOMP_JUICE = false`)
+
+--- ASST line 31 ---
+Gharok v2.8.5 is shipped: real concept sprites in-game, BETA APK at `rollouts\TemporalRift-BETA-2.8.5.apk`, commit `505ec95` on master. The leftover Python-path search finished after the fact and wasn’t needed — sprites were processed with Node/sharp instead.
+

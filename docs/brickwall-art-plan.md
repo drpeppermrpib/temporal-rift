@@ -21,6 +21,9 @@ Wooden energy barricades are unchanged.
 | Base HP | **280** (+ wave×10) | Tougher than barricade 160 |
 | Pillar `drawH` | **44** | Feet at `y` |
 | Segment `drawH` | **36** | Rotated between posts |
+| Segment join inset | **4** (`BRICKWALL_SEG_INSET`) | Tucks into cropped pillar body (was 11 — left a gap) |
+| Segment source crop | `82,234,348×266` | Opaque bounds — avoid 512 padding starving joins |
+| Pillar source crop | `207,228,98×274` | Opaque pillar body — do not draw full 512 sheet |
 | Max posts | **16** | Cap separate from barricade 8 |
 
 ## Assets

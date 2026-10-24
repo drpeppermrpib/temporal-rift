@@ -39,4 +39,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- v4.5.0: optional controller support (does not filter phones without a pad) -->
+    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
 </manifest>

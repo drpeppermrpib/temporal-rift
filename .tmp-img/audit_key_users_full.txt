@@ -1,0 +1,72 @@
+
+==== FULL USER L103 ====
+its fun it looks very very good, a few things a random treasure box with helth and goodies at the end of the rounds, armor upgrades if not already in there, and more world expantion with other story npcs to talk to or buy from. and a small safe space you can put up borders in the current world to have badguys not get in unless they brake it or if you exit you send a enery blast so badgys cant just mall you when you get out. but build this off of what we have its very good maybe a bit more detal and having the text mapped out better. add that for a release 2 in github so i can chose the updated version there.
+
+==== FULL USER L171 ====
+a few more things it needs is a auto save memory after each wave and a settings menu or something, an auto fit the app to the screen so menues like the firstone and others arnt cut off and a save where your at button
+
+==== FULL USER L220 ====
+try again with entering the game it is cutting off the bottom part to start the game
+
+==== FULL USER L236 ====
+okay better keep it like this but id like to add a layout adjustment to setting and have the city name pop up on top of the boss bar. then we can think about how to publish this to the play store to buy when its perfect
+
+==== FULL USER L250 ====
+im ready how can i play free after it goes to the play store? can we make a auto update feture and/or do we have it upload the tester release to github and the paid one to google play?
+
+==== FULL USER L358 ====
+one thing we should take out is entering city name in the middle of the screen it pops up alot and is in the way. the newer one on the bottom we just added is okay
+
+==== FULL USER L375 ====
+i see the update in the game takes me to the github page causing it to(if i did) update it outside of google. if thats a fix we should do that now then do the next things after that fix
+
+==== FULL USER L542 ====
+i have a few updates ideas when we role out and get the test community set (they want to see 2 or so updates during that time anyways)... so one is look moving helth bars up to under the notification bar is on android devices to if the bar is still visible while in game like mine nothings in the way but more room to see the screen, same with moving the bar on top with kills moving it down a bit just to get it out of the over lap i have with my phones notification bar, moving the skill menu up a bit too, or we just add those to the adjustments and sizing(also wiuld like every button moveable to fire not just the clump) and a style to chang them to for more custimization. a second one would be companions like a robot dog and a robot and human give them skills like the one for the playable charactor and up to 3 companions, updating the boss to look like a more detaild ork zombie with wolf like claws that when they slash you(hit you) you go flying with more damage. maybe a armor bar that can get weaken with damage. a path way like how warcraft1/2/3  have to where you can build your robots build diferent types of armer and build better wepons and have a clan spot to where you can have a host and 2 to 5 people to play with but id want them to be people i know or something like that so i can play with others, idk how that would work a room with a password or open game for others. and a finle thing watching copyright is having zombie fuse together to make a stronger buffer zombie and having skeletins come out of the ground where they where when they got killed, insted of purple balls for badguy atacks more of a fire ball that makes the fireball noise like from mario/warcraft. the safe zone thing that blocks the zombies out could be a upgradable fence later. from warcraft2 i likes the 1 eyed double headed ork with the club a lot, if there was a way to get that styal look without copyright problems. theres more later like building a city behind the fences a buildable city and more on top of the game pretty much as is but adding tweaking and improving those things. dont know if we should do a plan with pictures and you render drawings for me to chose from. but do we wait or start making some changes now and not upload it yet?
+
+==== FULL USER L547 ====
+add vibration feedback with atacks if possible
+
+==== FULL USER L580 ====
+okay so while we wait a few more updates to add. assention should make it so you can doule weel 2 weppons and a upgrade to that would be aether points. later waves badguys can assend/carry armor/change wepons. the camra angle is great but maybe a slight camera angle curved down a bit like dropping the view 10%(not fallowing direction) or 5% just to see slightly ahead more. with upgrading the force fieald we should add a turret like borderlands 2 commando with upgrades. the weppons i want is the ray gun from cod zombies and the needler from halo both with same style of kill look and action, e.g. ray gun blasts the zombies back and the needler sticks its needles and does bursts like halo and explods but not always kill like it. weppon choices like the one we have now, the needler and raygun(sticker gun and GUUHSHER gun). can you make all updates from before(the plan we have) to this one now to test under a diferent name/package name ill drop it in google drive  test it and save the role outs indevidually for the apk in order we have now with apk getting a few updates at a time. one thing i forgot too is saves keep them as is but make dieing check point saves so when we make prosess it dont start back to 1st round and lose all progress/upgrades and things to make/story. this possible and open foldr when done?
+
+==== FULL USER L583 ====
+ABC and 123 hybrid add that to build v2.8
+
+==== FULL USER L609 ====
+so the bad guy boss looks kinda like sloppy look on v2.8 so maybe we can have a plan to pick the heads eyes arms mouth texturs legs arms? and things to draw up on chat or something so it looks better is that possible? like a monster maker or a site we can look at free i can copy and past send you the img?
+
+==== FULL USER L625 ====
+no it still looks like trash clumped slop
+
+==== FULL USER L639 ====
+okay keep that, but lets try to use those 5 images and you past one here in chat using the most detailed one i sent (the warcraft one) use that for its details it looks blocky that you made a a bit sloppy but getting better so lets see if you can make a T posed monster like before in the other image but see if you can make it flow better with limbs and neck and legs less like shapes
+
+==== FULL USER L651 ====
+[Image]
+[Image]
+[Image]
+yes thats it! does it articulate and step like walking? now lets change the trees and rocks to that version
+
+==== FULL USER L658 ====
+go before i test it, lets add a true game sound engine sub menu in the menu
+
+==== FULL USER L666 ====
+okay for that its very good much improved! on same update lets have aether used to buy helth and revive the squad. they are dieing fast the dog dies alot right away, the build airea should have a increase steps to sheild or to have them double in size when placed next to eachother with a stronger defence to break them. the boss when it keeps getting atacked it moves back id like that to be less still move back but having to do more damage to move him. my understanding is theres no end right witch is good! alot more texture polshing(same game but more details. a guy that opens a rift for multiple players to join your map with revive (create a room have a pass key to join the room/make a room with other players)
+
+==== FULL USER L671 ====
+do you suggest any improvments its very good other then maybe making a small map adjustable but screen seems over loaded any way we can wrap the health bar/aether bar with the map for more room and other improvments, but we need all the current things we have details. the beam should start very thin less damage to the max more steps, the big badguy boss looks good and so dose asention but is it to close to copyright or we okay?
+
+==== FULL USER L674 ====
+also need a ASO Report
+A detailed audit of your Play Store listing, including optimized descriptions you can use to rank higher in the Play Store once your app is released.
+
+==== FULL USER L680 ====
+[Image]
+[Image]
+from here not console
+
+==== FULL USER L684 ====
+2 thing the revive the squad(gone now?) and add revive in multiplayer
+
+==== FULL USER L688 ====
+okay almost perfect. lets wait on code i want to see if you can make a remembering thing for this chat on bugs things added and things removed etc. i first before we do any coding or writing that code for remembering for the betas and things, i want to see if you can see what got wrote back in by accident and whats missing and what we changed, fully read all of my chats and yours (skip the bosses look and how it plays we will cover that touchup if need to) but more focus on what you missed mostly and one bug ive been getting but youll probably not be able to find it from my phone(oneplus 9 pro rooted running android 16 evulution x11.6.2 rom) because it could just be my rom bugging out. but if that makes sence? think hard

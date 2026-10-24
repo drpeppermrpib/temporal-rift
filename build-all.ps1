@@ -71,15 +71,53 @@ function Assert-Channel([string]$artifact, [string]$entryPath, [string]$channel)
     } finally { $zip.Dispose() }
 }
 
+function Copy-PlayReleaseArtifacts([string]$ver) {
+    $mappingSrc = "$root\android\app\build\outputs\mapping\release\mapping.txt"
+    $symbolsSrc = "$root\android\app\build\outputs\native-debug-symbols\release\native-debug-symbols.zip"
+    $mappingDst = "mapping-$ver.txt"
+    $symbolsDst = "native-debug-symbols-$ver.zip"
+
+    foreach ($dir in @("$root\playstore", "$root\rollouts")) {
+        New-Item -ItemType Directory -Force $dir | Out-Null
+    }
+
+    if (Test-Path $mappingSrc) {
+        Copy-Item $mappingSrc "$root\playstore\$mappingDst" -Force
+        Copy-Item $mappingSrc "$root\rollouts\$mappingDst" -Force
+        Write-Host "-- Play mapping: playstore\$mappingDst + rollouts\$mappingDst"
+    } else {
+        Write-Warning "mapping.txt not found at $mappingSrc (R8 minify may be off or build incomplete)"
+    }
+
+    if (Test-Path $symbolsSrc) {
+        Copy-Item $symbolsSrc "$root\playstore\$symbolsDst" -Force
+        Copy-Item $symbolsSrc "$root\rollouts\$symbolsDst" -Force
+        Write-Host "-- Native symbols: playstore\$symbolsDst + rollouts\$symbolsDst"
+    } else {
+        Write-Warning "native-debug-symbols.zip not found at $symbolsSrc"
+    }
+
+    $desktop = Join-Path $env:USERPROFILE "Desktop"
+    if (Test-Path $desktop) {
+        Copy-Item "$root\playstore\TemporalRift-$ver.aab" "$desktop\TemporalRift-$ver.aab" -Force
+        Copy-Item "$root\playstore\TemporalRift-$ver-release.apk" "$desktop\TemporalRift-$ver-release.apk" -Force -ErrorAction SilentlyContinue
+        if (Test-Path "$root\playstore\$mappingDst") { Copy-Item "$root\playstore\$mappingDst" "$desktop\$mappingDst" -Force }
+        if (Test-Path "$root\playstore\$symbolsDst") { Copy-Item "$root\playstore\$symbolsDst" "$desktop\$symbolsDst" -Force }
+        Write-Host "-- Desktop copies: TemporalRift-$ver.aab (+ mapping/symbols if present)"
+    }
+}
+
 # ---------------------------------------------------------------- Play build
 Set-Channel 'play'
 Push-Location $root; try { npx cap sync android; if ($LASTEXITCODE -ne 0) { throw 'cap sync failed' } } finally { Pop-Location }
 Invoke-Gradle @('bundleRelease', 'assembleRelease')
-New-Item -ItemType Directory -Force "$root\playstore" | Out-Null
+New-Item -ItemType Directory -Force "$root\playstore", "$root\rollouts" | Out-Null
 Copy-Item "$root\android\app\build\outputs\bundle\release\app-release.aab" "$root\playstore\TemporalRift-$ver.aab" -Force
 Copy-Item "$root\android\app\build\outputs\apk\release\app-release.apk"    "$root\playstore\TemporalRift-$ver-release.apk" -Force
+Copy-Item "$root\playstore\TemporalRift-$ver.aab" "$root\rollouts\TemporalRift-$ver.aab" -Force
 Assert-Channel "$root\playstore\TemporalRift-$ver.aab"        'base/assets/public/index.html' 'play'
 Assert-Channel "$root\playstore\TemporalRift-$ver-release.apk" 'assets/public/index.html'     'play'
+Copy-PlayReleaseArtifacts $ver
 
 # -------------------------------------------------------------- GitHub build
 # Runs last so www\ + android assets end up back on the default github channel.
@@ -91,4 +129,5 @@ Assert-Channel "$root\TemporalRift.apk" 'assets/public/index.html' 'github'
 
 Write-Host "`n== DONE v$ver =="
 Write-Host "  Play:   playstore\TemporalRift-$ver.aab + TemporalRift-$ver-release.apk (channel=play, no update banner)"
+Write-Host "          rollouts\TemporalRift-$ver.aab + mapping-$ver.txt + native-debug-symbols-$ver.zip (when R8/NDK outputs exist)"
 Write-Host "  GitHub: TemporalRift.apk (channel=github, update banner active)"

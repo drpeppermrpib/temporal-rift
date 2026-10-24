@@ -1,21 +1,35 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Temporal Rift — release R8 rules (Capacitor WebView shell + Play mapping upload)
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Capacitor v3 plugins and annotations
+-keep @com.getcapacitor.annotation.CapacitorPlugin public class * {
+    @com.getcapacitor.annotation.PermissionCallback <methods>;
+    @com.getcapacitor.annotation.ActivityCallback <methods>;
+    @com.getcapacitor.annotation.Permission <methods>;
+    @com.getcapacitor.PluginMethod public <methods>;
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keep public class * extends com.getcapacitor.Plugin { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Capacitor v2 plugins (deprecated but still supported)
+-keep @com.getcapacitor.NativePlugin public class * {
+    @com.getcapacitor.PluginMethod public <methods>;
+}
+
+# Cordova compatibility layer
+-keep public class * extends org.apache.cordova.* {
+    public <methods>;
+    public <fields>;
+}
+
+# App entry + Capacitor bridge
+-keep public class com.drpep.temporalrift.MainActivity { *; }
+-keep public class * extends com.getcapacitor.BridgeActivity { *; }
+
+# WebView JavaScript interfaces (if any plugins add them)
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Readable stack traces + mapping.txt usefulness for Play Console
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

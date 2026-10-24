@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temporal Rift — Ashen Rift Bike preview v3 (8.3)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: #0d1218; color: #c8d4dc; font: 14px/1.45 system-ui, Segoe UI, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 4px; color: #e8eef4; }
+  .sub { color: #7a8a96; margin-bottom: 14px; font-size: 13px; }
+  .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  canvas { border: 1px solid #2a3540; border-radius: 8px; background: #121820; max-width: 100%; }
+  .panel { flex: 1 1 280px; max-width: 360px; background: #151c24; border: 1px solid #2a3540; border-radius: 8px; padding: 12px 14px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #8a9aa8; margin: 0 0 8px; }
+  .swatch { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+  .dot { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #0006; }
+  label { display: block; margin: 10px 0 4px; font-size: 12px; color: #8a9aa8; }
+  input[type=range] { width: 100%; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  button { background: #243040; color: #dce8f0; border: 1px solid #3a4a58; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+  button.active { background: #e07040; color: #1a1008; border-color: #ff9a60; }
+  .concept { flex: 1 1 420px; max-width: 640px; background: #151c24; border: 1px solid #2a3540; border-radius: 8px; padding: 10px; text-align: center; }
+  .concept img { max-width: 100%; border-radius: 6px; }
+  .concept p { font-size: 12px; color: #7a9aa6; margin: 8px 0 0; }
+  .mesh { font-size: 12px; color: #8a9aa8; margin: 6px 0 0; line-height: 1.5; }
+</style>
+</head>
+<body>
+<h1>Ashen Rift Bike — look v3 (meshed realism)</h1>
+<p class="sub">Photo refs meshed like Burstweaver · faint whole-bike glow · smoother ride bounce (no side wobble).</p>
+<div class="row">
+  <div>
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="btns">
+      <button id="bRide" class="active">Riding</button>
+      <button id="bPark">Parked</button>
+      <button id="bWreck">Trailhead wreck</button>
+      <button id="bScale">Scale vs player</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Mesh traits (Fable5 style)</h2>
+    <p class="mesh">① KTM/KX motocross proportions · ② trellis frame + gold forks · ③ bone ribs = tank/frame · ④ terminator spine rail · ⑤ faint aura on whole silhouette · ⑥ rider B on sheet.</p>
+    <h2>Glow</h2>
+    <div class="swatch"><span class="dot" style="background:#e8dcff"></span> Full-bike aura (#e8dcff faint)</div>
+    <div class="swatch"><span class="dot" style="background:#ffd8b0"></span> Bone edge ember</div>
+    <label>Facing</label>
+    <input id="face" type="range" min="-1" max="1" step="2" value="1">
+  </div>
+  <div class="concept">
+    <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#8a9aa8;margin:0 0 8px">Sprite concept v3</h2>
+    <img src="assets/vehicles/dirtbike/ashen-rift-bike-concept-v3.png" alt="v3" onerror="this.src='assets/vehicles/dirtbike/ashen-rift-bike-concept-v2.png'">
+    <p>Meshed photo refs — idle · ride · wreck smoke.</p>
+  </div>
+</div>
+<script>
+const TAU = Math.PI * 2;
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+let mode = 'ride', animT = 0, ridePhase = 0.35;
+
+const COL = {
+  grass: '#1a2a1c', grass2: '#223022', path: '#2a2820',
+  frame: '#3a3e48', frameD: '#252830', metal: '#6a7078', metalHi: '#9aa4ae',
+  fork: '#c8a860', forkHi: '#e8d090',
+  panel: '#343840', bone: '#e4e0d8', boneD: '#b8b4ac',
+  ember: '#ffd8b0', aura: '#e8dcff', auraCore: '#f4eeff',
+  tire: '#141418', tireK: '#2a2a32', hub: '#4a4e56',
+  armor: '#32343c', visor: '#ffb878', visorCore: '#ffe8c8',
+  smoke: 'rgba(198,208,218,', shadow: 'rgba(0,0,0,0.52)',
+  playerCloth: '#4a7ab8', playerSkin: '#e8c8a8', playerLeg: '#20242e'
+};
+
+function drawGrass() {
+  ctx.fillStyle = COL.grass;
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.fillStyle = COL.grass2;
+  for (let y = 0; y < c.height; y += 24)
+    for (let x = (y % 48 ? 12 : 0); x < c.width; x += 24) ctx.fillRect(x, y, 2, 2);
+  ctx.fillStyle = COL.path;
+  ctx.beginPath(); ctx.ellipse(360, 300, 90, 42, 0, 0, TAU); ctx.fill();
+}
+
+function drawWholeBikeAura(cx, cy, s, pulse, wreck) {
+  if (wreck) return;
+  const r = 38 * s + pulse * 3 * s;
+  const g = ctx.createRadialGradient(cx, cy - 10 * s, 4 * s, cx, cy - 8 * s, r);
+  const a = 0.14 + pulse * 0.06;
+  g.addColorStop(0, COL.auraCore + '00');
+  g.addColorStop(0.45, COL.aura + Math.floor(a * 255).toString(16).padStart(2, '0'));
+  g.addColorStop(0.75, COL.aura + '18');
+  g.addColorStop(1, COL.aura + '00');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(cx, cy - 8 * s, r * 0.92, r * 0.55, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = COL.aura + '28';
+  ctx.lineWidth = 1.2 * s;
+  ctx.beginPath(); ctx.ellipse(cx, cy - 8 * s, r * 0.78, r * 0.42, 0, 0, TAU); ctx.stroke();
+}
+
+function drawKnobbyWheel(wx, wy, s, broken, phase) {
+  const rX = 11.5 * s, rY = 8 * s;
+  if (broken) {
+    ctx.strokeStyle = COL.tireK; ctx.lineWidth = 2.8 * s;
+    ctx.beginPath(); ctx.arc(wx, wy, rX, 0.35, TAU - 0.35); ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = COL.tire;
+  ctx.beginPath(); ctx.ellipse(wx, wy, rX, rY, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = COL.tireK; ctx.lineWidth = 1.1 * s;
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * TAU + phase;
+    ctx.beginPath();
+    ctx.moveTo(wx + Math.cos(a) * (rX - 2.5 * s), wy + Math.sin(a) * (rY - 1.5 * s));
+    ctx.lineTo(wx + Math.cos(a) * rX, wy + Math.sin(a) * rY);
+    ctx.stroke();
+  }
+  ctx.fillStyle = COL.hub;
+  ctx.beginPath(); ctx.ellipse(wx, wy, 3.2 * s, 2.4 * s, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = COL.boneD; ctx.lineWidth = 1.3 * s;
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * TAU;
+    ctx.beginPath();
+    ctx.moveTo(wx + Math.cos(a) * 1.2 * s, wy + Math.sin(a) * 0.9 * s);
+    ctx.lineTo(wx + Math.cos(a) * 2.8 * s, wy + Math.sin(a) * 2 * s);
+    ctx.stroke();
+  }
+  ctx.fillStyle = COL.metal;
+  ctx.beginPath(); ctx.ellipse(wx + rX * 0.55, wy, 2.2 * s, 1.6 * s, 0, 0, TAU); ctx.fill();
+}
+
+function drawBoneTank(cx, cy, w, h, s) {
+  ctx.fillStyle = COL.bone;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, w, h, -0.08, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = COL.boneD; ctx.lineWidth = 1.2 * s;
+  for (let i = -3; i <= 3; i++) {
+    const t = i / 3;
+    ctx.beginPath();
+    ctx.moveTo(cx + t * w * 0.25, cy - h * 0.95);
+    ctx.quadraticCurveTo(cx + t * w * 0.85, cy, cx + t * w * 0.3, cy + h * 0.55);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = COL.ember + 'aa';
+  ctx.lineWidth = 0.9 * s;
+  ctx.beginPath();
+  ctx.moveTo(cx - w * 0.6, cy - h * 0.2);
+  ctx.lineTo(cx + w * 0.55, cy + h * 0.1);
+  ctx.stroke();
+}
+
+function drawTrellisFrame(rx, fx, s) {
+  ctx.strokeStyle = COL.frame; ctx.lineWidth = 2.2 * s; ctx.lineCap = 'round';
+  const paths = [
+    [rx + 4 * s, 2 * s, -4 * s, -14 * s, fx - 6 * s, -6 * s],
+    [rx + 6 * s, 0, 0, -12 * s, fx - 4 * s, -2 * s],
+    [rx + 3 * s, 3 * s, -2 * s, -6 * s, fx - 2 * s, 2 * s],
+    [rx + 8 * s, 1 * s, -6 * s, -8 * s, fx - 8 * s, 0]
+  ];
+  for (const p of paths) {
+    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[2], p[3]); ctx.lineTo(p[4], p[5]); ctx.stroke();
+  }
+}
+
+function drawSpineRail(rx, fx, s) {
+  ctx.strokeStyle = COL.bone; ctx.lineWidth = 2.4 * s;
+  ctx.beginPath();
+  ctx.moveTo(rx + 2 * s, -4 * s);
+  for (let i = 1; i <= 6; i++) {
+    const t = i / 6;
+    const x = rx + (fx - rx) * t;
+    const y = -10 * s - Math.sin(t * Math.PI) * 3 * s;
+    ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  for (let i = 1; i < 6; i++) {
+    const t = i / 6;
+    const x = rx + (fx - rx) * t;
+    const y = -10 * s - Math.sin(t * Math.PI) * 3 * s;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - 4 * s);
+    ctx.stroke();
+  }
+}
+
+function drawForks(fx, s) {
+  ctx.strokeStyle = COL.fork; ctx.lineWidth = 2.8 * s; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(fx - 2 * s, 2 * s); ctx.lineTo(fx - 1 * s, -16 * s);
+  ctx.moveTo(fx + 2 * s, 2 * s); ctx.lineTo(fx + 3 * s, -16 * s);
+  ctx.stroke();
+  ctx.strokeStyle = COL.forkHi; ctx.lineWidth = 1.2 * s;
+  ctx.beginPath();
+  ctx.moveTo(fx - 1 * s, -4 * s); ctx.lineTo(fx - 1 * s, -14 * s);
+  ctx.moveTo(fx + 3 * s, -4 * s); ctx.lineTo(fx + 3 * s, -14 * s);
+  ctx.stroke();
+  ctx.fillStyle = COL.panel;
+  ctx.beginPath();
+  ctx.moveTo(fx - 8 * s, -18 * s);
+  ctx.quadraticCurveTo(fx, -22 * s, fx + 8 * s, -16 * s);
+  ctx.lineTo(fx + 4 * s, -8 * s);
+  ctx.lineTo(fx - 6 * s, -10 * s);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawEngine(cx, cy, s) {
+  ctx.fillStyle = COL.frameD;
+  ctx.fillRect(cx - 5 * s, cy - 4 * s, 10 * s, 7 * s);
+  ctx.fillStyle = COL.metal;
+  ctx.fillRect(cx - 3 * s, cy - 2 * s, 6 * s, 4 * s);
+  ctx.strokeStyle = COL.metalHi; ctx.lineWidth = 1 * s;
+  ctx.beginPath(); ctx.arc(cx, cy, 3 * s, 0, TAU); ctx.stroke();
+}
+
+function drawExhaust(rx, s) {
+  ctx.strokeStyle = COL.metal; ctx.lineWidth = 2.6 * s; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(rx + 4 * s, 0);
+  ctx.quadraticCurveTo(rx - 6 * s, -6 * s, rx - 14 * s, -12 * s);
+  ctx.stroke();
+  ctx.fillStyle = COL.metalHi;
+  ctx.beginPath(); ctx.ellipse(rx - 14 * s, -12 * s, 3 * s, 2 * s, 0, 0, TAU); ctx.fill();
+}
+
+function drawSeat(rx, fx, s) {
+  ctx.fillStyle = '#1a1c22';
+  ctx.beginPath();
+  ctx.moveTo(rx - 4 * s, -8 * s);
+  ctx.quadraticCurveTo(-2 * s, -12 * s, fx - 10 * s, -10 * s);
+  ctx.lineTo(fx - 8 * s, -7 * s);
+  ctx.lineTo(rx - 2 * s, -6 * s);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawSwingarm(rx, s) {
+  ctx.strokeStyle = COL.frame; ctx.lineWidth = 2.4 * s;
+  ctx.beginPath();
+  ctx.moveTo(-4 * s, -2 * s); ctx.lineTo(rx + 2 * s, 1 * s); ctx.stroke();
+  ctx.fillStyle = COL.metal;
+  ctx.beginPath(); ctx.ellipse(-6 * s, -4 * s, 2.5 * s, 2 * s, 0, 0, TAU); ctx.fill();
+}
+
+function drawSkullFairing(fx, s) {
+  ctx.fillStyle = COL.bone;
+  ctx.beginPath();
+  ctx.ellipse(fx - 2 * s, -12 * s, 4 * s, 3.2 * s, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#1a1a1e';
+  ctx.beginPath(); ctx.ellipse(fx - 1 * s, -12.5 * s, 1.8 * s, 1.2 * s, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#2a2a30';
+  ctx.beginPath(); ctx.arc(fx - 2.2 * s, -13 * s, 0.55 * s, 0, TAU);
+  ctx.arc(fx - 0.2 * s, -13 * s, 0.55 * s, 0, TAU); ctx.fill();
+}
+
+function drawArmoredRider(fx, s) {
+  ctx.save();
+  ctx.translate(-2 * s, -7 * s);
+  ctx.rotate(-0.1);
+  ctx.fillStyle = COL.armor;
+  ctx.beginPath(); ctx.ellipse(0, -15 * s, 5 * s, 6.5 * s, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#24262e';
+  ctx.beginPath(); ctx.arc(0.5 * s, -23 * s, 4.8 * s, 0, TAU); ctx.fill();
+  const vg = ctx.createRadialGradient(0, -23 * s, 0, 0, -23 * s, 5 * s);
+  vg.addColorStop(0, COL.visorCore); vg.addColorStop(0.6, COL.visor); vg.addColorStop(1, COL.visor + '00');
+  ctx.fillStyle = vg;
+  ctx.fillRect(-3.5 * s, -25 * s, 7 * s, 3 * s);
+  ctx.strokeStyle = COL.armor; ctx.lineWidth = 3.2 * s;
+  ctx.beginPath(); ctx.moveTo(0, -9 * s); ctx.lineTo(0, -19 * s); ctx.stroke();
+  ctx.strokeStyle = COL.frame; ctx.lineWidth = 2 * s;
+  ctx.beginPath(); ctx.moveTo(0, -17 * s); ctx.lineTo(fx - 4 * s, -12 * s); ctx.stroke();
+  ctx.restore();
+}
+
+function drawSpiralSmoke(sx, sy, time, s) {
+  ctx.save(); ctx.translate(sx, sy);
+  for (let layer = 0; layer < 3; layer++) {
+    const phase = time * 0.75 + layer * 0.65;
+    ctx.beginPath();
+    for (let i = 0; i <= 40; i++) {
+      const u = i / 40;
+      const ang = u * 2.2 * TAU + phase;
+      const rad = (5 + u * 24) * s * (1 + layer * 0.12);
+      const px = Math.cos(ang) * rad * 0.5;
+      const py = -u * 38 * s - Math.sin(ang) * rad * 0.2;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = COL.smoke + (0.2 - layer * 0.04) + ')';
+    ctx.lineWidth = (3 - layer * 0.5) * s; ctx.lineCap = 'round'; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawDustTrail(bx, by, facing, phase, s) {
+  ctx.fillStyle = 'rgba(180,160,130,';
+  for (let i = 0; i < 5; i++) {
+    const u = (i + phase * 0.3) % 5;
+    const dx = -28 * s - u * 14 * s;
+    const dy = 4 * s + Math.sin(phase + i) * 2 * s;
+    const alpha = 0.22 - u * 0.035;
+    ctx.beginPath();
+    ctx.ellipse(bx + dx * facing, by + dy, (8 - u) * s, (3 - u * 0.4) * s, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(180,160,130,' + alpha + ')';
+    ctx.fill();
+  }
+}
+
+function drawRiftBike(x, y, facing, opts) {
+  const o = opts || {};
+  const wreck = !!o.wreck, parked = !!o.parked, mounted = !!o.mounted;
+  const phase = o.phase || 0, smokeT = o.smokeT || 0, s = o.s || 1;
+  const L = 30 * s;
+  const pulse = 0.5 + 0.5 * Math.sin(animT * 1.8);
+  const susp = parked ? 0 : Math.sin(phase * 2) * 0.45 * s;
+  const lean = wreck ? 0.58 : (parked ? 0 : -0.05);
+
+  ctx.save();
+  ctx.translate(x, y);
+  if (wreck) ctx.rotate(0.92 * facing);
+
+  drawWholeBikeAura(0, 0, s, pulse, wreck);
+  if (wreck) drawSpiralSmoke(6 * s, -16 * s, smokeT, s);
+
+  ctx.fillStyle = COL.shadow;
+  ctx.beginPath(); ctx.ellipse(0, 2, (wreck ? 28 : 24) * s, 8 * s, 0, 0, TAU); ctx.fill();
+
+  ctx.scale(facing, 1);
+  ctx.translate(0, -susp);
+  ctx.rotate(lean);
+
+  const fx = L, rx = -L;
+  drawSwingarm(rx, s);
+  drawKnobbyWheel(rx, 0, s, false, phase);
+  drawKnobbyWheel(fx, 0, s, wreck && facing > 0, phase + 0.5);
+  drawTrellisFrame(rx, fx, s);
+  drawSpineRail(rx, fx, s);
+  drawEngine(-2 * s, 0, s);
+  drawBoneTank(-3 * s, -9 * s, 11 * s, 5.5 * s, s);
+  drawSeat(rx, fx, s);
+  drawForks(fx, s);
+  drawSkullFairing(fx, s);
+  drawExhaust(rx, s);
+
+  if (wreck) {
+    ctx.strokeStyle = '#a06040'; ctx.lineWidth = 1.4 * s;
+    ctx.beginPath(); ctx.moveTo(-2 * s, 0); ctx.lineTo(12 * s, 6 * s); ctx.stroke();
+  }
+
+  if (mounted && !wreck) drawArmoredRider(fx, s);
+
+  ctx.restore();
+}
+
+function drawPlayerFoot(x, y, facing) {
+  const H = 36;
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = COL.shadow;
+  ctx.beginPath(); ctx.ellipse(0, 0, 12, 5.2, 0, 0, TAU); ctx.fill();
+  ctx.scale(facing, 1);
+  const hipY = -H * 0.42, headY = -H * 0.88;
+  ctx.strokeStyle = COL.playerLeg; ctx.lineWidth = 3.4;
+  ctx.beginPath();
+  ctx.moveTo(-1.5, hipY); ctx.lineTo(-2, hipY * 0.45); ctx.lineTo(-2, -1);
+  ctx.moveTo(1.5, hipY); ctx.lineTo(2, hipY * 0.45); ctx.lineTo(2, -1);
+  ctx.stroke();
+  ctx.strokeStyle = COL.playerCloth; ctx.lineWidth = 7.5;
+  ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(0, -H * 0.72); ctx.stroke();
+  ctx.fillStyle = COL.playerSkin;
+  ctx.beginPath(); ctx.arc(0, headY, 5.6, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+function render() {
+  drawGrass();
+  const facing = Number(document.getElementById('face').value) || 1;
+
+  ctx.fillStyle = '#8a9aa8'; ctx.font = '12px system-ui';
+  ctx.fillText('Meshed motocross realism + bone frame — v3', 16, 22);
+
+  if (mode === 'scale') {
+    drawPlayerFoot(200, 280, 1);
+    ctx.fillStyle = '#8a9aa8'; ctx.fillText('Player (H=36)', 170, 320);
+    drawRiftBike(360, 276, 1, { parked: true, phase: ridePhase });
+    ctx.fillText('Parked', 340, 320);
+    drawRiftBike(520, 276, -1, { mounted: true, phase: ridePhase });
+    ctx.fillText('Mounted', 490, 320);
+    return;
+  }
+  if (mode === 'wreck') {
+    drawRiftBike(360, 296, 1, { wreck: true, smokeT: animT });
+    ctx.fillStyle = '#ffb878'; ctx.font = 'bold 13px system-ui';
+    ctx.fillText('WRECK — spiral smoke · repair at trailhead', 220, 382);
+    return;
+  }
+
+  const parked = mode === 'park';
+  const bx = 360, by = 256;
+  if (!parked) drawDustTrail(bx, by + 8, facing, ridePhase, 1);
+  drawRiftBike(bx, by, facing, { mounted: !parked, parked, phase: ridePhase });
+
+  ctx.fillStyle = '#c8d4dc'; ctx.font = '13px system-ui';
+  ctx.fillText(parked ? 'Parked — dismount to fight' : 'Riding — smooth suspension (no side wobble)', 210, 400);
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('bRide').classList.toggle('active', m === 'ride');
+  document.getElementById('bPark').classList.toggle('active', m === 'park');
+  document.getElementById('bWreck').classList.toggle('active', m === 'wreck');
+  document.getElementById('bScale').classList.toggle('active', m === 'scale');
+  render();
+}
+
+document.getElementById('bRide').onclick = () => setMode('ride');
+document.getElementById('bPark').onclick = () => setMode('park');
+document.getElementById('bWreck').onclick = () => setMode('wreck');
+document.getElementById('bScale').onclick = () => setMode('scale');
+document.getElementById('face').oninput = render;
+
+function loop() {
+  animT += 0.028;
+  if (mode === 'ride' || mode === 'scale') ridePhase += 0.055;
+  render();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+﻿Temporal Rift — Muster militia art refs (inspiration only; not final assets)
+Matched to procedural look: s=0.78, skin #c8b090, spear cloth #5a6878, bow cloth #6a7a58, legs #3a4038; spear vs bow; NO pauldrons/plate (contrast Ashen Sentinel).
+
+Sources (public domain / CC where noted):
+- light-spearman-fresco-insp.jpg — Commons: A_Spearman.jpg (12th-c fresco, light spear + shield, cloth)
+- quilted-spearmen-galloglass-insp.jpg — Commons/Archive: Galloglass-circa-1521.jpg (Dürer; quilted coats, spears, no plate)
+- levy-militia-peasants-insp.jpg — Commons: German_Peasants_War.jpg (1525 levy polearms / cloth)
+- leather-archer-costume-insp.jpg — Commons: Paul Mercuri archer costume plate (hooded cloth archer)
+- hooded-levy-archers-luttrell-insp.jpg — Commons: Luttrell Psalter longbowmen (hooded cloth archers)
+- light-archers-housebook-insp.jpg — Commons/WGA: Master of the Housebook archers (light civilian dress + bows)
+- leather-archer-germanic-opengameart-insp.png — OpenGameArt Germanic Archer (CC-BY-SA/GPL — insp only)
+
+- light-infantry-commoners-holkham-insp.jpg — Commons/Archive: Holkham Bible f.40 (commoners = lighter kit vs armored peers)
+- light-spearman-pixel-oga-insp.png / leather-archer-pixel-oga-insp.png — OpenGameArt Basic Soldiers (template; light cloth units)

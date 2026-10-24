@@ -1,0 +1,6 @@
+<en-US>
+v4.5.0 – Controller update
+• Gamepad support (Bluetooth/USB): left stick moves, right stick aims, triggers fire and charge the Nova Beam. Menus, shop, skill tree and settings work with the D-pad.
+• Touch controls auto-hide while a controller is in use and come back when you touch the screen. New setting: Auto / Always show / Always hide.
+• Refreshed hero: new armor, ash cloak and scarf, detailed rifle, smoother walk, recoil, hurt and ascension animations.
+</en-US>
